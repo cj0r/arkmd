@@ -18,7 +18,7 @@ A file opens in reading mode. The round button at the bottom right switches betw
 
 ## Save
 
-When you change a file, a dot appears on its tab and a **Save** button appears in the top bar (Ctrl+S). **Save** writes over the original file. **More** > **Save as…** (Ctrl+Shift+S) writes a copy somewhere else. ArkMD doesn't autosave and keeps no backup copy, so keep your own backups of anything important. See [Files and saving](files-and-saving.md).
+When you change a file, a dot appears on its tab and a **Save** button appears in the top bar (Ctrl+S). **Save** writes over the original file. **More** > **Save as…** (Ctrl+Shift+S) writes a copy somewhere else. ArkMD doesn't autosave. It keeps earlier versions and a draft of unsaved work on the device, but that isn't a backup, so keep your own copies of anything important. See [Files and saving](files-and-saving.md).
 
 ## Make it yours
 

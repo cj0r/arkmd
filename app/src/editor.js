@@ -1,7 +1,7 @@
 // CodeMirror 6 Markdown editor, themed from shared/web/themes.json (same roles as the Android editor).
 import { EditorState, Compartment, RangeSetBuilder, Prec } from "@codemirror/state";
 import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, highlightActiveLine } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
@@ -149,6 +149,11 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
     /** Fresh editor state for a document (own undo history); used per tab. */
     newState(text) { return stateFor(text); },
     getState() { return view.state; },
+    undo() { undo(view); view.focus(); },
+    redo() { redo(view); view.focus(); },
+    /** Whether there is anything to undo or redo, for the toolbar buttons. */
+    canUndo: () => undoDepth(view.state) > 0,
+    canRedo: () => redoDepth(view.state) > 0,
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {
       view.setState(state);

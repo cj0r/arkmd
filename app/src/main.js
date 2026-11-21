@@ -9,6 +9,8 @@ import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS } from "./shortcuts.js";
+import { fileKey, formatWhen, formatSize, lineDelta, draftsToOffer, pushClosed } from "./history.js";
+import * as hdb from "./historydb.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,7 +42,7 @@ const cur = () => tabs.active;
 const mode = () => cur()?.mode ?? "home";
 
 const editor = createEditor($("editor"), {
-  onChange(text) { const t = cur(); if (t) setDirty(t, text !== t.saved); },
+  onChange(text) { const t = cur(); if (t) { setDirty(t, text !== t.saved); scheduleDraft(); } updateUndoButtons(); },
   extraKeys: [
     { key: "Mod-b", run: () => (format((t, s, e) => F.wrap(t, s, e, "**")), true) },
     { key: "Mod-i", run: () => (format((t, s, e) => F.wrap(t, s, e, "*")), true) },
@@ -134,6 +136,8 @@ function updateChrome() {
   platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ArkMD` : "ArkMD");
   $("btn-save").hidden = !(open && t.dirty);
   $("btn-format").hidden = mode() !== "edit";
+  for (const id of ["btn-undo", "btn-redo"]) $(id).hidden = mode() !== "edit";
+  updateUndoButtons();
   $("btn-format").classList.toggle("on", store.get("formatBar", true));
   $("btn-format").setAttribute("aria-pressed", String(store.get("formatBar", true)));
   $("home").hidden = open;
@@ -212,7 +216,8 @@ function show() {
 function openTab(props) {
   snapshot();
   const text = props.text ?? "";
-  tabs.add({ ...props, saved: text, state: editor.newState(text) });
+  const saved = props.saved ?? text;     // a recovered draft opens with its unsaved text and the text it was based on
+  tabs.add({ ...props, saved, dirty: text !== saved, draftKey: props.draftKey || newDraftKey(), state: editor.newState(text) });
   show();
 }
 
@@ -235,8 +240,134 @@ async function closeTab(id = cur()?.id) {
   if (!t) return;
   if (t.dirty && !(await platform.confirm(`"${t.name}" has unsaved changes. Discard them?`, "Unsaved changes"))) return;
   const wasActive = t === cur();
+  if (wasActive) snapshot();
+  if (t.ref || t.saved || t.dirty) closed = pushClosed(closed, { ref: t.ref, name: t.name, saved: t.saved, dirty: t.dirty, mode: t.mode, scroll: t.scroll, state: t.state, draftKey: t.draftKey });
+  hdb.deleteDraft(t.draftKey);
   tabs.close(id);
   if (wasActive) show(); else updateChrome();
+}
+
+// ------------------------------------------------------------------ undo, history and recovery
+let closed = [];                                   // recently closed tabs, kept for this session: "Reopen closed tab"
+const newDraftKey = () => (crypto.randomUUID ? crypto.randomUUID() : `d${Date.now()}${Math.random()}`);
+const historyOn = () => store.get("history", true);
+const recoverOn = () => store.get("recover", true);
+const withTimeout = (p, ms = 1500) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+
+function updateUndoButtons() {
+  if (mode() !== "edit") return;
+  $("btn-undo").disabled = !editor.canUndo();
+  $("btn-redo").disabled = !editor.canRedo();
+}
+
+function reopenClosed() {
+  const c = closed.pop();
+  if (!c) { toast("No closed tabs to reopen"); return; }
+  const open = tabs.findByRef(c.ref);
+  if (open) { activateTab(open.id); return; }
+  snapshot();
+  tabs.add({ ...c });
+  show();
+}
+
+let draftTimer = null;
+function scheduleDraft() {
+  if (!recoverOn()) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(flushDrafts, 2500);
+}
+/** Write a draft for every tab with unsaved changes (and drop the drafts of tabs that are clean). */
+function flushDrafts() {
+  clearTimeout(draftTimer);
+  if (!recoverOn()) return;
+  for (const t of tabs.all) {
+    if (t.dirty) { hdb.putDraft({ key: t.draftKey, ref: t.ref, name: t.name, text: textOf(t), saved: t.saved, t: Date.now() }); t.hasDraft = true; }
+    else if (t.hasDraft) { hdb.deleteDraft(t.draftKey); t.hasDraft = false; }
+  }
+}
+
+async function offerRecovery() {
+  const all = await hdb.allDrafts();
+  const drafts = draftsToOffer(all);
+  for (const d of all) if (!drafts.includes(d)) hdb.deleteDraft(d.key);
+  if (!drafts.length || !recoverOn()) return;
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Recover unsaved work?";
+  const p = document.createElement("p"); p.className = "about";
+  p.textContent = `ArkMD closed with unsaved changes in ${drafts.length === 1 ? "this file" : `these ${drafts.length} files`}. Restoring opens each with its unsaved text; saving writes it over the file.`;
+  const rows = drafts.map((x) => { const r = document.createElement("div"); r.className = "keyrow"; r.innerHTML = `<span class="what"></span><span class="keys"></span>`; r.querySelector(".what").textContent = x.name; r.querySelector(".keys").textContent = formatWhen(x.t, Date.now()); return r; });
+  const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
+  const restore = button(drafts.length === 1 ? "Restore" : "Restore all", () => {
+    closeDialog();
+    for (const x of drafts) openTab({ ref: x.ref, name: x.name, text: x.text, saved: x.saved, draftKey: x.key, mode: "edit" });
+    toast("Unsaved work restored");
+  });
+  const discard = button("Discard", async () => { closeDialog(); await hdb.clearDrafts(); });
+  d.className = "settings";
+  d.replaceChildren(h, p, ...rows, restore, discard);
+  $("dialog-backdrop").hidden = false;
+  restore.focus({ preventScroll: true });
+}
+
+/** The history dialog for the current file: earlier versions kept each time it was saved. */
+async function showHistory() {
+  const t = cur();
+  if (!t) return;
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  d.className = "settings";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = `History: ${t.name}`;
+  const msg = (text) => { const p = document.createElement("p"); p.className = "about"; p.textContent = text; return p; };
+  const close = document.createElement("button"); close.className = "opt done"; close.textContent = "Close"; close.onclick = closeDialog;
+  const nodes = [h];
+  let versions = [];
+  if (!t.ref) nodes.push(msg("This file hasn't been saved yet. Once it has, ArkMD keeps the earlier text each time you save."));
+  else if (!historyOn()) nodes.push(msg("File history is off. Turn it on in Settings."));
+  else {
+    versions = await hdb.versionsFor(fileKey(t.ref));
+    if (!versions.length) nodes.push(msg("No earlier versions yet. ArkMD keeps the previous text each time you save."));
+    else nodes.push(msg("Earlier versions of this file, kept on this device each time you saved. Choose one to preview it."));
+  }
+  for (const v of versions) {
+    const b = document.createElement("button"); b.className = "opt row";
+    b.innerHTML = `<span class="label"></span><span class="value"></span>`;
+    b.querySelector(".label").textContent = formatWhen(v.t, Date.now());
+    b.querySelector(".value").textContent = formatSize(v.size) + "  ›";
+    b.onclick = () => showVersion(t, v);
+    nodes.push(b);
+  }
+  nodes.push(close);
+  d.replaceChildren(...nodes);
+  $("dialog-backdrop").hidden = false;
+  d.querySelector(".opt")?.focus({ preventScroll: true });
+}
+
+async function showVersion(t, v) {
+  const rec = await hdb.getVersion(v.id);
+  if (!rec) { toast("That version is no longer available"); return showHistory(); }
+  const d = $("dialog");
+  d.className = "settings";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = formatWhen(v.t, Date.now());
+  const { added, removed } = lineDelta(rec.text, t === cur() ? editor.getText() : docText(t.state));
+  const p = document.createElement("p"); p.className = "about";
+  p.textContent = added || removed ? `Compared with the text now open: ${added} ${added === 1 ? "line differs" : "lines differ"} here, ${removed} in the open text.` : "The same as the text now open.";
+  const pre = document.createElement("pre"); pre.className = "preview"; pre.textContent = rec.text; pre.tabIndex = 0; pre.setAttribute("aria-label", "Version text");
+  const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
+  const restore = button("Restore into the editor", () => {
+    closeDialog();
+    if (t !== cur()) activateTab(t.id);
+    if (t.mode === "read") toggleMode();
+    editor.replaceAll(rec.text);
+    toast("Restored. Undo goes back; Save keeps it.");
+  });
+  const asTab = button("Open as a new tab", () => {
+    closeDialog();
+    openTab({ ref: null, name: t.name.replace(/\.[^.]*$/, "") + " (earlier version).md", text: rec.text, mode: "read" });
+  });
+  const back = button("Back to the list", showHistory);
+  d.replaceChildren(h, p, pre, restore, asTab, back);
+  restore.focus({ preventScroll: true });
 }
 
 /** Used when the whole window closes: one question covering every file with unsaved changes. */
@@ -288,11 +419,14 @@ async function save(as = false) {
       if (!r) return;
       t.ref = r.ref; t.name = r.name;
     } else {
+      // Keep the text being replaced as a version first; a history problem never blocks the save.
+      if (historyOn()) await withTimeout(hdb.addVersion(fileKey(t.ref), t.name, t.saved)).catch(() => {});
       await platform.writeFile(t.ref, text);
     }
     t.saved = text;
     t.dirty = textOf(t) !== text;            // typing may have continued while a dialog was open
     addRecent(t.ref, t.name);
+    if (!t.dirty) { hdb.deleteDraft(t.draftKey); t.hasDraft = false; }
     updateChrome();
     toast("Saved");
   } catch (e) {
@@ -525,6 +659,7 @@ function addMenu() {
   const entries = [[hint("New file", "Ctrl+N"), newFile], [hint("Open file…", "Ctrl+O"), openFile]];
   const rec = recents().slice(0, 8);
   if (rec.length) { entries.push(["Recent", null]); for (const r of rec) entries.push([r.name, () => openRef(r.ref, r.name)]); }
+  if (closed.length) entries.push([hint("Reopen closed tab", "Ctrl+Shift+T"), reopenClosed]);
   menu($("btn-add"), entries);
 }
 
@@ -665,6 +800,16 @@ function openSettings() {
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
 
+  section("History and recovery");
+  toggle("Keep file history", "Keeps the previous text each time you save, on this device only.", "history", true);
+  toggle("Recover unsaved work", "Saves a draft of unsaved changes every few seconds, so a crash doesn't lose them.", "recover", true,
+    (on) => { if (on) flushDrafts(); else hdb.clearDrafts(); });
+  row("Clear history and drafts", "", async () => {
+    if (await platform.confirm("Delete every saved version and unsaved-work draft kept by ArkMD? Your files aren't touched.", "Clear history")) {
+      await hdb.clearVersions(); await hdb.clearDrafts(); for (const t of tabs.all) t.hasDraft = false; toast("History cleared");
+    }
+  });
+
   if (platform.update) {
     section("Updates");
     if (pendingUpdate) row(`Update to ${pendingUpdate.version}`, "", showUpdate);
@@ -713,6 +858,7 @@ function moreMenu() {
   const entries = [];
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
+  if (open) entries.push(["File history…", showHistory]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
   entries.push([platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
   menu($("btn-more"), entries);
@@ -731,6 +877,10 @@ function wire() {
   $("home-open").onclick = openFile;
   $("home-new").onclick = newFile;
   $("btn-save").onclick = () => save();
+  $("btn-undo").onclick = () => editor.undo();
+  $("btn-redo").onclick = () => editor.redo();
+  addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushDrafts(); });
+  addEventListener("pagehide", flushDrafts);
   $("btn-theme").onclick = pickTheme;
   $("btn-more").onclick = moreMenu;
   $("btn-format").onclick = () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); };
@@ -749,7 +899,11 @@ function wire() {
   $("reader").addEventListener("load", onReaderLoad);
   if ($("reader").contentDocument?.readyState === "complete" && $("reader").contentWindow?.render) onReaderLoad();
 
-  platform.onCloseRequested(confirmQuit);
+  platform.onCloseRequested(async () => {
+    const ok = await confirmQuit();
+    if (ok) await withTimeout(hdb.clearDrafts());      // quitting on purpose: nothing to recover next time
+    return ok;
+  });
   // Android back button: close menus/dialogs, then the current tab; with no tabs, let the system handle it.
   platform.onBack(() => {
     if (!$("menu").hidden) { $("menu").hidden = true; return true; }
@@ -776,6 +930,7 @@ function onKey(e) {
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }
+  if (e.shiftKey && e.key.toLowerCase() === "t") { e.preventDefault(); reopenClosed(); return; }
   const act = { o: openFile, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
   if (act) { e.preventDefault(); act(); }
 }
@@ -813,6 +968,7 @@ async function init() {
   await openLaunch();
   platform.onLaunch(openLaunch);
   shownVersion = await platform.version();
+  offerRecovery();
   // The automatic check is off unless the user turned it on; it runs once a day, a few seconds after start.
   if (platform.update && shouldAutoCheck(store.get("autoUpdate", false), store.get("updateChecked", 0), Date.now())) {
     setTimeout(() => checkForUpdates(true), 4000);

@@ -3,7 +3,7 @@
 export const SHORTCUTS = [
   ["Files and tabs", [
     ["Ctrl+O", "Open a file"], ["Ctrl+N, Ctrl+T", "New file"], ["Ctrl+S", "Save"], ["Ctrl+Shift+S", "Save as"],
-    ["Ctrl+W", "Close the current tab"], ["Ctrl+Tab, Ctrl+Shift+Tab", "Next, previous tab"],
+    ["Ctrl+W", "Close the current tab"], ["Ctrl+Shift+T", "Reopen the last closed tab"], ["Ctrl+Tab, Ctrl+Shift+Tab", "Next, previous tab"],
   ]],
   ["View", [
     ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+,", "Settings"], ["F1", "This list"],
@@ -21,6 +21,6 @@ export const SHORTCUTS = [
     ["Ctrl+Shift+8", "Bulleted list"], ["Ctrl+Shift+7", "Numbered list"], ["Ctrl+Shift+9", "Task list"],
     ["Ctrl+Shift+Q", "Quote"], ["Ctrl+Shift+K", "Code block"],
     ["Enter", "Continue the list; on an empty item, end it"], ["Tab, Shift+Tab", "On a list item: nest, un-nest"],
-    ["Ctrl+Z, Ctrl+Shift+Z", "Undo, redo"],
+    ["Ctrl+Z, Ctrl+Shift+Z", "Undo, redo (also buttons in the top bar)"],
   ]],
 ];

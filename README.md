@@ -11,7 +11,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 ![ArkMD showing a Markdown document](docs/screenshots/reader-dark.png)
 
 > [!WARNING]
-> ArkMD **opens, edits and saves your Markdown files in place.** Saving overwrites the original: there is no autosave, backup copy or version history. Keep backups of anything you can't afford to lose, and read the [disclaimer](#disclaimer) before you rely on it.
+> ArkMD **opens, edits and saves your Markdown files in place.** Saving overwrites the original: there is no autosave, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose, and read the [disclaimer](#disclaimer) before you rely on it.
 
 ## Features
 
@@ -23,6 +23,8 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
 - **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
 - **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode and updates.
+- **Cloud files:** there is no built-in sign-in. On Android the system file picker lists apps such as Google Drive and OneDrive, and on Windows and Linux you open files from the sync folder of their desktop apps.
+- **History and recovery:** the previous text of a file is kept each time you save (More > File history…), unsaved work is restored after a crash, Undo and Redo are in the top bar, and Ctrl+Shift+T reopens a closed tab. Everything stays on the device.
 - **Updates:** Settings > Check for updates now installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
 - **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
 - **Small and private:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
@@ -94,8 +96,8 @@ design/              logo sources and a sheet of every theme's colors
 **ArkMD is provided "as is", without warranty of any kind, express or implied.** The [LICENSE](LICENSE) has the full legal text. In plain terms:
 
 - **You use it entirely at your own risk.** The author and contributors accept no responsibility or liability for lost, overwritten, truncated or corrupted files, lost unsaved changes, wrong rendering, exposed information, security incidents or any other damage from using or misusing it.
-- **It writes to your files.** Save overwrites the original file; there is no autosave, backup copy or history, and undo only covers what is open in ArkMD. Saving rewrites the whole file, so a crash, a full disk or a dropped connection to a synced or network folder during a save can leave it incomplete. Save as writes a copy instead. Keep independent backups of anything you can't afford to lose.
-- **Unsaved changes are lost** if you discard them, or if the app, your device or its power fails. Closing a tab or the window asks first; a crash does not.
+- **It writes to your files.** Save overwrites the original file; there is no autosave. ArkMD keeps recent earlier versions of a file on the device (file history, which you can switch off), but that is a convenience, not a backup: it can be cleared, it is lost with the app's data, and it doesn't cover a file changed outside ArkMD. Saving rewrites the whole file, so a crash, a full disk or a dropped connection to a synced or network folder during a save can leave it incomplete. Save as writes a copy instead. Keep independent backups of anything you can't afford to lose.
+- **Unsaved changes can be lost.** Closing a tab or the window asks first. ArkMD saves a draft of unsaved work every few seconds and offers to restore it after a crash, but a draft isn't a saved file, it can be missing if the device fails at the wrong moment, and discarding changes deletes it.
 - **ArkMD can change a file you only meant to open.** Files are read and saved as UTF-8, so a file in another encoding (such as Latin-1) can be damaged when saved, and a leading byte-order mark is dropped. A file that mixes line-ending styles is saved with one style. Check the result before you trust it with documents you can't recreate.
 - **Review documents before you trust them.** ArkMD turns raw HTML off and opens links in your system browser, but a link can lead somewhere you don't expect, and a document that points to an image on the web makes ArkMD load that image from its server, like any browser would.
 - **Install releases from this repository only,** and check the checksums. The Windows installers aren't code-signed, and on Android you allow installs from your browser or file manager yourself. Securing your device, and following the terms of the services and licenses of anything you open with it, is up to you.

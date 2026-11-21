@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.9.0 (2026-11-21)
+
+### Added
+- **File history.** The text a save replaces is kept as an earlier version, in ArkMD's own storage on the device. More > File history… previews a version and loads it into the editor (undoable) or opens it as a new tab. Versions from the last day are kept, older ones thinned to one a day, up to 30 per file and about 50 MB in total.
+- **Recovery of unsaved work.** A draft of unsaved changes is saved every few seconds; after a crash ArkMD offers to restore it.
+- **Undo and Redo buttons** in the top bar while editing, and **Ctrl+Shift+T** to reopen the last closed tab with its text and undo history.
+- Settings > History and recovery turns file history and recovery off and clears them.
+
 ## 0.8.0 (2026-11-21)
 
 ### Added
