@@ -1,0 +1,17 @@
+name: Feature request
+description: An idea for ArkMD
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like ArkMD to do
+      description: The problem you run into and what would help.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [All, Android, Linux, Windows]

@@ -1,0 +1,5 @@
+Meslo LG v1.2.1, Copyright 2009, 2010, 2013 André Berg.
+Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+Based on Menlo (Copyright 2009 Apple Inc.) and Bitstream Vera Sans Mono
+(Copyright 2003 Bitstream, Inc.; Bitstream Vera is a trademark of Bitstream, Inc.).
+Subset to Latin for ArkMD.

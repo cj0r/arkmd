@@ -1,0 +1,7 @@
+{
+  "app": {
+    "windows": [
+      { "label": "main", "title": "ArkMD", "width": 920, "height": 1000, "minWidth": 360, "minHeight": 480, "decorations": false, "zoomHotkeysEnabled": true }
+    ]
+  }
+}

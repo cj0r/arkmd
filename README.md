@@ -1,2 +1,90 @@
-# arkmd
-Lightweight Markdown viewer and editor for Android, Linux and Windows.
+# ArkMD
+
+A lightweight Markdown viewer and editor for Android, Linux and Windows. Open a file, read it with Obsidian-style rendering, and switch to an editor with one tap. No vault, no plugins, no account.
+
+*Ark* is Danish and Norwegian for "a sheet of paper".
+
+![ArkMD showing a Markdown document](docs/screenshots/reader-dark.png)
+
+## Features
+
+- **Reader:** colored headings, callouts (including foldable ones), `==highlights==`, `[[wikilinks]]`, `#tags`, task lists, tables, footnotes, front matter and syntax-highlighted code blocks.
+- **Editor:** CodeMirror 6 with live Markdown highlighting, including code inside fenced blocks. One tap (or Ctrl+E) switches between reading and editing and keeps your place.
+- **Tabs:** several files open at once, each with its own text, undo history, cursor and scroll position. Close a tab with its ✕, middle-click, Ctrl+W or the Android back button; switch with Ctrl+Tab. Opening a file that is already open switches to its tab.
+- **Formatting panel:** a floating bar that inserts headings, bold, italic, strikethrough, highlight, code, links, lists, tasks, quotes, callouts, code blocks, tables and dividers, so you don't need to know the syntax. Applying a format again removes it.
+- **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes.
+- **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
+- **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
+- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
+- **Small:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline and sends nothing anywhere.
+
+| Editing, with the formatting panel | A light theme |
+|---|---|
+| ![Editor with the formatting panel](docs/screenshots/editor-dark.png) | ![A light theme](docs/screenshots/reader-light.png) |
+
+## Install
+
+Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest). `SHA256SUMS.txt` lists the checksum of each file.
+
+| Platform | File |
+|---|---|
+| Android 7.0 or newer (arm64) | `ArkMD-<version>-android-arm64.apk` |
+| Windows 10 or 11 (64-bit) | `ArkMD_<version>_x64-setup.exe` or `ArkMD_<version>_x64_en-US.msi` |
+| Debian, Ubuntu and derivatives | `ArkMD_<version>_amd64.deb` |
+| Fedora, openSUSE and derivatives | `ArkMD-<version>-1.x86_64.rpm` |
+| Any Linux (x86_64) | `ArkMD_<version>_amd64.AppImage` |
+
+**Android:** open the downloaded file. Android asks once to allow installing from your browser or file manager (Settings > Install unknown apps). Every release is signed with the same key, so a new version installs over the old one and keeps your settings.
+
+**Windows:** run the installer. The installers aren't code-signed, so Windows SmartScreen may show a warning; choose **More info**, then **Run anyway**.
+
+**Linux:** install the package with your package manager, for example `sudo apt install ./ArkMD_<version>_amd64.deb` or `sudo dnf install ./ArkMD-<version>-1.x86_64.rpm`. The packages need WebKitGTK 4.1, which the package manager installs. For the AppImage, make it executable (`chmod +x ArkMD_*.AppImage`) and run it; if FUSE 2 isn't installed, start it with `--appimage-extract-and-run`. On Arch-based distributions, use the AppImage or build from source.
+
+## Build from source
+
+ArkMD is one [Tauri 2](https://tauri.app) app: a Rust shell in `app/src-tauri/`, a plain JavaScript front end in `app/src/`, and the reader page, themes and fonts in `shared/web/`.
+
+```bash
+cd app
+npm ci
+npm test                 # unit tests
+npx tauri dev            # desktop app with live reload
+npx tauri build          # installers and packages in app/src-tauri/target/release/bundle/
+```
+
+Linux needs `webkit2gtk-4.1`, `libsoup3`, `gtk3`, `librsvg` and `openssl` development packages.
+
+For Android you also need JDK 17, the Android SDK (platform 37 and build-tools 36) and NDK, and the Rust Android target:
+
+```bash
+rustup target add aarch64-linux-android
+npx tauri android build --apk --split-per-abi --target aarch64
+```
+
+Set `NDK_HOME` to the NDK folder. Builds are signed with the key named in the file that `ARKMD_KEYSTORE_PROPS` points to (lines `storeFile`, `storePassword`, `keyAlias`, `keyPassword`); without it the APK is signed with the debug key.
+
+## Layout
+
+```
+app/                 the app
+  src/               front end: main.js (UI), tabs.js, editor.js (CodeMirror), format.js, platform.js
+  src-tauri/         Rust shell, Tauri config, capabilities and the Android project (gen/android)
+shared/web/          reader page, themes.json, fonts
+tools/               gen_themes.py, build_fonts.py, gen_notices.py, version.py
+samples/             feature-tour.md, a document that uses every supported feature
+design/              logo sources and a sheet of every theme's colors
+```
+
+`app/src/platform.js` is the only platform-specific front-end code: Tauri plugins on desktop and a small Kotlin bridge on Android.
+
+## Themes
+
+Tokyo Night (Night, Storm, Moon, Light), Catppuccin (Mocha, Macchiato, Frappé, Latte), Dracula (Dracula, Alucard), GitHub (Dark, Dark Dimmed, Light), Monokai (Monokai, Monokai Dimmed), Rosé Pine (Rosé Pine, Moon, Dawn), One Dark Pro (One Dark Pro, Night Flat) and Nord. Edit `tools/gen_themes.py` and run it to change them; `design/theme-sheet.html` shows every color with its source and contrast ratio.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Security problems go through [SECURITY.md](SECURITY.md).
+
+## License
+
+ArkMD is released under the [GNU General Public License v3.0](LICENSE). The third-party components it bundles, including the fonts, are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

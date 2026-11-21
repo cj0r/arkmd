@@ -1,0 +1,176 @@
+name: Release
+
+# Runs only in the public repo (cj0r/arkmd). A version tag (vX.Y.Z) builds the Android, Linux and Windows files and
+# creates the GitHub release with them, their SHA-256 checksums and the notes from CHANGELOG.md. Run by hand
+# (Run workflow) it builds everything and keeps the files as workflow artifacts, without a release.
+#
+# The Android build is signed with the ArkMD release key, stored in the repository's secrets
+# (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). The same key signs
+# every release, so an update installs over the previous version.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # SHA-256 of the ArkMD release signing certificate; the build stops if the APK is signed with anything else
+  ANDROID_CERT_SHA256: 1e18cf4304250b1adea255481f9f91c85a1765cf6ce4ec8a4c2f53461fd9ec90
+
+jobs:
+  test:
+    if: github.repository == 'cj0r/arkmd'
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Version
+        id: v
+        run: |
+          want="$(python3 tools/version.py)"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            test "v$want" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME but the app's version is $want"; exit 1; }
+            grep -q "^## $want " CHANGELOG.md || { echo "CHANGELOG.md has no '## $want' section"; exit 1; }
+          fi
+          echo "version=$want" >> "$GITHUB_OUTPUT"
+      - name: Tests
+        working-directory: app
+        run: |
+          npm ci
+          npm test
+
+  desktop:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux
+          - os: windows-latest
+            name: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: "app/src-tauri -> target"
+      - name: Linux libraries
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
+      - name: Build
+        working-directory: app
+        run: |
+          npm ci
+          npx tauri build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            app/src-tauri/target/release/bundle/deb/*.deb
+            app/src-tauri/target/release/bundle/rpm/*.rpm
+            app/src-tauri/target/release/bundle/appimage/*.AppImage
+            app/src-tauri/target/release/bundle/nsis/*.exe
+            app/src-tauri/target/release/bundle/msi/*.msi
+
+  android:
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: "app/src-tauri -> target"
+      - name: Android SDK packages
+        run: |
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdk" --licenses > /dev/null || true
+          "$sdk" "platforms;android-37.0" "build-tools;36.0.0"
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "The Android signing secrets are not set"; exit 1; }
+          umask 077
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/arkmd.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$RUNNER_TEMP/arkmd.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > "$RUNNER_TEMP/keystore.properties"
+          echo "ARKMD_KEYSTORE_PROPS=$RUNNER_TEMP/keystore.properties" >> "$GITHUB_ENV"
+      - name: Build the APK
+        working-directory: app
+        run: |
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          npm ci
+          npx tauri android build --apk --split-per-abi --target aarch64 --ci
+      - name: Check the signature and name the file
+        run: |
+          apk="$(ls app/src-tauri/gen/android/app/build/outputs/apk/arm64/release/*.apk)"
+          got="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)"
+          test "$got" = "$ANDROID_CERT_SHA256" || { echo "The APK is signed with an unexpected certificate ($got)"; exit 1; }
+          version="$(python3 tools/version.py)"
+          mkdir -p out && cp "$apk" "out/ArkMD-$version-android-arm64.apk"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android
+          if-no-files-found: error
+          path: out/*.apk
+
+  release:
+    # only for a version tag; a manual run stops after the builds
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, desktop, android]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write     # create the GitHub release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: files
+          merge-multiple: true
+      - name: Checksums and release notes
+        run: |
+          (cd files && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## "v" " || $0 == "## "v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No release notes for $v in CHANGELOG.md"; exit 1; }
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          name: ArkMD ${{ needs.test.outputs.version }}
+          body_path: notes.md
+          files: files/*

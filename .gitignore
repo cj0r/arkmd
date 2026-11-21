@@ -1,0 +1,10 @@
+node_modules/
+.kotlin/
+.idea/
+*.apk
+*.keystore
+*.jks
+keystore.properties
+PLAN.md
+__pycache__/
+*.pyc

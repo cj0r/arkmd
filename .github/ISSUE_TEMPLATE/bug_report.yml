@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in ArkMD isn't working
+title: "[bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Security problems go through the Security tab's "Report a vulnerability", not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what ArkMD did instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ArkMD version
+      description: Shown in More > About.
+      placeholder: 0.5.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Android, Linux, Windows]
+    validations:
+      required: true
+  - type: input
+    id: platform-version
+    attributes:
+      label: Platform version
+      placeholder: "Android 15, Ubuntu 24.04, Windows 11"
+  - type: textarea
+    id: file
+    attributes:
+      label: Markdown that shows it
+      description: A small example, if the problem depends on the document.
+      render: markdown

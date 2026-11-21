@@ -1,0 +1,14 @@
+[Desktop Entry]
+{{#if comment}}
+Comment={{comment}}
+{{/if}}
+Exec={{exec}} %f
+Icon={{icon}}
+Name={{name}}
+Terminal=false
+Type=Application
+{{#if categories}}
+Categories={{categories}}
+{{/if}}
+StartupWMClass=arkmd
+MimeType=text/markdown;text/x-markdown;

@@ -1,0 +1,77 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        # 22 is the oldest supported Node release and what the release builds use; 24 is the current one
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: The version is the same in every file
+        run: python3 tools/version.py
+      - name: Install
+        working-directory: app
+        run: npm ci
+      - name: Tests
+        working-directory: app
+        run: npm test
+      - name: Build the front end
+        working-directory: app
+        run: npx vite build
+      - name: Generated files are up to date
+        run: |
+          python3 tools/gen_themes.py
+          git diff --exit-code -- shared/web/themes.json design/theme-sheet.html
+
+  rust:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: "app/src-tauri -> target"
+      - name: Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
+      - name: Build the front end the app embeds
+        working-directory: app
+        run: npm ci && npx vite build
+      - name: Check the Rust code
+        working-directory: app/src-tauri
+        run: cargo check --locked
+
+  audit:
+    # known vulnerabilities in the npm packages the app ships; a separate job so a newly published advisory never blocks an unrelated change
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: npm audit
+        working-directory: app
+        run: npm audit --omit=dev --audit-level=high

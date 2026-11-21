@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ArkMD</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <header id="bar" data-tauri-drag-region>
+    <div id="tabs" role="group" aria-label="Open files"></div>
+    <button class="icon" id="btn-add" title="New or open" aria-label="New or open file" aria-haspopup="menu"></button>
+    <div class="spacer" data-tauri-drag-region></div>
+    <button class="icon" id="btn-save" title="Save (Ctrl+S)" aria-label="Save" hidden>
+      <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+    </button>
+    <button class="icon" id="btn-format" title="Formatting panel" aria-label="Formatting panel" aria-pressed="true" hidden>
+      <svg viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></svg>
+    </button>
+    <button class="icon" id="btn-theme" title="Theme" aria-label="Theme">
+      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    </button>
+    <button class="icon" id="btn-more" title="More" aria-label="More">
+      <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    </button>
+    <!-- Window controls: shown only when the platform draws no window frame (e.g. Linux). -->
+    <div id="winctl" role="group" aria-label="Window controls" hidden>
+      <button id="win-min" title="Minimize" aria-label="Minimize"></button>
+      <button id="win-max" title="Maximize" aria-label="Maximize"></button>
+      <button id="win-close" class="close" title="Close" aria-label="Close window"></button>
+    </div>
+  </header>
+
+  <main id="content" aria-live="off">
+    <section id="home">
+      <h1 class="brand">ArkMD</h1>
+      <div class="actions">
+        <button id="home-open" class="tile">Open file</button>
+        <button id="home-new" class="tile">New file</button>
+      </div>
+      <div class="recent-head"><span>Recent</span><button id="clear-recent" class="link">Clear</button></div>
+      <ul id="recent" aria-label="Recent files"></ul>
+      <p id="no-recent" class="muted">Open a Markdown file here, or use "Open with ArkMD" from your file manager.</p>
+    </section>
+    <iframe id="reader" src="/viewer.html" title="Reader" hidden></iframe>
+    <div id="editor" hidden></div>
+    <div id="formatbar" role="toolbar" aria-label="Formatting" hidden></div>
+    <button id="toggle" class="fab" title="Edit (Ctrl+E)" aria-label="Edit" hidden></button>
+  </main>
+
+  <div id="menu" class="popup" role="menu" aria-label="More" hidden></div>
+  <div id="dialog-backdrop" hidden><div id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"></div></div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
