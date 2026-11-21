@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.6.1 (2026-11-21)
+
+### Changed
+- Tabs are flat with square corners and dividers; the active tab has an accent line along its bottom edge.
+
 ## 0.6.0 (2026-11-21)
 
 ### Added

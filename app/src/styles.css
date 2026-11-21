@@ -23,11 +23,11 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: stretch; gap: 2px; flex: none; height: calc(var(--bar-h) + var(--bar-inset));
   padding: var(--bar-inset) 0 0 6px; background: var(--bg-alt); border-bottom: 1px solid var(--surface); user-select: none;
 }
-#tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; padding-top: 6px; overflow-x: auto; scrollbar-width: none; }
+#tabs { display: flex; align-items: stretch; gap: 0; min-width: 0; padding-top: 0; overflow-x: auto; scrollbar-width: none; }
 #tabs::-webkit-scrollbar { display: none; }
-.tab { display: flex; align-items: center; flex: 0 1 auto; min-width: 84px; max-width: 220px; height: 36px; border-radius: 8px 8px 0 0; color: var(--fg-muted); }
+.tab { display: flex; align-items: center; flex: 0 1 auto; min-width: 84px; max-width: 220px; border-radius: 0; border-right: 1px solid var(--surface); color: var(--fg-muted); }
 .tab:hover { background: var(--surface); }
-.tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 2px 0 var(--accent); }
+.tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
 .tab-main { flex: 1; min-width: 0; height: 100%; padding: 0 2px 0 12px; border: 0; background: none; text-align: left; cursor: pointer;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
 .tab-main .dot { color: var(--accent); margin-right: 5px; }
