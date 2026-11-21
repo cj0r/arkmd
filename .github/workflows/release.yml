@@ -2,7 +2,7 @@ name: Release
 
 # Runs only in the public repo (cj0r/arkmd). A version tag (vX.Y.Z) builds the Android, Linux and Windows files and
 # creates the GitHub release with them, their SHA-256 checksums and the notes from CHANGELOG.md. Run by hand
-# (Run workflow) it builds everything and keeps the files as workflow artifacts, without a release.
+# (Run workflow) it builds everything and checks the checksums and release notes, without creating a release.
 #
 # The Android build is signed with the ArkMD release key, stored in the repository's secrets
 # (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). The same key signs
@@ -151,8 +151,6 @@ jobs:
           path: out/*.apk
 
   release:
-    # only for a version tag; a manual run stops after the builds
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, desktop, android]
     runs-on: ubuntu-22.04
     permissions:
@@ -164,12 +162,19 @@ jobs:
           path: files
           merge-multiple: true
       - name: Checksums and release notes
+        env:
+          VERSION: ${{ needs.test.outputs.version }}
         run: |
+          # each platform's files arrive in their own folders: put them side by side
+          find files -mindepth 2 -type f -exec mv -t files {} +
+          find files -mindepth 1 -type d -empty -delete
           (cd files && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
-          v="${GITHUB_REF_NAME#v}"
-          awk -v v="$v" '$0 ~ "^## "v" " || $0 == "## "v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
-          test -s notes.md || { echo "No release notes for $v in CHANGELOG.md"; exit 1; }
+          awk -v v="$VERSION" '$0 ~ "^## "v" " || $0 == "## "v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No release notes for $VERSION in CHANGELOG.md"; exit 1; }
+          test "$(ls files | wc -l)" -eq 7 || { echo "Expected 6 release files and SHA256SUMS.txt:"; ls files; exit 1; }
+      # a manual run stops here; only a version tag publishes
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: ArkMD ${{ needs.test.outputs.version }}
           body_path: notes.md

@@ -1,0 +1,27 @@
+# Security
+
+How to report a problem is in [SECURITY.md](../SECURITY.md). This page covers what ArkMD does with your files and your device, and how to check a download.
+
+## What ArkMD does
+
+- **No account, no tracking.** ArkMD collects no data and sends no documents or usage information anywhere.
+- **Files:** it reads and writes only files you open, save or choose in a file picker. On Android it uses the system file picker, so it asks for no storage permission. The desktop apps may read and write only the files you pick or open with ArkMD.
+- **Network:** ArkMD makes no requests of its own. The one exception is a document that points to an image on the web: ArkMD loads that image from its server, which tells that server your address and that the document was opened. Links open in your system browser, and only `http`, `https` and `mailto` links are followed.
+- **Raw HTML is off,** so a document can't run scripts or embed active content in the reader.
+- **What it stores:** your settings (theme, fonts, text size) and the list of recent files (names and addresses, never contents), in the app's own storage on your device.
+
+## Check a download
+
+Every release lists a SHA-256 checksum for each file in `SHA256SUMS.txt`, and releases are built from the tagged source by GitHub Actions (see `.github/workflows/release.yml`).
+
+- **Linux:** in the folder with the download, `sha256sum -c --ignore-missing SHA256SUMS.txt`.
+- **Windows:** `Get-FileHash .\ArkMD_<version>_x64-setup.exe -Algorithm SHA256` in PowerShell, and compare the value with the one in `SHA256SUMS.txt`.
+- **Android:** besides the checksum, the APK carries the release signing certificate. Its SHA-256 fingerprint is
+  `1e18cf4304250b1adea255481f9f91c85a1765cf6ce4ec8a4c2f53461fd9ec90`. With the Android SDK's build tools, `apksigner verify --print-certs ArkMD-<version>-android-arm64.apk` prints it. Android installs a new version over the old one only if both are signed with the same key.
+
+The Windows installers aren't code-signed, so SmartScreen warns about them; the checksum is how you confirm you have the file from the release.
+
+## Permissions
+
+- **Android:** network access only (to load web images). No storage, contacts, location or other permissions.
+- **Windows and Linux:** no special permissions; ArkMD runs as your user.

@@ -30,5 +30,9 @@ Run `npm test` from `app/` before opening a pull request.
 ## Pull requests
 
 - Keep each pull request to one change, with a test for new behavior or a fixed bug.
+- Write messages and docs in plain words for someone who isn't a developer.
+- When behavior changes, update the matching page in `docs/`.
 - Add a line to `CHANGELOG.md` under the next version.
 - Say what changes for a user and why. Short and factual is best.
+
+By contributing you agree your work is released under the project's license, GPL-3.0.

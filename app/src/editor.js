@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
+import { lineSeparatorFor, docText } from "./eol.js";
 
 const look = new Compartment();
 const HEADING_SIZES = [1.6, 1.4, 1.25, 1.12, 1.05, 1.0];
@@ -127,20 +128,25 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         EditorView.contentAttributes.of({ "aria-label": "Markdown editor", "aria-multiline": "true", tabindex: "0" }),
         keymap.of([...extraKeys, indentWithTab, ...defaultKeymap, ...historyKeymap]),
         look.of([]),
-        EditorView.updateListener.of((u) => { if (u.docChanged) onChange(u.state.doc.toString()); }),
+        EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); }),
   ];
-  const view = new EditorView({ parent, state: EditorState.create({ doc: "", extensions }) });
+  /** A fresh state for a document, keeping its line endings (see eol.js). */
+  const stateFor = (text) => {
+    const sep = lineSeparatorFor(text);
+    return EditorState.create({ doc: text, extensions: sep ? [...extensions, EditorState.lineSeparator.of(sep)] : extensions });
+  };
+  const view = new EditorView({ parent, state: stateFor("") });
   let currentLook = [];
   return {
     view,
-    getText: () => view.state.doc.toString(),
+    getText: () => docText(view.state),
     /** Load a document: fresh state, so undo history starts here. */
     setText(text) {
-      view.setState(EditorState.create({ doc: text, extensions }));
+      view.setState(stateFor(text));
       view.dispatch({ effects: look.reconfigure(currentLook) });
     },
     /** Fresh editor state for a document (own undo history); used per tab. */
-    newState(text) { return EditorState.create({ doc: text, extensions }); },
+    newState(text) { return stateFor(text); },
     getState() { return view.state; },
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {

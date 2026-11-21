@@ -5,6 +5,7 @@ import { platform } from "./platform.js";
 import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
+import { docText } from "./eol.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -108,7 +109,7 @@ function setDirty(t, d) {
   updateChrome();
 }
 
-const textOf = (t) => (t === cur() ? editor.getText() : t.state.doc.toString());
+const textOf = (t) => (t === cur() ? editor.getText() : docText(t.state));
 
 function updateChrome() {
   const t = cur();

@@ -12,7 +12,7 @@ Only the latest release gets security fixes. Install the newest release over the
 
 ## What ArkMD protects
 
-- ArkMD sends neither your documents nor any usage data anywhere. It reads and writes only the files you open or save.
+- ArkMD has no account and collects no data: it sends neither your documents nor any usage data anywhere. It reads and writes only the files you open or save. A document that points to an image on the web makes ArkMD load that image from its server, as any Markdown viewer or browser would.
 - Markdown is rendered with raw HTML turned off, so a document can't run scripts or embed active content. Links open in your system browser, not inside the app, and only `http`, `https` and `mailto` links are followed.
 - On Android, files are opened and saved through the system file picker; the app asks for no storage permission.
 - The desktop apps limit file access to the files you pick or open with ArkMD, and the app's web content is restricted by a content security policy.
