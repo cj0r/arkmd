@@ -38,18 +38,48 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 
 ## Keyboard shortcuts
 
+**F1** (or **More** > **Settings** > **Keyboard shortcuts**) lists them in the app. On macOS, Cmd works in place of Ctrl.
+
+**Files and view**
+
 | Keys | Action |
 |---|---|
 | Ctrl+O | Open a file |
 | Ctrl+N or Ctrl+T | New file |
 | Ctrl+S | Save |
 | Ctrl+Shift+S | Save as |
-| Ctrl+E | Switch between reading and editing |
 | Ctrl+W | Close the current tab |
 | Ctrl+Tab, Ctrl+Shift+Tab | Next, previous tab (also Ctrl+PageDown, Ctrl+PageUp) |
-| Ctrl+B, Ctrl+I, Ctrl+K | Bold, italic, link (while editing) |
-| Ctrl+Z, Ctrl+Shift+Z | Undo, redo (while editing) |
+| Ctrl+E | Switch between reading and editing |
+| Ctrl+, | Settings |
+| F1 | Keyboard shortcuts |
 | Esc | Close a menu or dialog |
 | Ctrl + and Ctrl − | Make the whole window larger or smaller (desktop) |
+
+**Formatting, while editing**
+
+| Keys | Action |
+|---|---|
+| Ctrl+1 to Ctrl+6 | Heading level 1 to 6 (press again to turn the line back into text) |
+| Ctrl+0 | Normal text |
+| Ctrl+B, Ctrl+I | Bold, italic |
+| Ctrl+Shift+X | Strikethrough |
+| Ctrl+Shift+H | Highlight |
+| Ctrl+` | Inline code |
+| Ctrl+K | Link |
+| Ctrl+Shift+8 | Bulleted list |
+| Ctrl+Shift+7 | Numbered list |
+| Ctrl+Shift+9 | Task list |
+| Ctrl+Shift+Q | Quote |
+| Ctrl+Shift+K | Code block |
+| Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
+
+Each list and style shortcut works on the selected lines or text, and pressing it again removes the formatting. With nothing selected, a style shortcut such as Ctrl+B opens a pair of marks; press it again after typing to step out past the closing marks.
+
+**Writing flow**
+
+- **Heading:** press Ctrl+2 on a line, or type `## `. With the cursor on a heading line, **Tab** makes it one level deeper (`##` becomes `###`) and **Shift+Tab** one level shallower, so you can step through the outline without retyping the marks.
+- **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item (a numbered item moves in by three spaces so the nesting stays valid) and **Shift+Tab** moves it back out. This works on several selected items too.
+- **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 
 Menus and dialogs work with the arrow keys and Esc, and the focus ring always shows where you are.

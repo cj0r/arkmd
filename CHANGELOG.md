@@ -2,6 +2,17 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.8.0 (2026-11-21)
+
+### Added
+- **Formatting shortcuts** while editing: Ctrl+1 to 6 for headings (again to clear) and Ctrl+0 for normal text; Ctrl+Shift+8, 7 and 9 for bulleted, numbered and task lists; Ctrl+Shift+Q for a quote, Ctrl+Shift+K for a code block, Ctrl+Shift+X for strikethrough, Ctrl+Shift+H for highlight and Ctrl+` for inline code. The format panel's tooltips show them.
+- **Tab on a heading line** makes it one level deeper and Shift+Tab one level shallower. On a list item, Tab and Shift+Tab nest and un-nest it by the width of its marker, so numbered lists nest correctly.
+- **Keyboard shortcuts list** (F1, or Settings > Keyboard shortcuts).
+
+### Changed
+- Pressing a style shortcut such as Ctrl+B again with nothing selected steps out past the closing marks instead of adding another pair.
+- Enter on an empty task item ends the list, as it does for an empty bullet.
+
 ## 0.7.0 (2026-11-21)
 
 ### Added

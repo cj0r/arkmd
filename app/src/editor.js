@@ -1,5 +1,5 @@
 // CodeMirror 6 Markdown editor, themed from shared/web/themes.json (same roles as the Android editor).
-import { EditorState, Compartment, RangeSetBuilder } from "@codemirror/state";
+import { EditorState, Compartment, RangeSetBuilder, Prec } from "@codemirror/state";
 import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -126,7 +126,8 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         markdown({ base: markdownLanguage, codeLanguages }),
         extras,
         EditorView.contentAttributes.of({ "aria-label": "Markdown editor", "aria-multiline": "true", tabindex: "0" }),
-        keymap.of([...extraKeys, indentWithTab, ...defaultKeymap, ...historyKeymap]),
+        Prec.highest(keymap.of(extraKeys)),     // ahead of the Markdown language's own Enter handling
+        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         look.of([]),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); }),
   ];

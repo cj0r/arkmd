@@ -6,6 +6,10 @@ import {
   list,
   quote,
   heading,
+  toggleHeading,
+  shiftHeading,
+  indentList,
+  endEmptyTask,
   block,
   codeBlock,
   callout,
@@ -112,4 +116,69 @@ test("calloutWrapsSelection", () => {
 
 test("dividerOwnLine", () => {
   check("ab|", "ab\n---|", (t, s, e) => block(t, s, e, RULE));
+});
+
+test("toggleHeadingSetsThenClears", () => {
+  check("ti|tle", "## ti|tle".replace("ti|tle", "title|"), (t, s, e) => toggleHeading(t, s, e, 2));
+  check("## tit|le", "title|", (t, s, e) => toggleHeading(t, s, e, 2));
+  check("# tit|le", "## title|", (t, s, e) => toggleHeading(t, s, e, 2));
+});
+
+test("shiftHeadingMovesOneLevelAndKeepsTheCursor", () => {
+  check("## tit|le", "### tit|le", (t, s, e) => shiftHeading(t, s, e, 1));
+  check("### tit|le", "## tit|le", (t, s, e) => shiftHeading(t, s, e, -1));
+  // a cursor inside the "## " marks moves to just after them
+  check("|## title", "### |title", (t, s, e) => shiftHeading(t, s, e, 1));
+  check("#| title", "## |title", (t, s, e) => shiftHeading(t, s, e, 1));
+});
+
+test("shiftHeadingStopsAtTheEnds", () => {
+  check("###### x|", "###### x|", (t, s, e) => shiftHeading(t, s, e, 1));
+  check("# x|", "# x|", (t, s, e) => shiftHeading(t, s, e, -1));
+});
+
+test("shiftHeadingIsNullOffAHeading", () => {
+  assert.equal(shiftHeading("plain text", 3, 3, 1), null);
+  assert.equal(shiftHeading("#hashtag", 2, 2, 1), null);
+  assert.equal(shiftHeading("## a\n## b", 1, 8, 1), null);   // a selection over several lines is left to the normal Tab
+});
+
+test("indentListNestsByMarkerWidth", () => {
+  check("- it|em", "  - it|em", (t, s, e) => indentList(t, s, e, 1));
+  check("1. it|em", "   1. it|em", (t, s, e) => indentList(t, s, e, 1));
+  check("- [ ] ta|sk", "  - [ ] ta|sk", (t, s, e) => indentList(t, s, e, 1));
+  check("  - it|em", "- it|em", (t, s, e) => indentList(t, s, e, -1));
+  check("   1. it|em", "1. it|em", (t, s, e) => indentList(t, s, e, -1));
+  check("- it|em", "- it|em", (t, s, e) => indentList(t, s, e, -1));
+});
+
+test("indentListWorksOnSeveralItemsAndSkipsOtherText", () => {
+  check("[- a\n- b]", "[  - a\n  - b]", (t, s, e) => indentList(t, s, e, 1));
+  assert.equal(indentList("plain", 2, 2, 1), null);
+  assert.equal(indentList("- a\nplain", 0, 9, 1), null);
+});
+
+test("wrapAgainStepsOutOfTheStyle", () => {
+  check("**bold|**", "**bold**|", (t, s, e) => wrap(t, s, e, "**"));
+  check("a `code|`", "a `code`|", (t, s, e) => wrap(t, s, e, "`"));
+  check("*it|*", "*it*|", (t, s, e) => wrap(t, s, e, "*"));
+  check("x **b|** y", "x **b**| y", (t, s, e) => wrap(t, s, e, "**"));
+});
+
+test("wrapStillOpensAPairWhereNothingIsOpen", () => {
+  check("a |", "a **|**", (t, s, e) => wrap(t, s, e, "**"));
+  check("a |**", "a **|****", (t, s, e) => wrap(t, s, e, "**"));        // a mark after the cursor with no opening one before it
+  check("**|**", "|", (t, s, e) => wrap(t, s, e, "**"));                 // the empty pair is removed
+});
+
+test("endEmptyTaskClearsTheMarker", () => {
+  check("- [ ] done\n- [ ] |", "- [ ] done\n|", (t, s, e) => endEmptyTask(t, s, e));
+  check("- [x] |", "|", (t, s, e) => endEmptyTask(t, s, e));
+  check("  - [ ] |", "- [ ] |", (t, s, e) => endEmptyTask(t, s, e));
+});
+
+test("endEmptyTaskLeavesOtherLinesAlone", () => {
+  assert.equal(endEmptyTask("- [ ] text|", 11, 11), null);
+  assert.equal(endEmptyTask("- item|", 7, 7), null);
+  assert.equal(endEmptyTask("- [ ] |text", 6, 6), null);
 });

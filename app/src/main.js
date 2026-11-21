@@ -8,6 +8,7 @@ import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
+import { SHORTCUTS } from "./shortcuts.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,6 +45,20 @@ const editor = createEditor($("editor"), {
     { key: "Mod-b", run: () => (format((t, s, e) => F.wrap(t, s, e, "**")), true) },
     { key: "Mod-i", run: () => (format((t, s, e) => F.wrap(t, s, e, "*")), true) },
     { key: "Mod-k", run: () => (format(F.link), true) },
+    { key: "Mod-Shift-x", run: () => (format((t, s, e) => F.wrap(t, s, e, "~~")), true) },
+    { key: "Mod-Shift-h", run: () => (format((t, s, e) => F.wrap(t, s, e, "==")), true) },
+    { key: "Mod-`", run: () => (format((t, s, e) => F.wrap(t, s, e, "`")), true) },
+    { key: "Mod-Shift-8", run: () => (format((t, s, e) => F.list(t, s, e, "bullet")), true) },
+    { key: "Mod-Shift-7", run: () => (format((t, s, e) => F.list(t, s, e, "numbered")), true) },
+    { key: "Mod-Shift-9", run: () => (format((t, s, e) => F.list(t, s, e, "task")), true) },
+    { key: "Mod-Shift-q", run: () => (format(F.quote), true) },
+    { key: "Mod-Shift-k", run: () => (format(F.codeBlock), true) },
+    ...[1, 2, 3, 4, 5, 6].map((n) => ({ key: `Mod-${n}`, run: () => (format((t, s, e) => F.toggleHeading(t, s, e, n)), true) })),
+    { key: "Mod-0", run: () => (format((t, s, e) => F.heading(t, s, e, 0)), true) },
+    { key: "Enter", run: () => { const [s, e] = editor.selection(); const ed = F.endEmptyTask(editor.getText(), s, e); if (!ed) return false; editor.applyEdit(ed); return true; } },
+    // Tab on a heading goes one level deeper and on a list item nests it; anywhere else it indents as usual.
+    { key: "Tab", run: () => tabEdit(1) },
+    { key: "Shift-Tab", run: () => tabEdit(-1) },
   ],
 });
 
@@ -329,6 +344,15 @@ function renderRecents() {
 }
 
 // ------------------------------------------------------------------ formatting panel
+function tabEdit(dir) {
+  const [s, e] = editor.selection();
+  const text = editor.getText();
+  const edit = F.shiftHeading(text, s, e, dir) || F.indentList(text, s, e, dir);
+  if (!edit) return false;
+  editor.applyEdit(edit);
+  return true;
+}
+
 function format(op) {
   const [s, e] = editor.selection();
   editor.applyEdit(op(editor.getText(), s, e));
@@ -337,20 +361,20 @@ function format(op) {
 function buildFormatBar() {
   const bar = $("formatbar");
   const items = [
-    ["heading", "Heading", (b) => menu(b, [1, 2, 3, 4, 5, 6].map((n) => [`Heading ${n}`, () => format((t, s, e) => F.heading(t, s, e, n))])
+    ["heading", "Heading (Ctrl+1 to 6)", (b) => menu(b, [1, 2, 3, 4, 5, 6].map((n) => [`Heading ${n}`, () => format((t, s, e) => F.heading(t, s, e, n))])
       .concat([["Normal text", () => format((t, s, e) => F.heading(t, s, e, 0))]]))],
     ["bold", "Bold (Ctrl+B)", () => format((t, s, e) => F.wrap(t, s, e, "**"))],
     ["italic", "Italic (Ctrl+I)", () => format((t, s, e) => F.wrap(t, s, e, "*"))],
-    ["strike", "Strikethrough", () => format((t, s, e) => F.wrap(t, s, e, "~~"))],
-    ["highlight", "Highlight", () => format((t, s, e) => F.wrap(t, s, e, "=="))],
-    ["code", "Inline code", () => format((t, s, e) => F.wrap(t, s, e, "`"))],
+    ["strike", "Strikethrough (Ctrl+Shift+X)", () => format((t, s, e) => F.wrap(t, s, e, "~~"))],
+    ["highlight", "Highlight (Ctrl+Shift+H)", () => format((t, s, e) => F.wrap(t, s, e, "=="))],
+    ["code", "Inline code (Ctrl+`)", () => format((t, s, e) => F.wrap(t, s, e, "`"))],
     ["link", "Link (Ctrl+K)", () => format(F.link)],
-    ["bullets", "Bulleted list", () => format((t, s, e) => F.list(t, s, e, "bullet"))],
-    ["numbers", "Numbered list", () => format((t, s, e) => F.list(t, s, e, "numbered"))],
-    ["task", "Task", () => format((t, s, e) => F.list(t, s, e, "task"))],
-    ["quote", "Quote", () => format(F.quote)],
+    ["bullets", "Bulleted list (Ctrl+Shift+8)", () => format((t, s, e) => F.list(t, s, e, "bullet"))],
+    ["numbers", "Numbered list (Ctrl+Shift+7)", () => format((t, s, e) => F.list(t, s, e, "numbered"))],
+    ["task", "Task (Ctrl+Shift+9)", () => format((t, s, e) => F.list(t, s, e, "task"))],
+    ["quote", "Quote (Ctrl+Shift+Q)", () => format(F.quote)],
     ["callout", "Callout", (b) => menu(b, F.CALLOUTS.map((c) => [c[0].toUpperCase() + c.slice(1), () => format((t, s, e) => F.callout(t, s, e, c))]))],
-    ["codeblock", "Code block", () => format(F.codeBlock)],
+    ["codeblock", "Code block (Ctrl+Shift+K)", () => format(F.codeBlock)],
     ["table", "Table", () => format((t, s, e) => F.block(t, s, e, F.TABLE))],
     ["rule", "Divider", () => format((t, s, e) => F.block(t, s, e, F.RULE))],
   ];
@@ -648,6 +672,8 @@ function openSettings() {
     row("Check for updates now", shownVersion ? `Version ${shownVersion}` : "", () => checkForUpdates());
   }
 
+  if (!platform.mobile) { section("Keyboard"); row("Keyboard shortcuts", "F1", showShortcuts); }
+
   section("About");
   row("About ArkMD", "", about);
 
@@ -656,6 +682,30 @@ function openSettings() {
   d.replaceChildren(...nodes);
   $("dialog-backdrop").hidden = false;
   d.querySelector(".opt")?.focus({ preventScroll: true });
+}
+
+function showShortcuts() {
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  d.className = "settings";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Keyboard shortcuts";
+  const nodes = [h];
+  for (const [title, rows] of SHORTCUTS) {
+    const s = document.createElement("div"); s.className = "section"; s.textContent = title; nodes.push(s);
+    for (const [keys, what] of rows) {
+      const r = document.createElement("div"); r.className = "keyrow";
+      r.innerHTML = `<span class="what"></span><span class="keys"></span>`;
+      r.querySelector(".what").textContent = what;
+      r.querySelector(".keys").textContent = keys;
+      nodes.push(r);
+    }
+  }
+  const back = document.createElement("button"); back.className = "opt done"; back.textContent = "Back to settings"; back.onclick = () => { closeDialog(); openSettings(); };
+  const close = document.createElement("button"); close.className = "opt done"; close.textContent = "Close"; close.onclick = closeDialog;
+  nodes.push(back, close);
+  d.replaceChildren(...nodes);
+  $("dialog-backdrop").hidden = false;
+  back.focus({ preventScroll: true });
 }
 
 function moreMenu() {
@@ -721,6 +771,7 @@ function onKey(e) {
     items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
     e.preventDefault();
   }
+  if (e.key === "F1") { e.preventDefault(); showShortcuts(); return; }
   if (!mod) return;
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;

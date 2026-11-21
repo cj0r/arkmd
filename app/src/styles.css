@@ -150,3 +150,5 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
 #dialog [aria-checked="true"] .switch { background: var(--accent); border-color: var(--accent); }
 #dialog [aria-checked="true"] .switch::after { transform: translateX(16px); background: var(--bg); }
 #dialog .done { justify-content: center; margin-top: 8px; color: var(--accent); border-top: 1px solid var(--surface); }
+#dialog .keyrow { display: flex; justify-content: space-between; gap: 16px; padding: 5px 22px; font-size: 14px; }
+#dialog .keyrow .keys { flex: none; color: var(--fg-muted); font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; text-align: right; }
