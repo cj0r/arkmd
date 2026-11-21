@@ -24,6 +24,8 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - name: The version is the same in every file
         run: python3 tools/version.py
+      - name: Update manifest tests
+        run: python3 -m unittest discover -s tools
       - name: Install
         working-directory: app
         run: npm ci

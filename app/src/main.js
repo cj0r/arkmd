@@ -6,6 +6,7 @@ import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
+import { shouldAutoCheck, summarizeNotes } from "./updates.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -449,6 +450,75 @@ function addMenu() {
 
 const REPO_URL = "https://github.com/cj0r/arkmd";
 
+// ------------------------------------------------------------------ updates
+let pendingUpdate = null;      // { version, notes } found by a check and not yet installed
+let checking = false;
+
+function updateBadge() {
+  const more = $("btn-more");
+  more.classList.toggle("badge", !!pendingUpdate);
+  more.setAttribute("aria-label", pendingUpdate ? `More (update ${pendingUpdate.version} available)` : "More");
+}
+
+/** Ask the platform for a newer release. A quiet check (the automatic one) only marks the More button. */
+async function checkForUpdates(quiet = false) {
+  if (!platform.update || checking) return;
+  checking = true;
+  if (!quiet) toast("Checking for updates…");
+  try {
+    const found = await platform.update.check();
+    store.set("updateChecked", Date.now());
+    pendingUpdate = found;
+    updateBadge();
+    if (!found) { if (!quiet) toast(`ArkMD ${await platform.version()} is up to date`); return; }
+    if (!quiet) showUpdate();
+  } catch (e) {
+    if (!quiet) toast(`Could not check for updates: ${e.message || e}`);
+  } finally {
+    checking = false;
+  }
+}
+
+function showUpdate() {
+  if (!pendingUpdate) return;
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = `ArkMD ${pendingUpdate.version} is available`;
+  const para = (text, cls = "about") => { const p = document.createElement("p"); p.className = cls; p.textContent = text; return p; };
+  const notes = para(summarizeNotes(pendingUpdate.notes), "about notes");
+  const status = para("", "about"); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+  const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
+  const now = button("Update now", () => installUpdate(status, [now, later, notesBtn]));
+  const later = button("Later", closeDialog);
+  const notesBtn = button("Release notes", () => { platform.openUrl(`${REPO_URL}/releases/tag/v${pendingUpdate.version}`).catch(() => {}); });
+  d.replaceChildren(h, para(`You have ${shownVersion}.`), notes, status, now, later, notesBtn);
+  $("dialog-backdrop").hidden = false;
+  now.focus({ preventScroll: true });
+}
+
+let shownVersion = "";
+async function installUpdate(status, buttons) {
+  const dirty = tabs.dirty();
+  if (dirty.length && !(await platform.confirm(
+    `${dirty.length === 1 ? `"${dirty[0].name}" has` : `${dirty.length} files have`} unsaved changes, and ArkMD restarts to finish the update. Discard them and update?`, "Unsaved changes"))) return;
+  buttons.forEach((b) => (b.disabled = true));
+  status.textContent = "Downloading…";
+  try {
+    const result = await platform.update.install((done, total) => {
+      status.textContent = total ? `Downloading… ${Math.min(100, Math.round((done / total) * 100))}%` : `Downloading… ${(done / 1048576).toFixed(1)} MB`;
+    });
+    if (result.needsPermission) {
+      status.textContent = "Allow ArkMD to install updates in the settings that just opened, then choose Update now again.";
+      buttons.forEach((b) => (b.disabled = false));
+      return;
+    }
+    status.textContent = "Installing…";
+  } catch (e) {
+    status.textContent = `The update failed: ${e.message || e}`;
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
 /** The bundled third-party notices, opened as a tab. */
 async function openNotices() {
   const name = "Third-party notices.md";
@@ -469,10 +539,12 @@ async function about() {
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "ArkMD";
   const line = (text) => { const p = document.createElement("p"); p.className = "about"; p.textContent = text; return p; };
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
+  shownVersion = v;
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
     button("Project page", () => { platform.openUrl(REPO_URL).catch(() => {}); }),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
+    ...(platform.update ? [button("Check for updates", () => { closeDialog(); checkForUpdates(); })] : []),
     button("Close", closeDialog));
   $("dialog-backdrop").hidden = false;
   d.querySelector(".opt")?.focus({ preventScroll: true });
@@ -489,6 +561,14 @@ function moreMenu() {
       toast(store.get("contrastAA", true) ? "Contrast adjusted to WCAG AA" : "Official theme colours");
     }]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
+  if (platform.update) {
+    if (pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
+    entries.push(["Check for updates", () => checkForUpdates()],
+      [`Check automatically: ${store.get("autoUpdate", false) ? "on" : "off"}`, () => {
+        store.set("autoUpdate", !store.get("autoUpdate", false));
+        toast(store.get("autoUpdate", false) ? "ArkMD will check for updates once a day" : "Automatic update checks are off");
+      }]);
+  }
   entries.push(["About", about]);
   menu($("btn-more"), entries);
 }
@@ -585,6 +665,11 @@ async function init() {
   setupWindowControls();
   await openLaunch();
   platform.onLaunch(openLaunch);
+  shownVersion = await platform.version();
+  // The automatic check is off unless the user turned it on; it runs once a day, a few seconds after start.
+  if (platform.update && shouldAutoCheck(store.get("autoUpdate", false), store.get("updateChecked", 0), Date.now())) {
+    setTimeout(() => checkForUpdates(true), 4000);
+  }
 }
 
 /** Minimize / maximize / close for windows without a native frame, plus edge handles to resize them. */

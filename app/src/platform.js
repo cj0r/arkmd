@@ -8,6 +8,7 @@
 // A file "ref" is an opaque string: a filesystem path on desktop, a content:// URI on Android.
 
 import { invoke } from "@tauri-apps/api/core";
+import { androidRelease, isNewer, ANDROID_MANIFEST_URL } from "./updates.js";
 
 const android = typeof window !== "undefined" && window.ArkAndroid;
 
@@ -48,6 +49,22 @@ const androidImpl = {
   onLaunch(handler) { window.arkAndroidLaunch = () => handler(); },          // new Open with / Share while running
   onOpenRequest() {},
   window: null,                                                              // no window chrome on a phone
+  /** Updates: the bridge fetches android.json and downloads the APK; the system installer does the install. */
+  update: {
+    async check() {
+      const reply = await call("updateManifest", ANDROID_MANIFEST_URL);
+      const release = androidRelease(JSON.parse(reply.manifest), reply.abis);
+      if (!release || !isNewer(release.version, await version())) return null;
+      this._release = release;
+      return { version: release.version, notes: release.notes };
+    },
+    /** onProgress(done, total). Resolves { needsPermission } when Android first has to allow installs from ArkMD. */
+    async install(onProgress) {
+      window.arkUpdateProgress = (done, total) => onProgress(done, total > 0 ? total : null);
+      const r = await call("updateInstall", this._release.url, this._release.sha256);
+      return { needsPermission: !!r.needsPermission };
+    },
+  },
   setChrome(bg, dark) { android.setChrome(bg, !!dark); },
   ready() { android.requestInsets(); },
   displayName: (ref, name) => name || "Untitled.md",
@@ -117,6 +134,26 @@ const desktopImpl = {
     async close() { return (await this._w()).close(); },
     async startResize(direction) { return (await this._w()).startResizeDragging(direction); },
     async onResized(handler) { return (await this._w()).onResized(handler); },
+  },
+  /** Updates: Tauri's updater checks latest.json, verifies the signature, installs, and the app restarts. */
+  update: {
+    async check() {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const found = await check({ timeout: 15000 });
+      if (!found) return null;
+      this._found = found;
+      return { version: found.version, notes: found.body || "" };
+    },
+    async install(onProgress) {
+      let total = null, done = 0;
+      await this._found.downloadAndInstall((e) => {
+        if (e.event === "Started") total = e.data.contentLength ?? null;
+        if (e.event === "Progress") { done += e.data.chunkLength; onProgress(done, total); }
+      });
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+      return { needsPermission: false };
+    },
   },
   displayName: (ref) => baseName(ref),
 };

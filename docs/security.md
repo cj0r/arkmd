@@ -6,7 +6,7 @@ How to report a problem is in [SECURITY.md](../SECURITY.md). This page covers wh
 
 - **No account, no tracking.** ArkMD collects no data and sends no documents or usage information anywhere.
 - **Files:** it reads and writes only files you open, save or choose in a file picker. On Android it uses the system file picker, so it asks for no storage permission. The desktop apps may read and write only the files you pick or open with ArkMD.
-- **Network:** ArkMD makes no requests of its own. The one exception is a document that points to an image on the web: ArkMD loads that image from its server, which tells that server your address and that the document was opened. Links open in your system browser, and only `http`, `https` and `mailto` links are followed.
+- **Network:** ArkMD makes no requests of its own, with two exceptions. Check for updates (More menu) asks GitHub for the latest release; it runs only when you choose it, or once a day if you turn on **Check automatically**, which is off by default. And a document that points to an image on the web: ArkMD loads that image from its server, which tells that server your address and that the document was opened. Updates are verified before they install: Windows and Linux updates against a public key built into the app, Android updates against the release's SHA-256 and the app's signing certificate. Links open in your system browser, and only `http`, `https` and `mailto` links are followed.
 - **Raw HTML is off,** so a document can't run scripts or embed active content in the reader.
 - **What it stores:** your settings (theme, fonts, text size) and the list of recent files (names and addresses, never contents), in the app's own storage on your device.
 
@@ -23,5 +23,5 @@ The Windows installers aren't code-signed, so SmartScreen warns about them; the 
 
 ## Permissions
 
-- **Android:** network access only (to load web images). No storage, contacts, location or other permissions.
-- **Windows and Linux:** no special permissions; ArkMD runs as your user.
+- **Android:** network access (web images and update checks) and permission to start installs, which Android asks you to allow once when you first update from ArkMD. No storage, contacts or location permissions.
+- **Windows and Linux:** no special permissions; ArkMD runs as your user. Updating a .deb or .rpm install asks for administrator rights through the system prompt.

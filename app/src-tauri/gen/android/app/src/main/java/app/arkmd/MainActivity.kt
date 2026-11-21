@@ -17,6 +17,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import android.os.Build
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.Executors
 
@@ -138,7 +140,34 @@ class MainActivity : TauriActivity() {
 
     // ------------------------------------------------------------------ bridge (called from platform.js)
 
+    private val updater by lazy { ApkUpdater(this) }
+
+    /** Download progress for the update dialog. */
+    private fun updateProgress(done: Long, total: Long) = main.post {
+        webView?.evaluateJavascript("window.arkUpdateProgress && window.arkUpdateProgress($done, $total)", null)
+    }
+
     inner class Bridge {
+        /** android.json as text, plus this device's ABIs (best first) so the page can pick its entry. */
+        @JavascriptInterface fun updateManifest(id: Int, url: String) = io.execute {
+            runCatching { JSONObject().put("manifest", updater.fetchManifest(url)).put("abis", JSONArray(Build.SUPPORTED_ABIS.toList())) }
+                .onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        /** Download, check and hand the APK to the system installer; first asks Android to allow installs from ArkMD. */
+        @JavascriptInterface fun updateInstall(id: Int, url: String, sha256: String) = io.execute {
+            runCatching {
+                if (!updater.canInstall()) {
+                    main.post { startActivity(updater.permissionIntent()) }
+                    return@runCatching JSONObject().put("needsPermission", true)
+                }
+                val apk = updater.download(url, sha256) { done, total -> updateProgress(done, total) }
+                updater.verify(apk)
+                main.post { startActivity(updater.installIntent(apk)) }
+                JSONObject().put("needsPermission", false)
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
         @JavascriptInterface fun openDocument(id: Int) = main.post {
             openId = id
             openDoc.launch(arrayOf("text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"))

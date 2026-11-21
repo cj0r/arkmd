@@ -22,8 +22,9 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes.
 - **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
 - **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
+- **Updates:** More > Check for updates installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
 - **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
-- **Small and private:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline, has no account and collects no data.
+- **Small and private:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
 ## Install
 

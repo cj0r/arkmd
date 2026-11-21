@@ -2,6 +2,13 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.6.0 (2026-11-21)
+
+### Added
+- **In-app updates.** More > Check for updates installs the latest release. Windows and Linux (AppImage, .deb, .rpm) updates are signed and verified against a public key built into the app; .deb and .rpm installs ask for administrator rights. On Android the APK is checked against the release's SHA-256 and must carry the installed app's signing certificate before the system installer opens. A badge on the More button marks an available update.
+- **Check automatically** setting in the More menu: a once-a-day check, off by default.
+- Releases include `latest.json` and `android.json` for the updater, and an update signature for each Windows and Linux package.
+
 ## 0.5.1 (2026-11-21)
 
 First public release.

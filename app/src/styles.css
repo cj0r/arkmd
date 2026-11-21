@@ -137,3 +137,7 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
 }
 .popup .menu-head { padding: 8px 12px 2px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
 #dialog .about { margin: 2px 22px 6px; font-size: 14px; }
+#dialog .notes { white-space: pre-line; color: var(--fg-soft, var(--fg)); max-height: 9em; overflow-y: auto; }
+#dialog .opt:disabled { opacity: .55; cursor: default; }
+.icon.badge { position: relative; }
+.icon.badge::after { content: ""; position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg-alt); }

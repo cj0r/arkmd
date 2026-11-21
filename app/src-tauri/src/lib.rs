@@ -47,6 +47,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_persisted_scope::init());
+    // In-app updates (Windows and Linux): the updater checks the release's latest.json and verifies each download
+    // against the public key in tauri.conf.json; the process plugin restarts the app afterwards.
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
     builder
         .setup(|app| {
             let mut launch = None;
