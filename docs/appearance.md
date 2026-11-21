@@ -15,15 +15,38 @@ The palette button in the top bar opens the theme list, dark themes first, then 
 
 A theme sets the colors of the reader, the editor, code blocks, callouts and the app itself. Headings use a different color for each level, in an order that follows the theme's own conventions. `design/theme-sheet.html` in the repository lists every color of every theme with its source and contrast ratio.
 
+## Your own theme
+
+Write a CSS file that sets colors, then add it: **Theme** > **Add a theme from a CSS file…**. The theme appears under **Custom** in the theme list and is selected right away. **Remove a custom theme…** in the same list deletes it. [`samples/custom-theme.css`](../samples/custom-theme.css) is a complete example with every variable.
+
+```css
+:root {
+  --theme-name: "Paper";
+  --bg: #fbf7ef;
+  --fg: #2b2b2b;
+  --accent: #b4540a;
+}
+```
+
+- **Required:** `--bg` and `--fg`. Everything else is optional.
+- **Defaults:** a color you leave out comes from a built-in theme of the same kind (Tokyo Night for dark, Tokyo Night Light for light, or the one named in `--theme-base`). `--bg-alt`, `--surface`, `--fg-muted` and `--selection` are derived from `--bg`, `--fg` and `--accent`.
+- **Variables:** `--bg`, `--bg-alt`, `--surface`, `--fg`, `--fg-muted`, `--selection`, `--accent`, `--link`, `--quote-border`, `--checkbox`, `--tag`, `--h1` to `--h6`, `--bold`, `--italic`, `--code-fg`, `--red`, `--orange`, `--yellow`, `--green`, `--cyan`, `--purple`, and `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-function`, `--hl-title`, `--hl-type`, `--hl-variable`, `--hl-attr`, `--hl-builtin`, `--hl-literal`, `--hl-meta`, `--hl-operator`, `--hl-punctuation`, `--hl-regexp`, `--hl-deletion`, `--hl-addition` for code.
+- **Colors:** `#rgb`, `#rrggbb`, `rgb()`, `hsl()` (with or without alpha), `black` or `white`. Translucent colors are blended over `--bg`.
+- **Options:** `--theme-name` (otherwise the file name), `--theme-base`, and `--theme-mode: dark` or `light` (otherwise decided from `--bg`).
+- **Only colors are read.** Other rules, `@import`, `url()` and fonts in the file are ignored, so a theme can't load anything from the web or change the layout. ArkMD tells you how many settings it ignored. A file must be under 64 KB.
+- **Contrast mode applies** to custom themes like built-in ones, so a low-contrast color is adjusted unless you switch it off.
+
+ArkMD stores the file's text in its settings, so the theme keeps working if you move or delete the original file. To change a theme, add the edited file again and remove the old one.
+
 ## Contrast mode
 
 Several official themes use colors that are hard to read, such as pale text on a light background. By default ArkMD makes every text color reach at least a 4.5:1 contrast ratio (WCAG 2.2 level AA). It changes only the lightness of a color, so its hue stays, and only when a color falls below that ratio.
 
-To see the official colors exactly, switch it off: **More** > **Contrast (WCAG AA)**. The setting applies to every theme.
+To see the official colors exactly, switch it off: **More** > **Settings** > **Contrast (WCAG AA)**. The setting applies to every theme.
 
 ## Fonts
 
-**More** > **Reading font** and **More** > **Editing font** are separate, so you can read in a serif and edit in a monospace font. Each option in the list is shown in its own typeface.
+**More** > **Settings** > **Reading font** and **Editing font** are separate, so you can read in a serif and edit in a monospace font. Each option in the list is shown in its own typeface.
 
 | Font | Character |
 |---|---|
@@ -40,6 +63,6 @@ Code blocks in the reader always use JetBrains Mono. The fonts ship with the app
 
 ## Text size
 
-**More** > **Text size** offers sizes from 14 to 28. The default is 18 on Android and 16 on desktop. On Android the text also follows the font size set in the system settings. On desktop, Ctrl + and Ctrl − make the whole window larger or smaller.
+**More** > **Settings** > **Text size** offers sizes from 14 to 28. The default is 18 on Android and 16 on desktop. On Android the text also follows the font size set in the system settings. On desktop, Ctrl + and Ctrl − make the whole window larger or smaller.
 
 Theme, fonts, text size and contrast are remembered on each device.

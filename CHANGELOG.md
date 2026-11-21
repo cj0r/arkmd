@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.7.0 (2026-11-21)
+
+### Added
+- **Custom themes.** Theme > Add a theme from a CSS file… imports a file of color variables as a theme (the example is `samples/custom-theme.css`). Custom themes appear under Custom, work with the contrast mode, and can be removed. Only colors are read from the file.
+- **Settings dialog** (More > Settings, Ctrl+,) with the theme, text size, reading and editing fonts, contrast mode, update options and About, replacing the separate entries in the More menu.
+
 ## 0.6.1 (2026-11-21)
 
 ### Changed

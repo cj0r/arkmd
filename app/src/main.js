@@ -7,6 +7,7 @@ import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes } from "./updates.js";
+import { parseThemeCss, newThemeId } from "./usertheme.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -383,7 +384,10 @@ function menu(anchor, entries) {
 let menuReturn = null;
 function closeMenu() { if ($("menu").hidden) return; $("menu").hidden = true; menuReturn?.focus?.({ preventScroll: true }); }
 
-function choose(title, sections, selected, onPick) {
+const HOLD = Symbol("hold");   // an onPick that opens another dialog returns this so `after` doesn't run yet
+
+/** A list dialog. `after` runs once a choice has been applied (the Settings dialog uses it to come back). */
+function choose(title, sections, selected, onPick, after) {
   const d = $("dialog");
   const h = document.createElement("h2"); h.textContent = title; h.id = "dialog-title";
   dialogReturn = document.activeElement;
@@ -392,9 +396,14 @@ function choose(title, sections, selected, onPick) {
     if (header) { const s = document.createElement("div"); s.className = "section"; s.textContent = header; nodes.push(s); }
     for (const it of items) {
       const b = document.createElement("button");
-      b.className = "opt" + (it.key === selected ? " sel" : "");
-      b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(it.key === selected));
-      b.innerHTML = `<span class="dot"></span><span><div class="label"></div>${it.sub ? '<div class="sub"></div>' : ""}</span>`;
+      if (it.action) {
+        b.className = "opt act";
+        b.innerHTML = `<span><div class="label"></div></span>`;
+      } else {
+        b.className = "opt" + (it.key === selected ? " sel" : "");
+        b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(it.key === selected));
+        b.innerHTML = `<span class="dot"></span><span><div class="label"></div>${it.sub ? '<div class="sub"></div>' : ""}</span>`;
+      }
       b.querySelector(".label").textContent = it.label;
       if (it.font) b.querySelector(".label").style.fontFamily = it.font;
       if (it.sub) b.querySelector(".sub").textContent = it.sub;
@@ -403,7 +412,7 @@ function choose(title, sections, selected, onPick) {
         sw.innerHTML = it.swatch.map((c) => `<i style="background:${c}"></i>`).join("");
         b.append(sw);
       }
-      b.onclick = () => { closeDialog(); onPick(it.key); };
+      b.onclick = async () => { closeDialog(); const r = await onPick(it.key); if (r !== HOLD) after?.(); };
       nodes.push(b);
     }
   }
@@ -417,27 +426,74 @@ let dialogReturn = null;
 function closeDialog() {
   if ($("dialog-backdrop").hidden) return;
   $("dialog-backdrop").hidden = true;
+  $("dialog").className = "";
   dialogReturn?.focus?.({ preventScroll: true });
 }
 
-function pickTheme() {
-  const items = (dark) => Object.entries(themes).filter(([, t]) => !!t.dark === dark)
-    .map(([key, raw]) => { const t = effective(raw); return { key, label: t.name, swatch: [t.bg, t.h1, t.h2, t.h3, t.h4] }; });
-  choose("Theme", [["Dark", items(true)], ["Light", items(false)]], store.get("theme", "tokyo-night"), (key) => {
+// Custom themes: the CSS files the user imported, kept as text in settings and read again at start.
+const userKeys = () => Object.keys(themes).filter((k) => k.startsWith("user:"));
+const swatchOf = (raw) => { const t = effective(raw); return { label: t.name, swatch: [t.bg, t.h1, t.h2, t.h3, t.h4] }; };
+
+function loadUserThemes() {
+  for (const { id, css, file } of store.get("userThemes", [])) {
+    try { themes[id] = parseThemeCss(css, themes, file).theme; } catch { /* a stored file that no longer reads is skipped */ }
+  }
+}
+
+async function importTheme() {   // resolves when done, or when the picker was cancelled
+  const file = await platform.openThemeFile();
+  if (!file) return;
+  try {
+    const css = await platform.readFile(file.ref);
+    const { theme: t, ignored } = parseThemeCss(css, themes, file.name);
+    const saved = store.get("userThemes", []);
+    const id = newThemeId(t.name, saved.map((s) => s.id));
+    store.set("userThemes", [...saved, { id, css, file: file.name }]);
+    themes[id] = t;
+    store.set("theme", id); theme = t; applyLook();
+    toast(`Theme "${t.name}" added` + (ignored.length ? ` (${ignored.length} unsupported ${ignored.length === 1 ? "setting" : "settings"} ignored)` : ""));
+  } catch (e) {
+    toast(`Couldn't use that file: ${e.message || e}`);
+  }
+}
+
+function removeTheme(after) {
+  const items = userKeys().map((key) => ({ key, ...swatchOf(themes[key]) }));
+  choose("Remove a custom theme", [[null, items]], null, async (key) => {
+    if (!(await platform.confirm(`Remove the theme "${themes[key].name}"?`, "Remove theme"))) return;
+    store.set("userThemes", store.get("userThemes", []).filter((s) => s.id !== key));
+    delete themes[key];
+    if (store.get("theme", "tokyo-night") === key) { store.set("theme", "tokyo-night"); theme = themes["tokyo-night"]; applyLook(); }
+    toast("Theme removed");
+  }, after);
+}
+
+function pickTheme(after) {
+  const builtin = (dark) => Object.entries(themes).filter(([k, t]) => !k.startsWith("user:") && !!t.dark === dark)
+    .map(([key, raw]) => ({ key, ...swatchOf(raw) }));
+  const custom = userKeys().map((key) => ({ key, ...swatchOf(themes[key]) }));
+  const actions = [{ key: "__import", label: "Add a theme from a CSS file…", action: true }];
+  if (custom.length) actions.push({ key: "__remove", label: "Remove a custom theme…", action: true });
+  const sections = [["Dark", builtin(true)], ["Light", builtin(false)]];
+  if (custom.length) sections.push(["Custom", custom]);
+  sections.push([null, actions]);
+  choose("Theme", sections, store.get("theme", "tokyo-night"), (key) => {
+    if (key === "__import") return importTheme();
+    if (key === "__remove") { removeTheme(after); return HOLD; }
     store.set("theme", key); theme = themes[key]; applyLook();
-  });
+  }, after);
 }
 
-function pickFont(title, setting) {
+function pickFont(title, setting, after) {
   const items = FONTS.map((f) => ({ key: f.id, label: f.name, sub: f.note, font: f.dir ? `ArkPrev-${f.id}, var(--font-ui)` : "var(--font-ui)" }));
-  choose(title, [[null, items]], store.get(setting, "system"), (id) => { store.set(setting, id); applyLook(); });
+  choose(title, [[null, items]], store.get(setting, "system"), (id) => { store.set(setting, id); applyLook(); }, after);
 }
 
-function pickSize() {
+function pickSize(after) {
   const def = platform.mobile ? 18 : 16;
   choose("Text size", [[null, SIZES.map((s) => ({ key: s, label: s === def ? `${s} (default)` : `${s}` }))]], textSize(), (s) => {
     store.set("fontSize", s); applyLook();
-  });
+  }, after);
 }
 
 function addMenu() {
@@ -550,26 +606,65 @@ async function about() {
   d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
+// ------------------------------------------------------------------ settings
+/** The Settings dialog: appearance, updates and About in one place. Rows that pick from a list come back here. */
+function openSettings() {
+  const d = $("dialog");
+  dialogReturn = dialogReturn && !$("dialog-backdrop").hidden ? dialogReturn : document.activeElement;
+  d.className = "settings";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Settings";
+  const nodes = [h];
+  const section = (t) => { const s = document.createElement("div"); s.className = "section"; s.textContent = t; nodes.push(s); };
+  const row = (label, value, fn) => {
+    const b = document.createElement("button"); b.className = "opt row";
+    b.innerHTML = `<span class="label"></span><span class="value"></span>`;
+    b.querySelector(".label").textContent = label;
+    b.querySelector(".value").textContent = value ? value + "  ›" : "›";
+    b.onclick = () => { closeDialog(); fn(); };
+    nodes.push(b);
+  };
+  const toggle = (label, sub, key, dflt, apply) => {
+    const b = document.createElement("button"); b.className = "opt row"; b.setAttribute("role", "switch");
+    b.innerHTML = `<span><div class="label"></div><div class="sub"></div></span><span class="switch"></span>`;
+    b.querySelector(".label").textContent = label; b.querySelector(".sub").textContent = sub;
+    const show = () => b.setAttribute("aria-checked", String(!!store.get(key, dflt)));
+    show();
+    b.onclick = () => { store.set(key, !store.get(key, dflt)); show(); apply?.(store.get(key, dflt)); };
+    nodes.push(b);
+  };
+  const back = () => openSettings();
+
+  section("Appearance");
+  row("Theme", effective(theme).name, () => pickTheme(back));
+  row("Text size", String(textSize()), () => pickSize(back));
+  row("Reading font", fontById(store.get("readFont", "system")).name, () => pickFont("Reading font", "readFont", back));
+  row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
+  toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
+
+  if (platform.update) {
+    section("Updates");
+    if (pendingUpdate) row(`Update to ${pendingUpdate.version}`, "", showUpdate);
+    toggle("Check for updates automatically", "Once a day, a few seconds after ArkMD starts. Off by default.", "autoUpdate", false);
+    row("Check for updates now", shownVersion ? `Version ${shownVersion}` : "", () => checkForUpdates());
+  }
+
+  section("About");
+  row("About ArkMD", "", about);
+
+  const done = document.createElement("button"); done.className = "opt done"; done.textContent = "Done"; done.onclick = closeDialog;
+  nodes.push(done);
+  d.replaceChildren(...nodes);
+  $("dialog-backdrop").hidden = false;
+  d.querySelector(".opt")?.focus({ preventScroll: true });
+}
+
 function moreMenu() {
   const open = !!cur();
   const entries = [];
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
-  entries.push(["Text size", pickSize], ["Reading font", () => pickFont("Reading font", "readFont")],
-    ["Editing font", () => pickFont("Editing font", "editFont")],
-    [`Contrast (WCAG AA): ${store.get("contrastAA", true) ? "on" : "off"}`, () => {
-      store.set("contrastAA", !store.get("contrastAA", true)); applyLook();
-      toast(store.get("contrastAA", true) ? "Contrast adjusted to WCAG AA" : "Official theme colours");
-    }]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
-  if (platform.update) {
-    if (pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
-    entries.push(["Check for updates", () => checkForUpdates()],
-      [`Check automatically: ${store.get("autoUpdate", false) ? "on" : "off"}`, () => {
-        store.set("autoUpdate", !store.get("autoUpdate", false));
-        toast(store.get("autoUpdate", false) ? "ArkMD will check for updates once a day" : "Automatic update checks are off");
-      }]);
-  }
-  entries.push(["About", about]);
+  if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
+  entries.push([platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
   menu($("btn-more"), entries);
 }
 
@@ -630,7 +725,7 @@ function onKey(e) {
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }
-  const act = { o: openFile, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey) }[e.key.toLowerCase()];
+  const act = { o: openFile, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
   if (act) { e.preventDefault(); act(); }
 }
 
@@ -653,6 +748,7 @@ async function init() {
   const style = document.createElement("style"); style.id = "fontfaces"; document.head.append(style);
   themes = await (await fetch("/themes.json")).json();
   const renamed = { "tokyo-night-day": "tokyo-night-light" };   // keys from earlier versions
+  loadUserThemes();
   const saved = store.get("theme", "tokyo-night");
   if (renamed[saved]) store.set("theme", renamed[saved]);
   theme = themes[renamed[saved] || saved] || themes["tokyo-night"];

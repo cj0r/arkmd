@@ -1,0 +1,68 @@
+/*
+  An example ArkMD theme. In ArkMD: Theme > Add a theme from a CSS file…
+
+  Only colour variables inside a :root { } block are read; everything else in the file is ignored.
+  Colours can be #rgb, #rrggbb, rgb(), hsl() (with or without alpha), black or white.
+  Only --bg and --fg are required. Anything you leave out comes from a built-in theme (Tokyo Night for dark,
+  Tokyo Night Light for light, or the one named in --theme-base), and the page-tone colours
+  (--bg-alt, --surface, --fg-muted, --selection) are derived from --bg and --fg.
+  ArkMD's WCAG AA contrast adjustment applies to custom themes too (More > Contrast).
+*/
+:root {
+  --theme-name: "Midnight Ember";   /* shown in the theme list; the file name is used if left out */
+  --theme-base: tokyo-night;        /* optional: a built-in theme to borrow unset colours from (same dark/light kind) */
+  --theme-mode: dark;               /* optional: dark or light; otherwise decided from --bg */
+
+  /* page */
+  --bg: #14110f;
+  --bg-alt: #1b1714;                /* code blocks, bars */
+  --surface: #2a231e;               /* hovers, dividers */
+  --fg: #e8ddd0;
+  --fg-muted: #8f8174;
+  --selection: #4a3524;
+
+  /* accents */
+  --accent: #ff8a3d;
+  --link: #ffb26b;
+  --quote-border: #ff8a3d;
+  --checkbox: #ff8a3d;
+  --tag: #f2c14e;
+
+  /* headings, emphasis, code */
+  --h1: #ff8a3d;
+  --h2: #f2c14e;
+  --h3: #a3c76b;
+  --h4: #6bb7c7;
+  --h5: #b08cd9;
+  --h6: #d98c9e;
+  --bold: #ffb26b;
+  --italic: #d9b88c;
+  --code-fg: #a3c76b;
+
+  /* named colours (callouts and highlights) */
+  --red: #e5666a;
+  --orange: #ff8a3d;
+  --yellow: #f2c14e;
+  --green: #a3c76b;
+  --cyan: #6bb7c7;
+  --purple: #b08cd9;
+
+  /* syntax highlighting in code blocks */
+  --hl-keyword: #ff8a3d;
+  --hl-string: #a3c76b;
+  --hl-number: #f2c14e;
+  --hl-comment: #8f8174;
+  --hl-function: #6bb7c7;
+  --hl-title: #6bb7c7;
+  --hl-type: #b08cd9;
+  --hl-variable: #e8ddd0;
+  --hl-attr: #ffb26b;
+  --hl-builtin: #6bb7c7;
+  --hl-literal: #f2c14e;
+  --hl-meta: #8f8174;
+  --hl-operator: #d9b88c;
+  --hl-punctuation: #b5a898;
+  --hl-regexp: #a3c76b;
+  --hl-deletion: #e5666a;
+  --hl-addition: #a3c76b;
+}

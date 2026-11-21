@@ -37,6 +37,7 @@ const androidImpl = {
   name: "android",
   mobile: true,
   async openFile() { return call("openDocument"); },                       // -> {ref, name} | null
+  async openThemeFile() { return call("openCss"); },                        // -> {ref, name} | null
   async readFile(ref) { return call("read", ref); },                        // -> text
   async writeFile(ref, text) { await call("write", ref, text); },
   async saveAs(name, text) { return call("createDocument", name, text); },  // -> {ref, name} | null
@@ -78,6 +79,11 @@ const desktopImpl = {
   async openFile() {
     const { open } = await import("@tauri-apps/plugin-dialog");
     const ref = await open({ multiple: false, directory: false, filters: this.filters });
+    return ref ? { ref, name: baseName(ref) } : null;
+  },
+  async openThemeFile() {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const ref = await open({ multiple: false, directory: false, filters: [{ name: "CSS theme", extensions: ["css"] }] });
     return ref ? { ref, name: baseName(ref) } : null;
   },
   async readFile(ref) {

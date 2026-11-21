@@ -173,6 +173,12 @@ class MainActivity : TauriActivity() {
             openDoc.launch(arrayOf("text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"))
         }.let { }
 
+        /** The file picker for a theme (.css) file. */
+        @JavascriptInterface fun openCss(id: Int) = main.post {
+            openId = id
+            openDoc.launch(arrayOf("text/css", "text/plain", "application/octet-stream"))
+        }.let { }
+
         @JavascriptInterface fun createDocument(id: Int, name: String, text: String) = main.post {
             createId = id; createText = text
             createDoc.launch(name)

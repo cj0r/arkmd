@@ -22,4 +22,4 @@ When you change a file, a dot appears on its tab and a **Save** button appears i
 
 ## Make it yours
 
-The palette button opens the theme list, and **More** has the text size, the reading and editing fonts and the contrast mode. See [Themes and fonts](appearance.md).
+The palette button opens the theme list. **More** > **Settings** (Ctrl+,) has the theme, text size, reading and editing fonts, contrast mode and update options. See [Themes and fonts](appearance.md).

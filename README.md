@@ -19,10 +19,11 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Editor:** CodeMirror 6 with live Markdown highlighting, including code inside fenced blocks. One tap (or Ctrl+E) switches between reading and editing and keeps your place. A file's line endings are kept.
 - **Tabs:** several files open at once, each with its own text, undo history, cursor and scroll position. Close a tab with its ✕, middle-click, Ctrl+W or the Android back button; switch with Ctrl+Tab. Opening a file that is already open switches to its tab.
 - **Formatting panel:** a floating bar that inserts headings, bold, italic, strikethrough, highlight, code, links, lists, tasks, quotes, callouts, code blocks, tables and dividers, so you don't need to know the syntax. Applying a format again removes it.
-- **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes.
+- **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes. Add your own from a CSS file of color variables.
 - **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
 - **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
-- **Updates:** More > Check for updates installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
+- **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode and updates.
+- **Updates:** Settings > Check for updates now installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
 - **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
 - **Small and private:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
@@ -84,7 +85,7 @@ Set `NDK_HOME` to the NDK folder. Builds are signed with the key named in the fi
 app/                 the app: src/ (front end), src-tauri/ (Rust shell, Tauri config, Android project)
 shared/web/          reader page, themes.json, fonts
 tools/               gen_themes.py, build_fonts.py, gen_notices.py, version.py
-samples/             feature-tour.md, a document that uses every supported feature
+samples/             feature-tour.md (a document that uses every supported feature), custom-theme.css (an example theme)
 design/              logo sources and a sheet of every theme's colors
 ```
 

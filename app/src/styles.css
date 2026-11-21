@@ -141,3 +141,12 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
 #dialog .opt:disabled { opacity: .55; cursor: default; }
 .icon.badge { position: relative; }
 .icon.badge::after { content: ""; position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg-alt); }
+#dialog .opt.act { padding-left: 22px; color: var(--accent); }
+#dialog.settings { width: min(460px, calc(100vw - 32px)); }
+#dialog .row { justify-content: space-between; }
+#dialog .row .value { color: var(--fg-muted); font-size: 14px; text-align: right; }
+#dialog .switch { flex: none; width: 38px; height: 22px; border-radius: 11px; background: var(--surface); border: 2px solid var(--fg-muted); position: relative; }
+#dialog .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--fg-muted); transition: transform .12s; }
+#dialog [aria-checked="true"] .switch { background: var(--accent); border-color: var(--accent); }
+#dialog [aria-checked="true"] .switch::after { transform: translateX(16px); background: var(--bg); }
+#dialog .done { justify-content: center; margin-top: 8px; color: var(--accent); border-top: 1px solid var(--surface); }

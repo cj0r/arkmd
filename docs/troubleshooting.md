@@ -8,7 +8,7 @@
 
 **A recent file won't open.** Android lets ArkMD read a file only while the system keeps that permission. Open the file again with **+** > **Open file…**.
 
-**The text is too small or too large.** ArkMD follows the font size in Android's system settings, and **More** > **Text size** adjusts it further.
+**The text is too small or too large.** ArkMD follows the font size in Android's system settings, and **More** > **Settings** > **Text size** adjusts it further.
 
 ## Windows
 
@@ -26,7 +26,7 @@
 
 ## Everywhere
 
-**Colors look different from the official theme.** The contrast mode adjusts colors that are hard to read. Switch it off in **More** > **Contrast (WCAG AA)** to see the official colors.
+**Colors look different from the official theme.** The contrast mode adjusts colors that are hard to read. Switch it off in **More** > **Settings** > **Contrast (WCAG AA)** to see the official colors.
 
 **A web image doesn't show.** The device needs a connection to the image's server, and some sites block loading their images in other apps. Images by file path aren't loaded.
 
