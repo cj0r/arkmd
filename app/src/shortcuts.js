@@ -6,7 +6,7 @@ export const SHORTCUTS = [
     ["Ctrl+W", "Close the current tab"], ["Ctrl+Shift+T", "Reopen the last closed tab"], ["Ctrl+Tab, Ctrl+Shift+Tab", "Next, previous tab"],
   ]],
   ["View", [
-    ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+,", "Settings"], ["F1", "This list"],
+    ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+Shift+O", "Outline of the document"], ["Ctrl+,", "Settings"], ["F1", "This list"],
     ["Ctrl + and Ctrl −", "Larger, smaller window content"], ["Esc", "Close a menu or dialog"],
   ]],
   ["Headings (while editing)", [

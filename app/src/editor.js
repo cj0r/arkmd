@@ -173,6 +173,13 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
     scrollToFraction(f) {
       requestAnimationFrame(() => { const s = view.scrollDOM; s.scrollTop = f * (s.scrollHeight - s.clientHeight); });
     },
+    /** Put the cursor at the start of a 0-based line and scroll it to the top. */
+    goToLine(n) {
+      const line = view.state.doc.line(Math.min(Math.max(n + 1, 1), view.state.doc.lines));
+      view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 8 }) });
+      view.focus();
+    },
+    cursorLine() { return view.state.doc.lineAt(view.state.selection.main.head).number - 1; },
     /** Apply a format.js edit {start,end,text,selStart,selEnd} as one undoable change. */
     applyEdit(e) {
       view.dispatch({

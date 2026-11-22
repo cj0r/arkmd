@@ -6,6 +6,10 @@ Each tab is either reading or editing. The reader draws the document with colore
 
 The round button at the bottom right, or Ctrl+E, switches the current tab and keeps your scroll position. Each tab remembers its own mode.
 
+## Outline
+
+The list button in the top bar (Ctrl+Shift+O) opens a flyout with the headings of the document, indented by level. Choose one to jump to it: the reader scrolls to the heading, and the editor puts the cursor at the start of its line. The section you are in is marked. Headings inside code blocks and front matter are not listed. Esc or a click outside closes the flyout.
+
 ## Code in the editor
 
 Fenced code blocks are colored in the editor with the same colors as in the reader. The editor knows these languages: JavaScript, TypeScript, Python, Rust, Java, Kotlin, C and C++, C#, Go, JSON, YAML, TOML, HTML and XML, CSS, SQL, shell, PowerShell, Lua, Ruby, diff and Dockerfile. Put the language after the opening fence (` ```python `); other languages are shown as plain code.
@@ -51,6 +55,7 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+W | Close the current tab |
 | Ctrl+Tab, Ctrl+Shift+Tab | Next, previous tab (also Ctrl+PageDown, Ctrl+PageUp) |
 | Ctrl+E | Switch between reading and editing |
+| Ctrl+Shift+O | Outline of the document |
 | Ctrl+, | Settings |
 | F1 | Keyboard shortcuts |
 | Esc | Close a menu or dialog |

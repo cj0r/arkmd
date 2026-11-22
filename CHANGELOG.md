@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.10.0 (2026-11-21)
+
+### Added
+- **Outline.** A flyout (the list button in the top bar, or Ctrl+Shift+O) lists the document's headings, indented by level, and jumps to the one you choose, in both reading and editing mode. The current section is marked.
+
 ## 0.9.0 (2026-11-21)
 
 ### Added

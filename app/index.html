@@ -11,6 +11,7 @@
     <div id="tabs" role="group" aria-label="Open files"></div>
     <button class="icon" id="btn-add" title="New or open" aria-label="New or open file" aria-haspopup="menu"></button>
     <div class="spacer" data-tauri-drag-region></div>
+    <button class="icon" id="btn-outline" title="Outline (Ctrl+Shift+O)" aria-label="Outline" aria-haspopup="true" aria-expanded="false" aria-controls="outline" hidden></button>
     <button class="icon" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" hidden disabled>
       <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
     </button>
@@ -50,6 +51,7 @@
     </section>
     <iframe id="reader" src="/viewer.html" title="Reader" hidden></iframe>
     <div id="editor" hidden></div>
+    <nav id="outline" aria-label="Outline" hidden></nav>
     <div id="formatbar" role="toolbar" aria-label="Formatting" hidden></div>
     <button id="toggle" class="fab" title="Edit (Ctrl+E)" aria-label="Edit" hidden></button>
   </main>

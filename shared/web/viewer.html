@@ -254,6 +254,24 @@ img { max-width:100%; border-radius:6px; }
     return h > 0 ? window.scrollY / h : 0;
   };
 
+  // The headings of the rendered document, for the host's Outline flyout.
+  function headingEls() { return Array.prototype.slice.call(document.querySelectorAll("#doc h1, #doc h2, #doc h3, #doc h4, #doc h5, #doc h6")); }
+  window.headings = function () {
+    return headingEls().map(function (h) { return { level: Number(h.tagName.charAt(1)), text: (h.textContent || "").replace(/\s+/g, " ").trim() }; });
+  };
+  window.scrollToHeading = function (i) {
+    var h = headingEls()[i];
+    if (!h) return;
+    h.scrollIntoView({ block: "start" });
+    h.setAttribute("tabindex", "-1");
+    h.focus({ preventScroll: true });
+  };
+  window.currentHeading = function () {
+    var at = -1;
+    headingEls().forEach(function (h, i) { if (h.getBoundingClientRect().top <= 24) at = i; });
+    return at;
+  };
+
   // Embedded in the desktop app (iframe): hand links to the host so they open in the system browser.
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a[href]");

@@ -9,6 +9,7 @@ import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS } from "./shortcuts.js";
+import { outline as parseOutline, currentIndex } from "./outline.js";
 import { fileKey, formatWhen, formatSize, lineDelta, draftsToOffer, pushClosed } from "./history.js";
 import * as hdb from "./historydb.js";
 
@@ -136,6 +137,8 @@ function updateChrome() {
   platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ArkMD` : "ArkMD");
   $("btn-save").hidden = !(open && t.dirty);
   $("btn-format").hidden = mode() !== "edit";
+  $("btn-outline").hidden = !open;
+  if (!open) closeOutline();
   for (const id of ["btn-undo", "btn-redo"]) $(id).hidden = mode() !== "edit";
   updateUndoButtons();
   $("btn-format").classList.toggle("on", store.get("formatBar", true));
@@ -883,12 +886,17 @@ function wire() {
   addEventListener("pagehide", flushDrafts);
   $("btn-theme").onclick = pickTheme;
   $("btn-more").onclick = moreMenu;
+  $("btn-outline").innerHTML = svg("outline");
+  $("btn-outline").onclick = toggleOutline;
+  $("outline").addEventListener("keydown", outlineKey);
   $("btn-format").onclick = () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); };
   $("toggle").onclick = toggleMode;
   $("clear-recent").onclick = () => { store.set("recent", []); renderRecents(); };
   $("dialog-backdrop").onclick = (e) => { if (e.target.id === "dialog-backdrop") closeDialog(); };
   // Close the menu on any tap or click outside it (pointerdown works for touch and mouse).
   document.addEventListener("pointerdown", (e) => { if (!$("menu").contains(e.target)) $("menu").hidden = true; });
+  // The outline closes on a tap or click outside it (the toggle button handles its own click).
+  document.addEventListener("pointerdown", (e) => { if (!$("outline").contains(e.target) && !$("btn-outline").contains(e.target)) closeOutline(); });
 
   document.addEventListener("keydown", onKey);
 
@@ -917,7 +925,7 @@ function wire() {
 
 function onKey(e) {
   const mod = e.ctrlKey || e.metaKey;
-  if (e.key === "Escape") { closeMenu(); closeDialog(); }
+  if (e.key === "Escape") { closeMenu(); closeDialog(); closeOutline(); }
   // Arrow keys move between menu items / dialog options.
   if ((e.key === "ArrowDown" || e.key === "ArrowUp") && (!$("menu").hidden || !$("dialog-backdrop").hidden)) {
     const items = [...(!$("menu").hidden ? $("menu") : $("dialog")).querySelectorAll("button")];
@@ -931,8 +939,86 @@ function onKey(e) {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }
   if (e.shiftKey && e.key.toLowerCase() === "t") { e.preventDefault(); reopenClosed(); return; }
+  if (e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); toggleOutline(); return; }
   const act = { o: openFile, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
   if (act) { e.preventDefault(); act(); }
+}
+
+// ---- Outline flyout: the document's headings, to jump to a section ----------------------------------------
+
+/** The headings of the open file: from the text while editing, from the rendered page while reading. */
+function outlineItems() {
+  if (mode() === "edit") return parseOutline(editor.getText());
+  return readerReady ? $("reader").contentWindow.headings() : [];
+}
+
+function outlineCurrent(items) {
+  if (mode() === "edit") return currentIndex(items, editor.cursorLine());
+  return readerReady ? $("reader").contentWindow.currentHeading() : -1;
+}
+
+function openOutline() {
+  if (!cur()) return;
+  closeMenu();
+  const panel = $("outline");
+  const items = outlineItems();
+  const at = outlineCurrent(items);
+  panel.replaceChildren();
+  const head = document.createElement("div");
+  head.className = "outline-head";
+  head.textContent = "Outline";
+  panel.append(head);
+  if (!items.length) {
+    const p = document.createElement("p");
+    p.className = "muted outline-empty";
+    p.textContent = "No headings yet. Start a line with # to add one.";
+    panel.append(p);
+  }
+  const base = items.length ? Math.min(...items.map((h) => h.level)) : 1;   // indent from the shallowest level used
+  items.forEach((h, i) => {
+    const b = document.createElement("button");
+    b.className = "outline-item" + (i === at ? " current" : "");
+    b.style.paddingLeft = `${14 + (h.level - base) * 14}px`;
+    b.textContent = h.text || "(empty heading)";
+    b.title = h.text;
+    b.dataset.level = h.level;
+    if (i === at) b.setAttribute("aria-current", "location");
+    b.onclick = () => { goToHeading(i, items); };
+    panel.append(b);
+  });
+  panel.hidden = false;
+  $("btn-outline").setAttribute("aria-expanded", "true");
+  $("btn-outline").classList.add("on");
+  (panel.querySelector(".current") || panel.querySelector(".outline-item"))?.focus({ preventScroll: false });
+  panel.querySelector(".current")?.scrollIntoView({ block: "center" });
+}
+
+function closeOutline(restoreFocus = false) {
+  const panel = $("outline");
+  if (panel.hidden) return;
+  panel.hidden = true;
+  $("btn-outline").setAttribute("aria-expanded", "false");
+  $("btn-outline").classList.remove("on");
+  if (restoreFocus) $("btn-outline").focus({ preventScroll: true });
+}
+
+function toggleOutline() { if ($("outline").hidden) openOutline(); else closeOutline(true); }
+
+function goToHeading(i, items) {
+  closeOutline();
+  if (mode() === "edit") editor.goToLine(items[i].line);
+  else $("reader").contentWindow.scrollToHeading(i);
+}
+
+/** Arrow keys, Home and End move through the list; Escape closes it. */
+function outlineKey(e) {
+  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeOutline(true); return; }
+  const list = [...$("outline").querySelectorAll(".outline-item")];
+  const i = list.indexOf(document.activeElement);
+  const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: list.length - 1 }[e.key];
+  if (to === undefined || !list.length) return;
+  e.preventDefault();
+  list[(to + list.length) % list.length].focus();
 }
 
 function onReaderLoad() {
@@ -941,7 +1027,7 @@ function onReaderLoad() {
   // Shortcuts keep working after clicking into the reader (its keys go to the iframe document).
   $("reader").contentDocument.addEventListener("keydown", onKey);
   // Taps inside the reader land in the iframe document, so close the menu from there too.
-  $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; });
+  $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; closeOutline(); });
   applyLook();
   if (cur()) render(cur().scroll);
 }
