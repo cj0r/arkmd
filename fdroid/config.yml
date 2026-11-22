@@ -1,0 +1,13 @@
+# F-Droid repository settings for ArkMD (see tools/build_fdroid_repo.sh). The signing key and its password are
+# supplied by the build (FDROID_KEYSTORE, FDROID_KEY_STORE_PASS, FDROID_KEY_PASS); nothing secret lives here.
+repo_url: https://cj0r.github.io/arkmd/fdroid/repo
+repo_name: ArkMD
+repo_description: >-
+  Releases of ArkMD, a lightweight Markdown viewer and editor, built from https://github.com/cj0r/arkmd. Each file is
+  the same signed APK that is attached to the GitHub release.
+repo_icon: icon.png
+repo_keyalias: arkmd-repo
+keydname: CN=ArkMD F-Droid repository
+archive_older: 0
+make_current_version_link: false
+update_stats: false

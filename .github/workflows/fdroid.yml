@@ -1,0 +1,94 @@
+name: F-Droid repository
+
+# Runs only in the public repo (cj0r/arkmd). After a release is published, rebuilds the F-Droid repository from the
+# signed APKs attached to the latest releases (0.14.1 and later) and publishes it on GitHub Pages at
+# https://cj0r.github.io/arkmd/fdroid/repo . The repository index is signed with its own key, kept in the repository's
+# secrets (FDROID_KEYSTORE_B64, FDROID_KEYSTORE_PASSWORD); the APKs keep the ArkMD release signature. Run by hand
+# (Run workflow) to rebuild it without a new release.
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # SHA-256 of the ArkMD release signing certificate; every APK in the repository must carry it
+  ANDROID_CERT_SHA256: 1e18cf4304250b1adea255481f9f91c85a1765cf6ce4ec8a4c2f53461fd9ec90
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'cj0r/arkmd' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')))
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install fdroidserver
+        run: python -m pip install --quiet "fdroidserver==2.4.5"
+      - name: Download the latest release APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir apks
+          count=0
+          for tag in $(gh release list --limit 30 --json tagName --jq '.[].tagName'); do
+            version=${tag#v}
+            # only 0.14.1 and later: earlier Android builds asked Android for the permission to install apps
+            if [ "$(printf '%s\n0.14.1\n' "$version" | sort -V | head -n1)" = "0.14.1" ]; then
+              gh release download "$tag" --pattern 'ArkMD-*-android-arm64.apk' --dir apks
+              count=$((count + 1))
+              [ "$count" -ge 3 ] && break
+            fi
+          done
+          ls -l apks
+          [ "$count" -ge 1 ] || { echo "no release to publish"; exit 1; }
+      - name: Build the repository
+        env:
+          FDROID_KEYSTORE_B64: ${{ secrets.FDROID_KEYSTORE_B64 }}
+          FDROID_KEY_STORE_PASS: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$FDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/fdroid-repo.p12"
+          export FDROID_KEYSTORE="$RUNNER_TEMP/fdroid-repo.p12"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          tools/build_fdroid_repo.sh apks site
+          rm -f "$FDROID_KEYSTORE"
+      - name: Check the APK signatures
+        run: |
+          python3 - <<'PY'
+          import json, os
+          index = json.load(open("site/fdroid/repo/index-v1.json"))
+          packages = index["packages"]["app.arkmd"]
+          want = os.environ["ANDROID_CERT_SHA256"]
+          bad = [p["apkName"] for p in packages if p["signer"] != want]
+          assert packages, "the index lists no APK"
+          assert not bad, f"signed with another key: {bad}"
+          print(f"{len(packages)} APK(s), all signed with the ArkMD release key")
+          PY
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

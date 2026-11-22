@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+- **F-Droid repository** at https://cj0r.github.io/arkmd/fdroid/repo, rebuilt after each release from the signed APKs (0.14.1 and later), so F-Droid, Droid-ify or Neo Store can keep ArkMD up to date on Android. The repository page shows the signing fingerprint.
+- Store metadata (descriptions, changelog, icon) in `fastlane/metadata/android/en-US/`.
+
 ## 0.14.1 (2026-11-22)
 
 ### Changed

@@ -49,6 +49,8 @@ Download the file for your platform from the [latest release](https://github.com
 
 **Keeping Android up to date:** ArkMD doesn't install updates itself on Android. Settings > Check for updates now tells you when a newer version exists and opens its download. To have updates fetched in the background, add this repository to [Obtainium](https://obtainium.imranr.dev) (open the link `obtainium://add/https://github.com/cj0r/arkmd` on the phone, or paste `https://github.com/cj0r/arkmd` into Obtainium's Add app screen). Obtainium installs the new APK over the old one, and on recent versions of Android it can do so without asking each time.
 
+**F-Droid repository:** ArkMD also has its own repository for F-Droid, Droid-ify and Neo Store, with the same signed APKs as the releases. Add `https://cj0r.github.io/arkmd/fdroid/repo` to your client (or open the link on the [repository page](https://cj0r.github.io/arkmd/)). Check that the client shows this signing fingerprint before you accept it: `6B:BB:C5:DB:95:A4:2C:2B:E7:5D:58:28:42:03:23:64:AB:E7:D0:11:F3:7B:64:09:3B:2C:B6:DC:7A:0A:2C:72`. The client then keeps ArkMD up to date in the background.
+
 **Windows:** run the installer. The installers aren't code-signed, so Windows SmartScreen may show a warning; choose **More info**, then **Run anyway**.
 
 **Linux:** install the package with your package manager, for example `sudo apt install ./ArkMD_<version>_amd64.deb` or `sudo dnf install ./ArkMD-<version>-1.x86_64.rpm`. The packages need WebKitGTK 4.1, which the package manager installs. For the AppImage, make it executable (`chmod +x ArkMD_*.AppImage`) and run it; if FUSE 2 isn't installed, start it with `--appimage-extract-and-run`. On Arch-based distributions, use the AppImage or build from source.

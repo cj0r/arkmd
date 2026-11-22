@@ -1,0 +1,1 @@
+Adds Mermaid diagrams, picture insertion on desktop, 23 more themes and find and replace. On Android, updating now opens the download instead of installing from inside the app.

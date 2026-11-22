@@ -13,6 +13,10 @@ How to report a problem is in [SECURITY.md](../SECURITY.md). This page covers wh
 - **Log file (Windows and Linux):** errors and crashes are written to a text file in the app's log folder, up to about 1 MB. It holds no document text, is never sent anywhere, and you can delete it at any time.
 - **What it stores:** your settings (theme, fonts, text size) and the list of recent files (names and addresses, never contents), in the app's own storage on your device.
 
+## The F-Droid repository
+
+The repository at `https://cj0r.github.io/arkmd/fdroid/repo` is built by GitHub Actions from the APKs attached to the releases (0.14.1 and later); each APK keeps the ArkMD release signature, and the build stops if one carries any other. The repository's index is signed with a separate key, whose SHA-256 fingerprint is `6B:BB:C5:DB:95:A4:2C:2B:E7:5D:58:28:42:03:23:64:AB:E7:D0:11:F3:7B:64:09:3B:2C:B6:DC:7A:0A:2C:72`. Your client should show this fingerprint when you add the repository. Android installs an update only if it is signed with the same key as the installed app.
+
 ## Check a download
 
 Every release lists a SHA-256 checksum for each file in `SHA256SUMS.txt`, and releases are built from the tagged source by GitHub Actions (see `.github/workflows/release.yml`).

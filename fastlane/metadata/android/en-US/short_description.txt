@@ -1,0 +1,1 @@
+Lightweight Markdown viewer and editor with Obsidian-style rendering
