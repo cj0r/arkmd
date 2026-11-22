@@ -208,8 +208,10 @@ LIGHT = {
     "catppuccin-latte": dict(
         name="Catppuccin Latte", bg="#eff1f5", bgAlt="#e6e9ef", surface="#acb0be", fg="#4c4f69", fgMuted="#7c7f93",
         accent="#8839ef", link="#1e66f5", selection=("#7c7f93", 0.30),
-        headings=["#d20f39", "#fe640b", "#df8e1d", "#40a02b", "#209fb5", "#7287fd"],  # official per-level colours
-        bold="#d20f39", italic="#d20f39", codeFg="#40a02b", quoteBorder="#ea76cb", checkbox="#179299", tag="#04a5e5",
+        # Cool, cohesive heading order (mauve, blue, sapphire, teal, green, lavender) around the mauve accent; the
+        # official per-level colours (red, peach, yellow) made a warm clash of red and brown on the light base.
+        headings=["#8839ef", "#1e66f5", "#209fb5", "#179299", "#40a02b", "#7287fd"],
+        bold="#4c4f69", italic="#8839ef", codeFg="#40a02b", quoteBorder="#7287fd", checkbox="#1e66f5", tag="#04a5e5",
         named=["#d20f39", "#fe640b", "#df8e1d", "#40a02b", "#04a5e5", "#8839ef"],
         hljs=["#8839ef", "#40a02b", "#fe640b", "#7c7f93", "#1e66f5", "#1e66f5", "#df8e1d", "#4c4f69", "#df8e1d",
               "#1e66f5", "#d20f39", "#ea76cb", "#179299", "#7c7f93", "#ea76cb", "#d20f39", "#40a02b"]),
@@ -246,6 +248,132 @@ def light(key):
                  bold=p["bold"], italic=p["italic"], codeFg=p["codeFg"], quoteBorder=p["quoteBorder"],
                  checkbox=p["checkbox"], tag=p["tag"], red=red, orange=orange, yellow=yellow, green=green, cyan=cyan,
                  purple=purple, hljs=hl(*p["hljs"]), source=LIGHT_SOURCES[key])
+
+
+# ---------------------------------------------------------------- more families (hand-entered palettes)
+# Colours below are each project's published palette, entered by hand (unlike the extracted families above). One
+# role mapping serves them all: headings run red, yellow, green, cyan, blue, purple unless a family sets its own;
+# bold is the orange, italic the purple, code the green. Text colours that fall short of WCAG AA are adjusted by
+# with_aa() like every other theme, which matters most for the light ones.
+def simple(name, dark, source, *, bg, bgAlt, surface, selection, fg, comment, red, orange, yellow, green, cyan, blue,
+           purple, accent=None, link=None, headings=None, bold=None, italic=None, tag=None, hl_over=None):
+    h = dict(keyword=purple, string=green, number=orange, comment=comment, function=blue, title=blue, type=yellow,
+             variable=fg, attr=yellow, builtin=cyan, literal=orange, meta=cyan, operator=cyan, punctuation=comment,
+             regexp=cyan, deletion=red, addition=green)
+    h.update(hl_over or {})
+    return theme(name, dark, bg=bg, bgAlt=bgAlt, surface=surface, fg=fg, fgMuted=comment, accent=accent or blue,
+                 link=link or blue, selection=selection,
+                 headings=headings or [red, yellow, green, cyan, blue, purple], bold=bold or orange,
+                 italic=italic or purple, codeFg=green, quoteBorder=accent or blue, checkbox=accent or blue,
+                 tag=tag or cyan, red=red, orange=orange, yellow=yellow, green=green, cyan=cyan, purple=purple,
+                 hljs=hl(h["keyword"], h["string"], h["number"], h["comment"], h["function"],
+                         h["title"], h["type"], h["variable"], h["attr"], h["builtin"], h["literal"], h["meta"],
+                         h["operator"], h["punctuation"], h["regexp"], h["deletion"], h["addition"]),
+                 source=source)
+
+
+EXTRA = {
+    "gruvbox-dark": simple("Gruvbox Dark", True, "morhetz/gruvbox palette, medium contrast", bg="#282828", bgAlt="#1d2021",
+        surface="#3c3836", selection="#504945", fg="#ebdbb2", comment="#928374", red="#fb4934", orange="#fe8019",
+        yellow="#fabd2f", green="#b8bb26", cyan="#8ec07c", blue="#83a598", purple="#d3869b", accent="#fabd2f",
+        headings=["#fb4934", "#fe8019", "#fabd2f", "#b8bb26", "#8ec07c", "#83a598"]),
+    "gruvbox-light": simple("Gruvbox Light", False, "morhetz/gruvbox palette, medium contrast", bg="#fbf1c7", bgAlt="#ebdbb2",
+        surface="#d5c4a1", selection="#d5c4a1", fg="#3c3836", comment="#7c6f64", red="#9d0006", orange="#af3a03",
+        yellow="#b57614", green="#79740e", cyan="#427b58", blue="#076678", purple="#8f3f71", accent="#b57614",
+        headings=["#9d0006", "#af3a03", "#b57614", "#79740e", "#427b58", "#076678"]),
+    "solarized-dark": simple("Solarized Dark", True, "Ethan Schoonover's Solarized palette", bg="#002b36", bgAlt="#00212b",
+        surface="#073642", selection="#274642", fg="#839496", comment="#586e75", red="#dc322f", orange="#cb4b16",
+        yellow="#b58900", green="#859900", cyan="#2aa198", blue="#268bd2", purple="#6c71c4", accent="#268bd2",
+        headings=["#cb4b16", "#b58900", "#859900", "#2aa198", "#268bd2", "#6c71c4"]),
+    "solarized-light": simple("Solarized Light", False, "Ethan Schoonover's Solarized palette", bg="#fdf6e3", bgAlt="#eee8d5",
+        surface="#ddd6c1", selection="#eee8d5", fg="#657b83", comment="#93a1a1", red="#dc322f", orange="#cb4b16",
+        yellow="#b58900", green="#859900", cyan="#2aa198", blue="#268bd2", purple="#6c71c4", accent="#268bd2",
+        headings=["#cb4b16", "#b58900", "#859900", "#2aa198", "#268bd2", "#6c71c4"]),
+    "everforest-dark": simple("Everforest Dark", True, "sainnhe/everforest palette, medium contrast", bg="#2d353b",
+        bgAlt="#232a2e", surface="#3d484d", selection="#475258", fg="#d3c6aa", comment="#859289", red="#e67e80",
+        orange="#e69875", yellow="#dbbc7f", green="#a7c080", cyan="#83c092", blue="#7fbbb3", purple="#d699b6",
+        accent="#a7c080", headings=["#e67e80", "#e69875", "#dbbc7f", "#a7c080", "#83c092", "#7fbbb3"]),
+    "everforest-light": simple("Everforest Light", False, "sainnhe/everforest palette, medium contrast", bg="#fdf6e3",
+        bgAlt="#f4f0d9", surface="#e6e2cc", selection="#e6e2cc", fg="#5c6a72", comment="#939f91", red="#f85552",
+        orange="#f57d26", yellow="#dfa000", green="#8da101", cyan="#35a77c", blue="#3a94c5", purple="#df69ba",
+        accent="#8da101", headings=["#f85552", "#f57d26", "#dfa000", "#8da101", "#35a77c", "#3a94c5"]),
+    "ayu-dark": simple("Ayu Dark", True, "ayu-theme/ayu-colors, dark", bg="#0b0e14", bgAlt="#0d1017", surface="#1b1f2a",
+        selection="#202d3c", fg="#bfbdb6", comment="#626a73", red="#f07178", orange="#ff8f40", yellow="#e6b450",
+        green="#aad94c", cyan="#95e6cb", blue="#59c2ff", purple="#d2a6ff", accent="#e6b450",
+        headings=["#ff8f40", "#e6b450", "#aad94c", "#95e6cb", "#59c2ff", "#d2a6ff"]),
+    "ayu-mirage": simple("Ayu Mirage", True, "ayu-theme/ayu-colors, mirage", bg="#1f2430", bgAlt="#1a1f29",
+        surface="#2a3140", selection="#34455a", fg="#cccac2", comment="#707a8c", red="#f28779", orange="#ffad66",
+        yellow="#ffd173", green="#d5ff80", cyan="#95e6cb", blue="#73d0ff", purple="#dfbfff", accent="#ffcc66",
+        headings=["#ffad66", "#ffd173", "#d5ff80", "#95e6cb", "#73d0ff", "#dfbfff"]),
+    "ayu-light": simple("Ayu Light", False, "ayu-theme/ayu-colors, light", bg="#fcfcfc", bgAlt="#f3f4f5", surface="#e7e8e9",
+        selection="#d1e4f4", fg="#5c6166", comment="#8a9199", red="#e65050", orange="#fa8d3e", yellow="#f2ae49",
+        green="#86b300", cyan="#4cbf99", blue="#399ee6", purple="#a37acc", accent="#ff9940",
+        headings=["#fa8d3e", "#f2ae49", "#86b300", "#4cbf99", "#399ee6", "#a37acc"]),
+    "one-light": simple("One Light", False, "Atom One Light (atom/one-light-syntax)", bg="#fafafa", bgAlt="#eaeaeb",
+        surface="#dbdbdc", selection="#e5e5e6", fg="#383a42", comment="#a0a1a7", red="#e45649", orange="#986801",
+        yellow="#c18401", green="#50a14f", cyan="#0184bc", blue="#4078f2", purple="#a626a4", accent="#4078f2",
+        headings=["#e45649", "#986801", "#c18401", "#50a14f", "#0184bc", "#a626a4"]),
+    "night-owl": simple("Night Owl", True, "sdras/night-owl-vscode-theme", bg="#011627", bgAlt="#010e1a", surface="#0b2942",
+        selection="#1d3b53", fg="#d6deeb", comment="#637777", red="#ef5350", orange="#f78c6c", yellow="#ecc48d",
+        green="#addb67", cyan="#7fdbca", blue="#82aaff", purple="#c792ea", accent="#7e57c2",
+        headings=["#c792ea", "#ecc48d", "#addb67", "#7fdbca", "#82aaff", "#f78c6c"]),
+    "light-owl": simple("Night Owl Light", False, "sdras/night-owl-vscode-theme, Light Owl", bg="#fbfbfb", bgAlt="#f0f0f0",
+        surface="#e0e7ea", selection="#e0e7ea", fg="#403f53", comment="#989fb1", red="#de3d3b", orange="#c96765",
+        yellow="#aa8b00", green="#08916a", cyan="#0c969b", blue="#4876d6", purple="#994cc3", accent="#2aa298",
+        headings=["#994cc3", "#aa8b00", "#08916a", "#0c969b", "#4876d6", "#c96765"]),
+    "synthwave-84": simple("SynthWave '84", True, "robb0wen/synthwave-vscode palette", bg="#262335", bgAlt="#1e1b2d",
+        surface="#34294f", selection="#463465", fg="#ffffff", comment="#848bbd", red="#fe4450", orange="#f97e72",
+        yellow="#fede5d", green="#72f1b8", cyan="#36f9f6", blue="#2ee2fa", purple="#b893ce", accent="#ff7edb",
+        link="#36f9f6", headings=["#ff7edb", "#fede5d", "#72f1b8", "#36f9f6", "#b893ce", "#f97e72"]),
+    "panda": simple("Panda", True, "PandaTheme/panda-syntax-vscode palette", bg="#292a2b", bgAlt="#242526",
+        surface="#31353a", selection="#43474b", fg="#e6e6e6", comment="#757575", red="#ff2c6d", orange="#ffb86c",
+        yellow="#ffcc95", green="#19f9d8", cyan="#45a9f9", blue="#6fc1ff", purple="#b084eb", accent="#ff75b5",
+        headings=["#ff75b5", "#ffb86c", "#19f9d8", "#6fc1ff", "#b084eb", "#ff2c6d"]),
+    "nightfox": simple("Nightfox", True, "EdenEast/nightfox.nvim, nightfox", bg="#192330", bgAlt="#131a24", surface="#29394f",
+        selection="#2b3b51", fg="#cdcecf", comment="#738091", red="#c94f6d", orange="#f4a261", yellow="#dbc074",
+        green="#81b29a", cyan="#63cdcf", blue="#719cd6", purple="#9d79d6", accent="#719cd6",
+        headings=["#c94f6d", "#f4a261", "#dbc074", "#81b29a", "#719cd6", "#9d79d6"]),
+    "dayfox": simple("Dayfox", False, "EdenEast/nightfox.nvim, dayfox", bg="#f6f2ee", bgAlt="#e4dcd4", surface="#d6d0cb",
+        selection="#e7d2be", fg="#3d2b5a", comment="#837a72", red="#a5222f", orange="#955f61", yellow="#ac5402",
+        green="#396847", cyan="#287980", blue="#2848a9", purple="#6e33ce", accent="#2848a9",
+        headings=["#a5222f", "#ac5402", "#396847", "#287980", "#2848a9", "#6e33ce"]),
+    "vscode-dark": simple("VS Code Dark+", True, "Visual Studio Code default Dark+ theme", bg="#1e1e1e", bgAlt="#252526",
+        surface="#2d2d30", selection="#264f78", fg="#d4d4d4", comment="#6a9955", red="#f44747", orange="#ce9178",
+        yellow="#dcdcaa", green="#b5cea8", cyan="#4ec9b0", blue="#569cd6", purple="#c586c0", accent="#007acc",
+        link="#3794ff", headings=["#569cd6", "#c586c0", "#4ec9b0", "#dcdcaa", "#ce9178", "#9cdcfe"],
+        bold="#569cd6", italic="#c586c0",
+        hl_over=dict(string="#ce9178", number="#b5cea8", variable="#9cdcfe", keyword="#569cd6", function="#dcdcaa",
+                     title="#dcdcaa", type="#4ec9b0", attr="#9cdcfe", builtin="#4ec9b0", literal="#569cd6",
+                     meta="#c586c0", operator="#d4d4d4", regexp="#d16969")),
+    "vscode-light": simple("VS Code Light+", False, "Visual Studio Code default Light+ theme", bg="#ffffff", bgAlt="#f3f3f3",
+        surface="#e8e8e8", selection="#add6ff", fg="#1f1f1f", comment="#008000", red="#cd3131", orange="#a31515",
+        yellow="#795e26", green="#098658", cyan="#267f99", blue="#0000ff", purple="#af00db", accent="#005fb8",
+        link="#005fb8", headings=["#0000ff", "#af00db", "#267f99", "#795e26", "#a31515", "#001080"],
+        bold="#0000ff", italic="#af00db",
+        hl_over=dict(string="#a31515", number="#098658", variable="#001080", keyword="#0000ff", function="#795e26",
+                     title="#795e26", type="#267f99", attr="#001080", builtin="#267f99", literal="#0000ff",
+                     meta="#af00db", operator="#1f1f1f", regexp="#811f3f")),
+    "material-palenight": simple("Material Palenight", True, "equinusocio/vsc-material-theme, Palenight", bg="#292d3e",
+        bgAlt="#232635", surface="#32364a", selection="#444267", fg="#a6accd", comment="#676e95", red="#f07178",
+        orange="#f78c6c", yellow="#ffcb6b", green="#c3e88d", cyan="#89ddff", blue="#82aaff", purple="#c792ea",
+        accent="#ab47bc", headings=["#f07178", "#ffcb6b", "#c3e88d", "#89ddff", "#82aaff", "#c792ea"]),
+    "material-ocean": simple("Material Ocean", True, "equinusocio/vsc-material-theme, Ocean", bg="#0f111a", bgAlt="#090b10",
+        surface="#1a1c25", selection="#1f2233", fg="#8f93a2", comment="#464b5d", red="#f07178", orange="#f78c6c",
+        yellow="#ffcb6b", green="#c3e88d", cyan="#89ddff", blue="#82aaff", purple="#c792ea", accent="#84ffff",
+        headings=["#f07178", "#ffcb6b", "#c3e88d", "#89ddff", "#82aaff", "#c792ea"]),
+    "material-lighter": simple("Material Lighter", False, "equinusocio/vsc-material-theme, Lighter", bg="#fafafa",
+        bgAlt="#f4f4f4", surface="#e7eaec", selection="#d4ebe9", fg="#90a4ae", comment="#aabfc9", red="#e53935",
+        orange="#f76d47", yellow="#ffb62c", green="#91b859", cyan="#39adb5", blue="#6182b8", purple="#7c4dff",
+        accent="#00bcd4", headings=["#e53935", "#f76d47", "#91b859", "#39adb5", "#6182b8", "#7c4dff"]),
+    "nordic": simple("Nordic", True, "AlexvZyl/nordic.nvim palette", bg="#242933", bgAlt="#1e222a", surface="#2e3440",
+        selection="#434c5e", fg="#d8dee9", comment="#60728a", red="#bf616a", orange="#d08770", yellow="#ebcb8b",
+        green="#a3be8c", cyan="#8fbcbb", blue="#81a1c1", purple="#b48ead", accent="#88c0d0", link="#88c0d0",
+        headings=["#88c0d0", "#81a1c1", "#8fbcbb", "#a3be8c", "#ebcb8b", "#b48ead"]),
+    "vaporwave": simple("Vaporwave", True, "the classic vaporwave palette (not an official editor theme)", bg="#2b213a",
+        bgAlt="#221a2f", surface="#3b2d52", selection="#4a3a68", fg="#f2e9ff", comment="#9585b8", red="#ff5c8a",
+        orange="#ffa56b", yellow="#fffb96", green="#05ffa1", cyan="#01cdfe", blue="#01cdfe", purple="#b967ff",
+        accent="#ff71ce", link="#01cdfe", headings=["#ff71ce", "#fffb96", "#05ffa1", "#01cdfe", "#b967ff", "#ffa56b"]),
+}
 
 
 def shade(hex_, darker):
@@ -394,6 +522,7 @@ THEMES = {
     "nord": nord(),
 }
 
+THEMES.update(EXTRA)
 THEMES = {k: with_aa(v) for k, v in THEMES.items()}
 
 if __name__ == "__main__":

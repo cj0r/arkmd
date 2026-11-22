@@ -2,6 +2,18 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.12.0 (2026-11-22)
+
+### Added
+- **23 more themes**, 9 of them light: Ayu (Dark, Mirage, Light), Dayfox, Everforest (Dark, Light), Gruvbox (Dark, Light), Material (Palenight, Ocean, Lighter), Night Owl (Night Owl, Night Owl Light), Nightfox, Nordic, One Light, Panda, Solarized (Dark, Light), SynthWave '84, Vaporwave and VS Code (Dark+, Light+).
+- **Content width** setting (Settings > Content width): Narrow, Medium, Wide, Wider or Full width. The default is Wide, up to 1200 px, instead of the earlier fixed 760 px column.
+- **Troubleshooting log.** On Windows and Linux ArkMD writes errors and crashes to a log file (up to about 1 MB, home folder shown as ~, no document text). Settings > Troubleshooting has Copy diagnostic information, which also works on Android, and Open the log folder.
+
+### Changed
+- The theme and font lists are in alphabetical order (System stays first). New installs start with One Dark Pro; existing choices are kept.
+- Catppuccin Latte uses a cooler heading order (mauve, blue, sapphire, teal, green, lavender) and plain bold text instead of the red and brown of the official per-level colors.
+- Scroll bars follow the theme, and look the same in reading mode, the editor and dialogs.
+
 ## 0.11.0 (2026-11-22)
 
 ### Added

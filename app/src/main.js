@@ -79,6 +79,7 @@ function cssVars(t, size) {
   for (const [k, c] of Object.entries(t.hljs)) v["hl-" + k] = c;
   if (t.soft) v["fg-soft"] = t.soft;
   v["font-size"] = size + "px";
+  v["content-width"] = widthCss(contentWidth());
   return v;
 }
 
@@ -98,6 +99,16 @@ function effective(t) {
   return { ...t, ...rest, hljs: { ...t.hljs, ...(hljs || {}) } };
 }
 
+const DEFAULT_THEME = "one-dark-pro";       // the most widely installed editor theme; only new installs use it
+const WIDTHS = [
+  { key: "narrow", label: "Narrow", sub: "A narrow column, about 760 px", px: 760 },
+  { key: "medium", label: "Medium", sub: "About 960 px", px: 960 },
+  { key: "wide", label: "Wide", sub: "About 1200 px", px: 1200 },
+  { key: "wider", label: "Wider", sub: "About 1500 px", px: 1500 },
+  { key: "full", label: "Full width", sub: "Fills the window", px: null },
+];
+const contentWidth = () => WIDTHS.find((w) => w.key === store.get("contentWidth", "wide")) || WIDTHS[2];
+const widthCss = (w) => (w.px ? `${w.px}px` : "100%");
 const SIZES = [14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28];
 const textSize = () => store.get("fontSize", platform.mobile ? 18 : 16);
 
@@ -107,6 +118,7 @@ function applyLook() {
   const root = document.documentElement.style;
   for (const [k, v] of Object.entries({ bg: t.bg, "bg-alt": t.bgAlt, surface: t.surface, fg: t.fg, "fg-muted": t.fgMuted, accent: t.accent, h1: t.h1 }))
     root.setProperty("--" + k, v);
+  root.setProperty("--content-width", widthCss(contentWidth()));
   document.documentElement.style.colorScheme = t.dark ? "dark" : "light";
   platform.setChrome(t.bg, t.dark);
 
@@ -259,6 +271,7 @@ async function openLinkedFile(path, fragment = "") {
     await openRef(abs, baseName(abs));
     if (fragment && cur()?.mode === "read" && readerReady) setTimeout(() => $("reader").contentWindow.scrollToAnchor(fragment), 150);
   } catch (e) {
+    logError("Open linked file", e);
     toast(`Could not open ${path}: ${e.message || e}`);
   }
 }
@@ -466,6 +479,7 @@ async function openRef(ref, name) {
     openTab({ ref, name, text, mode: "read" });
     addRecent(ref, name);
   } catch (e) {
+    logError("Open file", e);
     toast(`Could not open ${name}: ${e.message || e}`);
     removeRecent(ref);
     renderRecents();
@@ -524,6 +538,7 @@ async function save(as = false, quiet = false) {
     updateChrome();
     if (!quiet) toast("Saved");
   } catch (e) {
+    logError("Save", e);
     toast(`Could not save: ${e.message || e}`);
   } finally {
     t.saving = false;
@@ -777,21 +792,21 @@ function removeTheme(after) {
     if (!(await platform.confirm(`Remove the theme "${themes[key].name}"?`, "Remove theme"))) return;
     store.set("userThemes", store.get("userThemes", []).filter((s) => s.id !== key));
     delete themes[key];
-    if (store.get("theme", "tokyo-night") === key) { store.set("theme", "tokyo-night"); theme = themes["tokyo-night"]; applyLook(); }
+    if (store.get("theme", DEFAULT_THEME) === key) { store.set("theme", DEFAULT_THEME); theme = themes[DEFAULT_THEME]; applyLook(); }
     toast("Theme removed");
   }, after);
 }
 
 function pickTheme(after) {
   const builtin = (dark) => Object.entries(themes).filter(([k, t]) => !k.startsWith("user:") && !!t.dark === dark)
-    .map(([key, raw]) => ({ key, ...swatchOf(raw) }));
+    .map(([key, raw]) => ({ key, ...swatchOf(raw) })).sort((a, b) => a.label.localeCompare(b.label));
   const custom = userKeys().map((key) => ({ key, ...swatchOf(themes[key]) }));
   const actions = [{ key: "__import", label: "Add a theme from a CSS file…", action: true }];
   if (custom.length) actions.push({ key: "__remove", label: "Remove a custom theme…", action: true });
   const sections = [["Dark", builtin(true)], ["Light", builtin(false)]];
   if (custom.length) sections.push(["Custom", custom]);
   sections.push([null, actions]);
-  choose("Theme", sections, store.get("theme", "tokyo-night"), (key) => {
+  choose("Theme", sections, store.get("theme", DEFAULT_THEME), (key) => {
     if (key === "__import") return importTheme();
     if (key === "__remove") { removeTheme(after); return HOLD; }
     store.set("theme", key); theme = themes[key]; applyLook();
@@ -799,8 +814,15 @@ function pickTheme(after) {
 }
 
 function pickFont(title, setting, after) {
-  const items = FONTS.map((f) => ({ key: f.id, label: f.name, sub: f.note, font: f.dir ? `ArkPrev-${f.id}, var(--font-ui)` : "var(--font-ui)" }));
+  const ordered = [...FONTS].sort((a, b) => (a.id === "system" ? -1 : b.id === "system" ? 1 : a.name.localeCompare(b.name)));   // System first, then A to Z
+  const items = ordered.map((f) => ({ key: f.id, label: f.name, sub: f.note, font: f.dir ? `ArkPrev-${f.id}, var(--font-ui)` : "var(--font-ui)" }));
   choose(title, [[null, items]], store.get(setting, "system"), (id) => { store.set(setting, id); applyLook(); }, after);
+}
+
+function pickWidth(after) {
+  choose("Content width", [[null, WIDTHS.map((w) => ({ key: w.key, label: w.key === "wide" ? "Wide (default)" : w.label, sub: w.sub }))]], contentWidth().key, (key) => {
+    store.set("contentWidth", key); applyLook();
+  }, after);
 }
 
 function pickSize(after) {
@@ -844,6 +866,7 @@ async function checkForUpdates(quiet = false) {
     if (!found) { if (!quiet) toast(`ArkMD ${await platform.version()} is up to date`); return; }
     if (!quiet) showUpdate();
   } catch (e) {
+    logError("Update check", e);
     if (!quiet) toast(`Could not check for updates: ${e.message || e}`);
   } finally {
     checking = false;
@@ -885,6 +908,7 @@ async function installUpdate(status, buttons) {
     }
     status.textContent = "Installing…";
   } catch (e) {
+    logError("Update install", e);
     status.textContent = `The update failed: ${e.message || e}`;
     buttons.forEach((b) => (b.disabled = false));
   }
@@ -952,6 +976,7 @@ function openSettings() {
   section("Appearance");
   row("Theme", effective(theme).name, () => pickTheme(back));
   row("Text size", String(textSize()), () => pickSize(back));
+  row("Content width", contentWidth().label, () => pickWidth(back));
   row("Reading font", fontById(store.get("readFont", "system")).name, () => pickFont("Reading font", "readFont", back));
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
@@ -978,6 +1003,10 @@ function openSettings() {
   }
 
   if (!platform.mobile) { section("Keyboard"); row("Keyboard shortcuts", "F1", showShortcuts); }
+
+  section("Troubleshooting");
+  row("Copy diagnostic information", "", copyDiagnostics);
+  if (platform.openLogFolder) row("Open the log folder", "", () => platform.openLogFolder().catch((e) => toast(`Could not open the folder: ${e.message || e}`)));
 
   section("About");
   row("About ArkMD", "", about);
@@ -1026,7 +1055,7 @@ const readerScrollFraction = () => ($("reader").contentWindow.scrollFraction?.()
 async function printDoc() {
   const w = await readerForOutput();
   if (!w) return;
-  try { w.focus(); w.print(); } catch (e) { toast(`Could not print: ${e.message || e}`); }
+  try { w.focus(); w.print(); } catch (e) { logError("Print", e); toast(`Could not print: ${e.message || e}`); }
 }
 
 async function exportHtml() {
@@ -1037,7 +1066,7 @@ async function exportHtml() {
     const name = t.name.replace(/\.(md|markdown|mdown|mkd|txt)$/i, "") + ".html";
     const r = await platform.saveAs(name, await w.exportHtml(t.name), [{ name: "HTML page", extensions: ["html"] }]);
     if (r) toast(`Exported ${r.name}`);
-  } catch (e) { toast(`Could not export: ${e.message || e}`); }
+  } catch (e) { logError("Export", e); toast(`Could not export: ${e.message || e}`); }
 }
 
 function moreMenu() {
@@ -1050,6 +1079,27 @@ function moreMenu() {
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
   entries.push([platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
   menu($("btn-more"), entries);
+}
+
+/** Record a failure in the troubleshooting log: what was being done and the error, never document text. */
+function logError(context, error, where = "") {
+  const text = error instanceof Error ? `${error.message}${error.stack ? "\n" + error.stack.split("\n").slice(0, 4).join("\n") : ""}` : String(error);
+  platform.logEvent("error", `${context}: ${text}${where ? " @ " + where : ""}`);
+}
+
+/** App version, platform, settings and the end of the log, as text to paste into a bug report. No document text or file paths. */
+async function copyDiagnostics() {
+  const lines = [
+    `ArkMD ${await platform.version()} (${platform.name})`,
+    `System: ${navigator.userAgent}`,
+    `Window: ${innerWidth}x${innerHeight} at ${devicePixelRatio}x`,
+    `Theme: ${effective(theme).name}; text size ${textSize()}; content width ${contentWidth().key}; contrast ${store.get("contrastAA", true) ? "on" : "off"}`,
+    `Autosave: ${store.get("autosave", false) ? "on" : "off"}; history: ${historyOn() ? "on" : "off"}; open tabs: ${tabs.count}`,
+  ];
+  const tail = await platform.logTail();
+  const text = lines.join("\n") + (tail ? "\n\nRecent log:\n" + tail : "");
+  try { await navigator.clipboard.writeText(text); toast("Diagnostic information copied"); }
+  catch { toast("Could not copy to the clipboard"); }
 }
 
 let toastTimer;
@@ -1391,17 +1441,17 @@ function onReaderLoad() {
 }
 
 // Never fail silently: surface unexpected errors to the user.
-window.addEventListener("error", (e) => toast(`Error: ${e.message}`));
-window.addEventListener("unhandledrejection", (e) => toast(`Error: ${e.reason?.message || e.reason}`));
+window.addEventListener("error", (e) => { logError("Unhandled error", e.error || e.message, `${e.filename || ""}:${e.lineno || 0}`); toast(`Error: ${e.message}`); });
+window.addEventListener("unhandledrejection", (e) => { logError("Unhandled promise rejection", e.reason); toast(`Error: ${e.reason?.message || e.reason}`); });
 
 async function init() {
   const style = document.createElement("style"); style.id = "fontfaces"; document.head.append(style);
   themes = await (await fetch("/themes.json")).json();
   const renamed = { "tokyo-night-day": "tokyo-night-light" };   // keys from earlier versions
   loadUserThemes();
-  const saved = store.get("theme", "tokyo-night");
+  const saved = store.get("theme", DEFAULT_THEME);
   if (renamed[saved]) store.set("theme", renamed[saved]);
-  theme = themes[renamed[saved] || saved] || themes["tokyo-night"];
+  theme = themes[renamed[saved] || saved] || themes[DEFAULT_THEME];
   platform.ready();
   buildFormatBar();
   wire();

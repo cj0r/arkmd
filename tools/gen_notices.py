@@ -44,6 +44,19 @@ PALETTES = [
     ("Rosé Pine", "rose-pine/vscode, rose-pine/neovim and mvllow/rose-pine (MIT)"),
     ("One Dark Pro", "Binaryify/OneDark-Pro (MIT)"),
     ("Nord", "nordtheme/nord and nordtheme/visual-studio-code (MIT)"),
+    ("Gruvbox", "morhetz/gruvbox (MIT/X11)"),
+    ("Solarized", "altercation/solarized (MIT)"),
+    ("Everforest", "sainnhe/everforest (MIT)"),
+    ("Ayu", "ayu-theme/ayu-colors (MIT)"),
+    ("One Light", "atom/one-light-syntax (MIT)"),
+    ("Night Owl", "sdras/night-owl-vscode-theme (MIT)"),
+    ("SynthWave '84", "robb0wen/synthwave-vscode (MIT)"),
+    ("Nightfox", "EdenEast/nightfox.nvim (MIT)"),
+    ("VS Code Dark+ and Light+", "microsoft/vscode default themes (MIT)"),
+    ("Nordic", "AlexvZyl/nordic.nvim (MIT)"),
+    ("Panda", "PandaTheme/panda-syntax-vscode (no license file found; only color values are used)"),
+    ("Material", "equinusocio/vsc-material-theme (license not confirmed; only color values are used)"),
+    ("Vaporwave", "the common vaporwave color palette (not taken from a project)"),
 ]
 
 MIT = """Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -160,7 +173,7 @@ def main():
       "https://github.com/google/material-design-icons.\n")
 
     w("## Theme palettes\n")
-    w("Colors are taken from the official palettes and editor themes below; no theme code is copied.\n")
+    w("Colors are taken from the published palettes and editor themes below; no theme code is copied.\n")
     w("| Theme family | Sources (license) |\n|---|---|")
     for name, src in PALETTES:
         w(f"| {name} | {src} |")

@@ -2,16 +2,25 @@
 
 ## Themes
 
-The palette button in the top bar opens the theme list, dark themes first, then light ones. Each theme is generated from the official palette or editor theme it is named after, so it matches what you know from those projects:
+The palette button in the top bar opens the theme list: dark themes first, then light ones, each group in alphabetical order. A new install starts with One Dark Pro. Themes are built from each project's published palette, so they match what you know from those projects:
 
-- **Tokyo Night:** Night, Storm, Moon, Light
+- **Atom:** One Dark Pro, One Dark Pro Night Flat, One Light
+- **Ayu:** Dark, Mirage, Light
 - **Catppuccin:** Mocha, Macchiato, Frappé, Latte
 - **Dracula:** Dracula, Alucard
+- **Everforest:** Dark, Light
 - **GitHub:** Dark, Dark Dimmed, Light
+- **Gruvbox:** Dark, Light
+- **Material:** Palenight, Ocean, Lighter
 - **Monokai:** Monokai, Monokai Dimmed
+- **Night Owl:** Night Owl, Night Owl Light
+- **Nightfox:** Nightfox, Dayfox
+- **Nord** and **Nordic**
+- **Panda**, **SynthWave '84** and **Vaporwave**
 - **Rosé Pine:** Rosé Pine, Moon, Dawn
-- **One Dark Pro:** One Dark Pro, Night Flat
-- **Nord**
+- **Solarized:** Dark, Light
+- **Tokyo Night:** Night, Storm, Moon, Light
+- **VS Code:** Dark+, Light+
 
 A theme sets the colors of the reader, the editor, code blocks, callouts and the app itself. Headings use a different color for each level, in an order that follows the theme's own conventions. `design/theme-sheet.html` in the repository lists every color of every theme with its source and contrast ratio.
 
@@ -46,7 +55,7 @@ To see the official colors exactly, switch it off: **More** > **Settings** > **C
 
 ## Fonts
 
-**More** > **Settings** > **Reading font** and **Editing font** are separate, so you can read in a serif and edit in a monospace font. Each option in the list is shown in its own typeface.
+**More** > **Settings** > **Reading font** and **Editing font** are separate, so you can read in a serif and edit in a monospace font. Each option in the list is shown in its own typeface; System comes first (and is the default), the rest are in alphabetical order.
 
 | Font | Character |
 |---|---|
@@ -60,6 +69,10 @@ To see the official colors exactly, switch it off: **More** > **Settings** > **C
 | Meslo LG | Classic terminal monospace |
 
 Code blocks in the reader always use JetBrains Mono. The fonts ship with the app, and their licenses are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
+## Content width
+
+**More** > **Settings** > **Content width** sets how wide the text column grows on a large window: Narrow (about 760 px), Medium (960), Wide (1200, the default), Wider (1500) or Full width. The column always shrinks to fit a smaller window or a phone. It applies to reading and editing.
 
 ## Text size
 

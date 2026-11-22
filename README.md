@@ -21,7 +21,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Tabs:** several files open at once, each with its own text, undo history, cursor and scroll position. Close a tab with its ✕, middle-click, Ctrl+W or the Android back button; switch with Ctrl+Tab. Opening a file that is already open switches to its tab.
 - **Formatting panel:** a floating bar that inserts headings, bold, italic, strikethrough, highlight, code, links, lists, tasks, quotes, callouts, code blocks, tables and dividers, so you don't need to know the syntax. Applying a format again removes it. The same formats have keyboard shortcuts (Ctrl+1 to 6 for headings, Ctrl+Shift+8 for bullets, and more; F1 lists them), and Tab steps a heading one level deeper or nests a list item.
 - **Outline:** a flyout (Ctrl+Shift+O) lists the document's headings and jumps to the one you pick, while reading or editing.
-- **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes. Add your own from a CSS file of color variables.
+- **Themes:** 44 dark and light themes (14 of them light) from over 20 families, including Tokyo Night, Catppuccin, Dracula, GitHub, Gruvbox, Solarized, Everforest, Ayu, One Dark Pro and One Light, Night Owl, Nightfox, VS Code Dark+ and Light+, Material, Nord and more, built from each project's published palette. Add your own from a CSS file of color variables.
 - **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
 - **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
 - **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode, history and recovery, and updates.
@@ -58,7 +58,7 @@ More in [Getting started](docs/getting-started.md).
 | Editing, with the formatting panel | A light theme |
 |---|---|
 | ![Editor with the formatting panel](docs/screenshots/editor-dark.png) | ![A light theme](docs/screenshots/reader-light.png) |
-| **Editing**: the floating panel formats the selection. | **Themes**: 21 themes, dark and light. |
+| **Editing**: the floating panel formats the selection. | **Themes**: 44 themes, dark and light. |
 
 | Outline of the headings | Settings |
 |---|---|

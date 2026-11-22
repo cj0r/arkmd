@@ -4,7 +4,8 @@
 //! any later launch, which arrive as a "arkmd-open" event and become tabs. Uses only plugins that
 //! also exist on iOS/Android, except single-instance and persisted-scope (desktop only).
 
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use tauri::{Emitter, Manager};
@@ -12,6 +13,74 @@ use tauri_plugin_fs::FsExt;
 
 /// Path passed on the command line / by a file association, consumed once by the frontend.
 struct LaunchFile(Mutex<Option<String>>);
+
+// ---- Log file -------------------------------------------------------------------------------------------
+// A plain text log in the app's log folder, for troubleshooting crashes and errors. It holds the app version,
+// errors the front end reports and panics, never document text. The home folder is shown as "~". At 512 KB the
+// file is renamed to arkmd.log.1 (replacing the older one), so the log never grows past about 1 MB.
+struct LogFile(PathBuf);
+const LOG_LIMIT: u64 = 512 * 1024;
+
+/// "2026-11-22 14:03:09 UTC" from the system clock, without a date library.
+fn timestamp() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let (days, rem) = ((secs / 86_400) as i64, secs % 86_400);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + if month <= 2 { 1 } else { 0 };
+    format!("{year:04}-{month:02}-{day:02} {:02}:{:02}:{:02} UTC", rem / 3600, rem % 3600 / 60, rem % 60)
+}
+
+fn redact(text: &str) -> String {
+    let mut out = text.to_string();
+    for var in ["HOME", "USERPROFILE"] {
+        if let Ok(home) = std::env::var(var) {
+            if home.len() > 3 {
+                out = out.replace(&home, "~");
+            }
+        }
+    }
+    out
+}
+
+fn append_log(path: &Path, level: &str, message: &str) {
+    if std::fs::metadata(path).map(|m| m.len() > LOG_LIMIT).unwrap_or(false) {
+        let _ = std::fs::rename(path, path.with_extension("log.1"));
+    }
+    let message: String = redact(message).chars().take(4000).collect();
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{} {:<5} {}", timestamp(), level.to_uppercase(), message.replace('\n', " | "));
+    }
+}
+
+/// An error or note from the front end.
+#[tauri::command]
+fn log_event(state: tauri::State<LogFile>, level: String, message: String) {
+    let level = if ["error", "warn", "info"].contains(&level.as_str()) { level } else { "info".into() };
+    append_log(&state.0, &level, &message);
+}
+
+/// The end of the log, for the diagnostics the user copies.
+#[tauri::command]
+fn log_tail(state: tauri::State<LogFile>) -> String {
+    let text = std::fs::read_to_string(&state.0).unwrap_or_default();
+    let lines: Vec<&str> = text.lines().collect();
+    lines[lines.len().saturating_sub(60)..].join("\n")
+}
+
+/// Show the log folder in the system file manager.
+#[tauri::command]
+fn open_log_folder(app: tauri::AppHandle, state: tauri::State<LogFile>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = state.0.parent().ok_or("no log folder")?.to_string_lossy().into_owned();
+    app.opener().open_path(dir, None::<&str>).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 fn take_launch_file(state: tauri::State<LaunchFile>) -> Option<String> {
@@ -123,9 +192,21 @@ pub fn run() {
                 launch = Some(path.to_string_lossy().into_owned());
             }
             app.manage(LaunchFile(Mutex::new(launch)));
+
+            let dir = app.path().app_log_dir().unwrap_or_else(|_| std::env::temp_dir().join("arkmd"));
+            let _ = std::fs::create_dir_all(&dir);
+            let log = dir.join("arkmd.log");
+            append_log(&log, "info", &format!("ArkMD {} started on {}", env!("CARGO_PKG_VERSION"), std::env::consts::OS));
+            let panic_log = log.clone();
+            let previous = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                append_log(&panic_log, "panic", &info.to_string());
+                previous(info);
+            }));
+            app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, log_event, log_tail, open_log_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

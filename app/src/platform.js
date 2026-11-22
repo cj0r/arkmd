@@ -44,6 +44,9 @@ const androidImpl = {
   async launchFile() { return call("takeLaunch"); },                        // -> {ref, name, text} | null
   async confirm(message, title) { return call("confirm", title, message); },
   async openUrl(url) { android.openUrl(url); },
+  logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
+  async logTail() { return ""; },
+  openLogFolder: null,
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
   setTitle() {},
@@ -115,6 +118,10 @@ const desktopImpl = {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
   },
+  /** Troubleshooting log (a file in the app's log folder). Failures to log are ignored. */
+  logEvent(level, message) { invoke("log_event", { level, message: String(message) }).catch(() => {}); },
+  async logTail() { try { return await invoke("log_tail"); } catch { return ""; } },
+  async openLogFolder() { return invoke("open_log_folder"); },
   /** A Markdown file next to the open document: gives the app access to it and returns its path. */
   async openLinked(base, rel) { return invoke("open_linked", { base, rel }); },
   /** The bytes (an ArrayBuffer) of an image next to the open document. */
