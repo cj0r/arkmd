@@ -15,7 +15,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 
 ## Features
 
-- **Reader:** colored headings, callouts (including foldable ones), `==highlights==`, `[[wikilinks]]`, `#tags`, task lists you can tick, tables, footnotes, front matter and syntax-highlighted code blocks.
+- **Reader:** colored headings, callouts (including foldable ones), `==highlights==`, `[[wikilinks]]`, `#tags`, task lists you can tick, tables, footnotes, front matter, syntax-highlighted code blocks and Mermaid diagrams that follow the theme.
 - **Find and replace:** Ctrl+F searches in reading and editing mode with match case, whole word and regular expression options; Ctrl+H replaces in the editor, and Replace all is one undo step.
 - **Editor:** CodeMirror 6 with live Markdown highlighting, including code inside fenced blocks. One tap (or Ctrl+E) switches between reading and editing and keeps your place. A file's line endings are kept.
 - **Tabs:** several files open at once, each with its own text, undo history, cursor and scroll position. Close a tab with its ✕, middle-click, Ctrl+W or the Android back button; switch with Ctrl+Tab. Opening a file that is already open switches to its tab.

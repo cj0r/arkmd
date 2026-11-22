@@ -13,6 +13,17 @@ The reader renders CommonMark and the usual GitHub extensions, plus several feat
 - Front matter, the `---` block at the top of a file, is shown as a box and isn't interpreted.
 - Typographic quotes and dashes are applied when reading; the file itself is not changed.
 
+## Diagrams
+
+A fenced code block tagged `mermaid` is drawn as a diagram with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and the other types Mermaid supports (version 11). The diagram follows the theme's colors and is redrawn when you switch themes. It prints and exports with the page. A diagram with a mistake shows Mermaid's error message above its source, so you can fix it in the editor. Diagrams are drawn with Mermaid's strict security level: no scripts, and no click actions. The Mermaid library is only loaded when a document contains a diagram, and everything works offline.
+
+````markdown
+```mermaid
+flowchart LR
+    A[Write] --> B[Read]
+```
+````
+
 ## From Obsidian
 
 - **Callouts:** a block quote that starts with `[!type]` and an optional title becomes a colored callout. Types are `note`, `abstract` (`summary`, `tldr`), `info`, `todo`, `tip` (`hint`, `important`), `success` (`check`, `done`), `question` (`help`, `faq`), `warning` (`caution`, `attention`), `failure` (`fail`, `missing`), `danger` (`error`), `bug`, `example` and `quote` (`cite`). Add `-` after the type for a callout that starts collapsed, or `+` for a foldable one that starts open: `> [!info]- Details`.
@@ -22,7 +33,7 @@ The reader renders CommonMark and the usual GitHub extensions, plus several feat
 
 ## Not supported
 
-Raw HTML (it's shown as text, not run), math, diagrams such as Mermaid, note embeds (`![[Note]]`), comments (`%%`), block references and plugins.
+Raw HTML (it's shown as text, not run), math, note embeds (`![[Note]]`), comments (`%%`), block references and plugins.
 
 ## Images
 

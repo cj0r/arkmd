@@ -173,6 +173,29 @@ Plain fenced code block (no language tag specified)
 └── themes.json
 ```
 
+## H2: Diagrams
+
+A fenced block tagged `mermaid` is drawn as a diagram in the theme's colors.
+
+```mermaid
+flowchart LR
+    A[Open a file] --> B{Reading or editing?}
+    B -->|Reading| C[Rendered page]
+    B -->|Editing| D[CodeMirror editor]
+    C --> E[Outline, find, print]
+    D --> E
+```
+
+```mermaid
+sequenceDiagram
+    participant You
+    participant ArkMD
+    You->>ArkMD: Open notes.md
+    ArkMD-->>You: Reader with headings and callouts
+    You->>ArkMD: Ctrl+E
+    ArkMD-->>You: Editor at the same place
+```
+
 ---
 
 [^1]: Footnote verification: In Swedish, Norwegian, and Danish, *ett ark* / *et ark* means a clean sheet of paper, pairing naturally with `.md` for Markdown.

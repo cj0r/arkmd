@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.13.0 (2026-11-22)
+
+### Added
+- **Mermaid diagrams.** A fenced block tagged `mermaid` is drawn as a diagram (Mermaid 11: flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and more) in the theme's colors, and redrawn when the theme changes. A mistake in a diagram shows Mermaid's error above its source. Diagrams use Mermaid's strict security level, work offline, print and export with the page, and the library is only loaded when a document has a diagram. It adds about 1 MB to each download.
+
+### Fixed
+- Styles that scripts add to the reader (used by diagrams) were blocked by the app's content security policy.
+
 ## 0.12.0 (2026-11-22)
 
 ### Added

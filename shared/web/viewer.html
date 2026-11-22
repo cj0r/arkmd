@@ -131,6 +131,10 @@ img { max-width:100%; border-radius:6px; }
 .hljs-deletion { color:var(--hl-deletion); }
 .hljs-addition { color:var(--hl-addition); }
 .hljs-emphasis { font-style:italic; } .hljs-strong { font-weight:bold; }
+.mermaid-diagram { margin:1.2em 0; text-align:center; overflow-x:auto; color:var(--fg-muted); }
+.mermaid-diagram svg { max-width:100%; height:auto; }
+.mermaid-diagram.failed { text-align:left; border:1px solid var(--red); border-radius:6px; padding:.5em .8em; }
+.mermaid-diagram .diagram-error { color:var(--red); font-weight:600; margin-bottom:.4em; }
 mark.find-hit { background:#ffd54f; color:#000; border-radius:2px; }
 mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
 @media print {
@@ -233,6 +237,7 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
   window.applyTheme = function (vars) {
     var st = document.documentElement.style;
     Object.keys(vars).forEach(function (k) { st.setProperty("--" + k, vars[k]); });
+    if (document.querySelector(".mermaid-diagram")) drawDiagrams();     // redraw diagrams in the new colours
   };
 
   // GitHub-style anchors on headings, so [text](#heading) links and [[Note#Heading]] can jump to them.
@@ -254,6 +259,88 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
     if (el) { el.scrollIntoView({ block: "start" }); return true; }
     return false;
   };
+
+  // Mermaid diagrams: a ```mermaid block is drawn as an SVG, in the theme's colours. The library is large, so the page
+  // loads it only when a document has a diagram. Its security level is "strict": no scripts or click handlers.
+  var mermaidLoading = null, diagramGen = 0, diagramSeq = 0;
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!mermaidLoading) mermaidLoading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "mermaid.min.js";
+      s.onload = function () { resolve(window.mermaid); };
+      s.onerror = function () { mermaidLoading = null; reject(new Error("the diagram library could not be loaded")); };
+      document.head.appendChild(s);
+    });
+    return mermaidLoading;
+  }
+  function lightness(hex) {
+    var m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return 0;
+    var n = parseInt(m[1], 16);
+    return (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  }
+  function mermaidTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    function v(name) { return cs.getPropertyValue(name).trim(); }
+    var bg = v("--bg"), fg = v("--fg"), surface = v("--surface"), accent = v("--accent"), alt = v("--bg-alt"), muted = v("--fg-muted");
+    var t = {
+      darkMode: lightness(bg) < 0.5, background: bg, fontFamily: v("--font-body") || "sans-serif",
+      primaryColor: surface, primaryTextColor: fg, primaryBorderColor: accent, secondaryColor: alt, secondaryTextColor: fg,
+      tertiaryColor: bg, tertiaryTextColor: fg, lineColor: muted, textColor: fg, mainBkg: surface, nodeBorder: accent,
+      clusterBkg: alt, clusterBorder: muted, titleColor: fg, edgeLabelBackground: bg, noteBkgColor: alt, noteTextColor: fg,
+      noteBorderColor: muted, actorBkg: surface, actorBorder: accent, actorTextColor: fg, actorLineColor: muted,
+      signalColor: fg, signalTextColor: fg, labelBoxBkgColor: surface, labelBoxBorderColor: accent, labelTextColor: fg,
+      loopTextColor: fg, activationBkgColor: alt, sequenceNumberColor: bg,
+      pieTitleTextColor: fg, pieSectionTextColor: bg, pieLegendTextColor: fg, pieStrokeColor: bg, pieOuterStrokeColor: bg, pieOpacity: "0.95"
+    };
+    // Charts, pies, timelines and mind maps colour their parts from a scale: use the theme's accent colours.
+    [accent, v("--red"), v("--orange"), v("--yellow"), v("--green"), v("--cyan"), v("--purple"), v("--h1"), v("--h2"), v("--h3"), v("--h4"), v("--h5")].forEach(function (c, i) {
+      t["pie" + (i + 1)] = c; t["cScale" + i] = c; t["cScaleLabel" + i] = bg;
+    });
+    return t;
+  }
+  function diagramError(box, message) {
+    var src = box.getAttribute("data-src");
+    box.className = "mermaid-diagram failed";
+    box.textContent = "";
+    var head = document.createElement("div"); head.className = "diagram-error"; head.textContent = "Diagram error: " + message;
+    var pre = document.createElement("pre"), code = document.createElement("code"); code.textContent = src; pre.appendChild(code);
+    box.appendChild(head); box.appendChild(pre);
+  }
+  function drawDiagrams() {
+    var doc = document.getElementById("doc");
+    var boxes = Array.prototype.slice.call(doc.querySelectorAll(".mermaid-diagram"));
+    if (!boxes.length) return;
+    var gen = ++diagramGen;
+    loadMermaid().then(function (m) {
+      m.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", themeVariables: mermaidTheme(), fontFamily: mermaidTheme().fontFamily });
+      return boxes.reduce(function (chain, box) {
+        return chain.then(function () {
+          if (gen !== diagramGen) return null;
+          var id = "arkmd-diagram-" + (++diagramSeq);
+          return m.render(id, box.getAttribute("data-src")).then(function (r) {
+            box.className = "mermaid-diagram"; box.innerHTML = r.svg;
+          }).catch(function (e) {
+            var stray = document.getElementById("d" + id); if (stray) stray.remove();   // mermaid leaves its error drawing in the page
+            diagramError(box, String((e && e.message) || e).split("\n")[0]);
+          });
+        });
+      }, Promise.resolve());
+    }).catch(function (e) { boxes.forEach(function (box) { diagramError(box, String((e && e.message) || e)); }); });
+  }
+  function prepareDiagrams(doc) {
+    doc.querySelectorAll('pre[data-lang="mermaid"]').forEach(function (pre) {
+      var box = document.createElement("div");
+      box.className = "mermaid-diagram";
+      box.setAttribute("data-src", pre.textContent);
+      box.setAttribute("role", "img");
+      box.setAttribute("aria-label", "Diagram");
+      box.textContent = "Drawing diagram…";
+      pre.parentNode.replaceChild(box, pre);
+    });
+    drawDiagrams();
+  }
 
   // Images next to the document (desktop): the host reads the file and returns an address the page can show.
   function loadLocalImages(doc) {
@@ -294,6 +381,7 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
     });
     prepareHeadings(doc);
     loadLocalImages(doc);
+    prepareDiagrams(doc);
     if (scrollFraction) {
       requestAnimationFrame(function () {
         window.scrollTo(0, scrollFraction * (document.body.scrollHeight - window.innerHeight));
@@ -335,7 +423,7 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
     var walker = document.createTreeWalker(document.getElementById("doc"), NodeFilter.SHOW_TEXT, null);
     while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(function (node) {
-      if (count >= 10000 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(node.parentNode.nodeName)) return;
+      if (count >= 10000 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(node.parentNode.nodeName) || node.parentNode.closest("svg")) return;
       var text = node.nodeValue, m, last = 0, frag = null;
       re.lastIndex = 0;
       while ((m = re.exec(text)) && count < 10000) {
