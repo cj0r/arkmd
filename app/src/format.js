@@ -257,6 +257,36 @@ export function tableTab(src, s, e, dir) {
   return null;
 }
 
+/**
+ * Insert a picture link, `![alt](path)`, as a paragraph of its own: blank lines are added around it when it would
+ * otherwise run into neighbouring text. A selection becomes the alt text; with none, the alt text is suggested from
+ * the file name and selected so it can be replaced by typing.
+ */
+export function image(src, s, e, path, suggested = "image") {
+  const str = String(src);
+  const alt = e > s ? str.substring(s, e) : suggested;
+  const lineStart = str.lastIndexOf("\n", s - 1) + 1;
+  let lineEnd = str.indexOf("\n", e);
+  if (lineEnd < 0) lineEnd = str.length;
+  const blank = (from, to) => !str.substring(from, to).trim();
+  let lead = "";
+  if (!blank(lineStart, s)) lead = "\n\n";
+  else if (lineStart > 0) {
+    const prevStart = str.lastIndexOf("\n", lineStart - 2) + 1;
+    if (!blank(prevStart, lineStart - 1)) lead = "\n";
+  }
+  let trail = "";
+  if (!blank(e, lineEnd)) trail = "\n\n";
+  else if (lineEnd < str.length) {
+    let nextEnd = str.indexOf("\n", lineEnd + 1);
+    if (nextEnd < 0) nextEnd = str.length;
+    if (!blank(lineEnd + 1, nextEnd)) trail = "\n";
+  }
+  const link = `![${alt}](${path})`;
+  const at = s + lead.length + 2;
+  return { start: s, end: e, text: lead + link + trail, selStart: at, selEnd: at + alt.length };
+}
+
 export const MarkdownFormat = {
   wrap,
   link,
@@ -268,6 +298,7 @@ export const MarkdownFormat = {
   shiftHeading,
   indentList,
   tableTab,
+  image,
   endEmptyTask,
   block,
   codeBlock,

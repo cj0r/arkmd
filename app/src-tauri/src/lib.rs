@@ -136,6 +136,103 @@ fn resolve_linked(app: &tauri::AppHandle, base: &str, rel: &str, exts: &[&str]) 
     Ok(PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text)))
 }
 
+// ---- Inserting images ---------------------------------------------------------------------------------
+// Images go into an "images" folder next to the document, so a Markdown file and its pictures stay together.
+
+/// A file name that is safe and has no spaces: letters, digits, dot, dash and underscore only.
+fn safe_stem(name: &str) -> String {
+    let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name);
+    let cleaned: String = stem
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .chars()
+        .take(60)
+        .collect();
+    if cleaned.is_empty() { "image".into() } else { cleaned }
+}
+
+/// The folder for new images next to `base` (created if needed), with the checks every image command shares.
+fn images_folder(app: &tauri::AppHandle, base: &str) -> Result<PathBuf, String> {
+    let base = PathBuf::from(base);
+    if !app.fs_scope().is_allowed(&base) {
+        return Err("the document is not open in ArkMD".into());
+    }
+    let dir = base.parent().ok_or("the document has no folder")?.join("images");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn image_ext(ext: &str) -> Result<String, String> {
+    let ext = ext.trim_start_matches('.').to_ascii_lowercase();
+    if IMAGE_EXT.contains(&ext.as_str()) { Ok(ext) } else { Err("unsupported image type".into()) }
+}
+
+/// A path in `dir` that doesn't exist yet: stem.ext, then stem-2.ext, stem-3.ext...
+fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    let mut path = dir.join(format!("{stem}.{ext}"));
+    let mut n = 2;
+    while path.exists() {
+        path = dir.join(format!("{stem}-{n}.{ext}"));
+        n += 1;
+    }
+    path
+}
+
+/// Copy a picture the user chose into the document's images folder; returns "images/name.ext".
+#[tauri::command]
+fn import_image(app: tauri::AppHandle, base: String, source: String) -> Result<String, String> {
+    let source = PathBuf::from(source);
+    if !app.fs_scope().is_allowed(&source) {
+        return Err("the picture was not chosen in ArkMD".into());
+    }
+    let ext = image_ext(source.extension().and_then(|e| e.to_str()).unwrap_or(""))?;
+    if std::fs::metadata(&source).map_err(|e| e.to_string())?.len() > MAX_IMAGE_BYTES {
+        return Err("image too large".into());
+    }
+    let dir = images_folder(&app, &base)?;
+    let stem = safe_stem(source.file_name().and_then(|n| n.to_str()).unwrap_or("image"));
+    let dest = free_path(&dir, &stem, &ext);
+    std::fs::copy(&source, &dest).map_err(|e| e.to_string())?;
+    Ok(format!("images/{}", dest.file_name().and_then(|n| n.to_str()).unwrap_or("image")))
+}
+
+/// Decode %XX escapes (the front end sends file paths in a header, which must be plain ASCII).
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(v) = u8::from_str_radix(&text[i + 1..i + 3], 16) {
+                out.push(v);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Save picture data from the clipboard into the images folder; returns "images/name.ext".
+/// The body is the raw image; the document path, extension and name come in headers.
+#[tauri::command]
+fn save_pasted_image(app: tauri::AppHandle, request: tauri::ipc::Request) -> Result<String, String> {
+    let header = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("no image data".into()) };
+    if bytes.is_empty() || bytes.len() as u64 > MAX_IMAGE_BYTES {
+        return Err("image too large or empty".into());
+    }
+    let ext = image_ext(&header("x-ext"))?;
+    let dir = images_folder(&app, &percent_decode(&header("x-base")))?;
+    let dest = free_path(&dir, &safe_stem(&percent_decode(&header("x-stem"))), &ext);
+    std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
+    Ok(format!("images/{}", dest.file_name().and_then(|n| n.to_str()).unwrap_or("image")))
+}
+
 /// Give the app access to the Markdown file `rel` next to `base` and return its path.
 #[tauri::command]
 fn open_linked(app: tauri::AppHandle, base: String, rel: String) -> Result<String, String> {
@@ -206,7 +303,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, log_event, log_tail, open_log_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, log_event, log_tail, open_log_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

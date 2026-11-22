@@ -16,6 +16,10 @@
 - Saving rewrites the whole file. If the app, the device or the connection to a synced or network folder fails in the middle, the file can be left incomplete.
 - Some places can't be written, for example a read-only folder or a document provider that only allows reading. ArkMD then says "Could not save"; use **Save as…** to write a copy somewhere else.
 
+## Pictures
+
+Pictures you insert are copied into an `images` folder next to the document. They aren't part of the Markdown file, so move or share the folder with it. File history keeps earlier versions of the text only, not of the pictures.
+
 ## When a file changes outside ArkMD
 
 ArkMD checks when you return to its window or to a tab. If the file was changed by another program and you have no unsaved changes in it, ArkMD reloads it and says so. If you do have unsaved changes, it leaves your text alone and warns you; **Save** then asks whether to replace the changed file, save a copy instead, or cancel, and autosave holds off until you decide. The check compares the file's text with what ArkMD last read or wrote, so a program that saves the same text again goes unnoticed.

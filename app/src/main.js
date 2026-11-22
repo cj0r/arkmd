@@ -12,6 +12,7 @@ import { SHORTCUTS } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
+import { extensionForType, isImagePath, pastedStem, altFromPath, pastesAsImage } from "./images.js";
 import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
 import { fileKey, formatWhen, formatSize, lineDelta, draftsToOffer, pushClosed } from "./history.js";
 import * as hdb from "./historydb.js";
@@ -641,6 +642,60 @@ function format(op) {
   editor.applyEdit(op(editor.docString(), s, e));   // docString: the same character positions as the selection, also in CRLF files
 }
 
+// ---- Inserting pictures (Windows and Linux) -------------------------------------------------------------
+// A picture chosen, pasted or dropped is copied into an "images" folder next to the document and linked from it.
+
+/** A picture on the clipboard, read directly: { type, blob }, or null (no picture, or the clipboard can't be read). */
+async function clipboardPicture() {
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find((t) => extensionForType(t));
+      if (type && !item.types.includes("text/plain")) return { type, blob: await item.getType(type) };
+    }
+  } catch (err) { platform.logEvent("info", `clipboard picture not readable: ${err?.name || err}`); }
+  return null;
+}
+
+/** Copy one or more pictures next to the open file (`importers` each resolve a relative path) and link them at the cursor. */
+async function placeImages(importers) {
+  const t = cur();
+  if (!platform.importImage || !t) return;
+  if (t.mode !== "edit") { toast("Switch to the editor to insert pictures."); return; }
+  if (!t.ref) { toast("Save the file first, so its pictures can be stored next to it."); return; }
+  try {
+    const paths = [];
+    for (const run of importers) paths.push(await run(t.ref));
+    const [s, e] = editor.selection();
+    const doc = editor.docString();
+    if (paths.length === 1) { editor.applyEdit(F.image(doc, s, e, paths[0], altFromPath(paths[0]))); return; }
+    const alts = paths.map(altFromPath);
+    const text = paths.map((p, i) => `![${alts[i]}](${p})`).join("\n\n");
+    editor.applyEdit({ start: s, end: e, text, selStart: s + 2, selEnd: s + 2 + alts[0].length });
+    toast(`Inserted ${paths.length} pictures`);
+  } catch (err) {
+    logError("Insert image", err);
+    toast(`Could not insert the picture: ${err.message || err}`);
+  }
+}
+
+async function insertImageFromPicker() {
+  const t = cur();
+  if (!platform.pickImage || !t || t.mode !== "edit") return;
+  if (!t.ref) { toast("Save the file first, so its pictures can be stored next to it."); return; }
+  const pick = await platform.pickImage().catch((e) => (toast(String(e.message || e)), null));
+  if (pick) await placeImages([(base) => platform.importImage(base, pick.ref)]);
+}
+
+/** Files dropped on the window: Markdown files open as tabs, pictures are inserted into the editor. */
+function handleDrop({ type, paths }) {
+  $("drop").hidden = type !== "enter";
+  if (type !== "drop") return;
+  const md = paths.filter((p) => /\.(md|markdown|mdown|mkd|txt)$/i.test(p));
+  const pictures = paths.filter(isImagePath);
+  md.forEach((p) => openRef(p, baseName(p)));
+  if (pictures.length) placeImages(pictures.map((p) => (base) => platform.importImage(base, p)));
+}
+
 function buildFormatBar() {
   const bar = $("formatbar");
   const items = [
@@ -658,6 +713,7 @@ function buildFormatBar() {
     ["quote", "Quote (Ctrl+Shift+Q)", () => format(F.quote)],
     ["callout", "Callout", (b) => menu(b, F.CALLOUTS.map((c) => [c[0].toUpperCase() + c.slice(1), () => format((t, s, e) => F.callout(t, s, e, c))]))],
     ["codeblock", "Code block (Ctrl+Shift+K)", () => format(F.codeBlock)],
+    ...(platform.importImage ? [["image", "Image (Ctrl+Shift+I)", insertImageFromPicker]] : []),
     ["table", "Table", () => format((t, s, e) => F.block(t, s, e, F.TABLE))],
     ["rule", "Divider", () => format((t, s, e) => F.block(t, s, e, F.RULE))],
   ];
@@ -1126,6 +1182,22 @@ function wire() {
   $("btn-outline").innerHTML = svg("outline");
   $("btn-outline").onclick = toggleOutline;
   wireFind();
+  // Pasting a picture (and no text) saves it next to the document and links it. Some web views (WebKitGTK on Linux)
+  // send a paste event with no data for a picture, so when the event is empty the clipboard is asked directly.
+  $("editor").addEventListener("paste", (e) => {
+    if (!platform.savePastedImage) return;
+    const data = e.clipboardData;
+    const file = pastesAsImage(data?.items) ? Array.from(data.files).find((f) => extensionForType(f.type)) : null;
+    if (file) {
+      e.preventDefault(); e.stopPropagation();
+      placeImages([async (base) => platform.savePastedImage(base, extensionForType(file.type), pastedStem(), await file.arrayBuffer())]);
+    } else if (!data || data.items.length === 0) {
+      clipboardPicture().then((pic) => {
+        if (pic) placeImages([async (base) => platform.savePastedImage(base, extensionForType(pic.type), pastedStem(), await pic.blob.arrayBuffer())]);
+      });
+    }
+  }, true);
+  platform.onFileDrop(handleDrop);
   $("outline").addEventListener("keydown", outlineKey);
   $("btn-format").onclick = () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); };
   $("toggle").onclick = toggleMode;
@@ -1206,6 +1278,7 @@ function onKey(e) {
   }
   if (e.shiftKey && e.key.toLowerCase() === "t") { e.preventDefault(); reopenClosed(); return; }
   if (e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); toggleOutline(); return; }
+  if (e.shiftKey && e.key.toLowerCase() === "i" && platform.pickImage) { e.preventDefault(); insertImageFromPicker(); return; }
   if (!e.shiftKey && !e.altKey && (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "h")) {
     e.preventDefault(); if (cur()) openFind(e.key.toLowerCase() === "h"); return;
   }

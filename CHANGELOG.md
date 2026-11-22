@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.14.0 (2026-11-22)
+
+### Added
+- **Insert pictures** (Windows and Linux). The image button in the formatting panel (Ctrl+Shift+I), pasting a picture, or dropping image files copies them into an `images` folder next to the document and links them at the cursor as their own paragraph. Pasting from the clipboard needs a web view that passes pictures to the page, which Windows has and Linux does not.
+- **Drop Markdown files** on the window to open them as tabs.
+
 ## 0.13.0 (2026-11-22)
 
 ### Added

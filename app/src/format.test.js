@@ -229,3 +229,35 @@ test("Tab from a selected cell moves on, using the end of the selection", () => 
   const r = tableTab(T, a + 3, a + 3, 1);
   assert.equal(cellSel(r, T), "two");
 });
+
+import { image } from "./format.js";
+
+test("image goes on its own paragraph and selects the alt text", () => {
+  const src = "a b";
+  const r = image(src, 1, 1, "images/cat.png", "cat");
+  const out = src.slice(0, r.start) + r.text + src.slice(r.end);
+  assert.equal(out, "a\n\n![cat](images/cat.png)\n\n b");
+  assert.equal(out.substring(r.selStart, r.selEnd), "cat");
+});
+
+test("image after a line of text gets one blank line, and none at a blank spot", () => {
+  let src = "text\n";
+  let r = image(src, 5, 5, "images/a.png", "a");
+  assert.equal(src.slice(0, r.start) + r.text + src.slice(r.end), "text\n\n![a](images/a.png)");
+  src = "text\n\n";
+  r = image(src, 6, 6, "images/a.png", "a");
+  assert.equal(src.slice(0, r.start) + r.text + src.slice(r.end), "text\n\n![a](images/a.png)");
+  src = "";
+  r = image(src, 0, 0, "images/a.png", "a");
+  assert.equal(r.text, "![a](images/a.png)");
+  assert.equal(r.selStart, 2);
+});
+
+test("image keeps a following paragraph apart, and uses a selection as alt text", () => {
+  const src = "\nnext";
+  let r = image(src, 0, 0, "images/a.png", "a");
+  assert.equal(src.slice(0, r.start) + r.text + src.slice(r.end), "![a](images/a.png)\n\nnext");
+  const sel = "my photo here";
+  r = image(sel, 3, 8, "images/p.png", "p");
+  assert.ok(r.text.includes("![photo](images/p.png)"));
+});

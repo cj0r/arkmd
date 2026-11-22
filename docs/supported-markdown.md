@@ -39,7 +39,7 @@ Raw HTML (it's shown as text, not run), math, note embeds (`![[Note]]`), comment
 
 Images from the web (`![](https://example.com/picture.png)`) are shown, which means ArkMD loads them from that server, as any browser would.
 
-On Windows and Linux, images next to the document are shown too: `![](picture.png)` or `![](images/diagram.svg)`, relative to the folder of the saved file (PNG, JPEG, GIF, WebP, AVIF, BMP and SVG, up to 25 MB each). An image that can't be found shows its description in a dashed box. Absolute paths aren't loaded, and neither is anything on Android, where the system file picker gives ArkMD one file at a time.
+On Windows and Linux, images next to the document are shown too: `![](picture.png)` or `![](images/diagram.svg)`, relative to the folder of the saved file (PNG, JPEG, GIF, WebP, AVIF, BMP and SVG, up to 25 MB each). An image that can't be found shows its description in a dashed box. To add one without typing the path, see Pictures under [Reading and editing](reading-and-editing.md#pictures-windows-and-linux). Absolute paths aren't loaded, and neither is anything on Android, where the system file picker gives ArkMD one file at a time.
 
 ## Links
 

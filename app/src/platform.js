@@ -47,6 +47,8 @@ const androidImpl = {
   logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
   async logTail() { return ""; },
   openLogFolder: null,
+  pickImage: null, importImage: null, savePastedImage: null,                  // inserting pictures is desktop only for now
+  onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
   setTitle() {},
@@ -122,6 +124,26 @@ const desktopImpl = {
   logEvent(level, message) { invoke("log_event", { level, message: String(message) }).catch(() => {}); },
   async logTail() { try { return await invoke("log_tail"); } catch { return ""; } },
   async openLogFolder() { return invoke("open_log_folder"); },
+  /** Choose a picture to insert; resolves { ref, name } or null. */
+  async pickImage() {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const ref = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp"] }] });
+    return ref ? { ref, name: baseName(ref) } : null;
+  },
+  /** Copy a picture into the images folder next to the document; resolves its relative path ("images/name.png"). */
+  async importImage(base, source) { return invoke("import_image", { base, source }); },
+  /** Save clipboard picture data (an ArrayBuffer) the same way. */
+  async savePastedImage(base, ext, stem, bytes) {
+    return invoke("save_pasted_image", bytes, { headers: { "x-base": encodeURIComponent(base), "x-ext": ext, "x-stem": encodeURIComponent(stem) } });
+  },
+  /** Files dropped onto the window: handler({ type: "enter" | "leave" | "drop", paths }). */
+  async onFileDrop(handler) {
+    const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+    await getCurrentWebview().onDragDropEvent((e) => {
+      const t = e.payload.type;
+      handler({ type: t === "drop" ? "drop" : t === "leave" ? "leave" : "enter", paths: e.payload.paths || [] });
+    });
+  },
   /** A Markdown file next to the open document: gives the app access to it and returns its path. */
   async openLinked(base, rel) { return invoke("open_linked", { base, rel }); },
   /** The bytes (an ArrayBuffer) of an image next to the open document. */

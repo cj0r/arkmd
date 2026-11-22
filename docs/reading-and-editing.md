@@ -12,6 +12,16 @@ The magnifier in the top bar, or **Ctrl+F**, opens the find bar. Type to see eve
 
 **Ctrl+H**, or the arrow at the left of the find bar, adds a replace row in the editor. **Replace** changes the current match and moves to the next; **Replace all** changes every match as one step you can undo. With regular expressions on, `$1` to `$9` in the replacement stand for the groups of the match and `$&` for the whole match. Reading mode has no replace: Ctrl+H switches to the editor first. In reading mode a match must sit inside one piece of formatting, so text split across bold or a link may not be found there; the editor finds it.
 
+## Pictures (Windows and Linux)
+
+Add a picture while editing in any of three ways: the image button in the formatting panel (or **Ctrl+Shift+I**), pasting a picture from the clipboard, or dragging an image file onto the window. ArkMD copies the file into an `images` folder next to your Markdown file, giving it a safe name (letters, digits, dashes and underscores; a number is added if the name is taken), and inserts `![name](images/name.png)` at the cursor as its own paragraph, with the description selected so you can retype it. The picture is a copy, so the original stays where it was, and your Markdown file and its `images` folder can be moved or synced together.
+
+- The document has to be saved first, because the folder goes next to it. An untitled document asks you to save it.
+- PNG, JPEG, GIF, WebP, AVIF, BMP and SVG files up to 25 MB are accepted.
+- Pasting works when the clipboard holds a picture and no text (a screenshot, say). It is saved as `pasted-` and the date and time. On Linux the web view doesn't pass clipboard pictures to ArkMD, so use the image button or drag a file there.
+- Dropping several images inserts them all, one paragraph each. Dropping a Markdown file on the window opens it as a tab.
+- Android doesn't have this yet.
+
 ## Task lists
 
 In reading mode, tap or click a task's checkbox to tick or untick it. The change is made in the file's text like any edit: the file is marked as changed, Undo works in the editor, and Save writes it.
@@ -49,6 +59,7 @@ While you edit, a floating bar offers the most-used Markdown formatting, so you 
 | Quote | Prefixes every selected line with `>` |
 | Callout | A menu of callout types (note, tip, info, warning, danger, question, example, quote) |
 | Code block | Wraps the selection in a fenced block |
+| Image (Windows and Linux) | Choose a picture to copy next to the document and link (see Pictures below) |
 | Table, Divider | Insert a table or a horizontal rule on its own lines |
 
 In a table, **Tab** moves to the next cell and selects its text, **Shift+Tab** to the previous one, and Tab in the last cell adds a row.
@@ -97,6 +108,7 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+Shift+9 | Task list |
 | Ctrl+Shift+Q | Quote |
 | Ctrl+Shift+K | Code block |
+| Ctrl+Shift+I | Insert a picture (Windows and Linux) |
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 
 Each list and style shortcut works on the selected lines or text, and pressing it again removes the formatting. With nothing selected, a style shortcut such as Ctrl+B opens a pair of marks; press it again after typing to step out past the closing marks.
