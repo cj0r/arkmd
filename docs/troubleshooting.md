@@ -2,6 +2,8 @@
 
 ## Android
 
+**Google Play Protect says "Harmful app blocked" (versions 0.6.0 to 0.14.0).** Those versions asked for the permission to install apps, which Play Protect treats as risky for software that isn't from Google Play. Version 0.14.1 and later don't ask for it. Uninstall the old version (its settings are removed), install the current release, and update by downloading each new version or with Obtainium.
+
 **"App not installed" when updating.** A build signed with a different key can't be installed over a release. This happens with an APK you built yourself without the release key. Uninstall the old version first (its settings are removed), then install the new one.
 
 **"Could not save".** The place the file lives may be read-only, or its document provider may allow reading only. Use **More** > **Save as…** to write a copy somewhere else.

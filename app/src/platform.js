@@ -57,20 +57,13 @@ const androidImpl = {
   onLaunch(handler) { window.arkAndroidLaunch = () => handler(); },          // new Open with / Share while running
   onOpenRequest() {},
   window: null,                                                              // no window chrome on a phone
-  /** Updates: the bridge fetches android.json and downloads the APK; the system installer does the install. */
+  /** Updates: the bridge reads android.json; a newer release is downloaded through the browser, never installed by ArkMD itself. */
   update: {
     async check() {
       const reply = await call("updateManifest", ANDROID_MANIFEST_URL);
       const release = androidRelease(JSON.parse(reply.manifest), reply.abis);
       if (!release || !isNewer(release.version, await version())) return null;
-      this._release = release;
-      return { version: release.version, notes: release.notes };
-    },
-    /** onProgress(done, total). Resolves { needsPermission } when Android first has to allow installs from ArkMD. */
-    async install(onProgress) {
-      window.arkUpdateProgress = (done, total) => onProgress(done, total > 0 ? total : null);
-      const r = await call("updateInstall", this._release.url, this._release.sha256);
-      return { needsPermission: !!r.needsPermission };
+      return { version: release.version, notes: release.notes, downloadUrl: release.url, sha256: release.sha256 };
     },
   },
   setChrome(bg, dark) { android.setChrome(bg, !!dark); },

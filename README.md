@@ -27,7 +27,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode, history and recovery, and updates.
 - **Cloud files:** there is no built-in sign-in. On Android the system file picker lists apps such as Google Drive and OneDrive, and on Windows and Linux you open files from the sync folder of their desktop apps.
 - **History and recovery:** the previous text of a file is kept each time you save (More > File history…), unsaved work is restored after a crash, Undo and Redo are in the top bar, and Ctrl+Shift+T reopens a closed tab. Everything stays on the device. ArkMD notices when another program changes an open file, and optional autosave is off by default.
-- **Updates:** Settings > Check for updates now installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
+- **Updates:** Settings > Check for updates now installs a new release in place on Windows and Linux (the packages ask for an administrator password). On Android it shows the new version and opens the download in your browser, and Android's own installer takes it from there. An optional daily check is off by default.
 - **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page. Insert a picture from the formatting panel, by pasting (Windows) or by dropping a file: it is copied into an `images` folder next to the document.
 - **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
 - **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
@@ -46,6 +46,8 @@ Download the file for your platform from the [latest release](https://github.com
 | Any Linux (x86_64) | `ArkMD_<version>_amd64.AppImage` |
 
 **Android:** open the downloaded file. Android asks once to allow installing from your browser or file manager (Settings > Install unknown apps). Every release is signed with the same key, so a new version installs over the old one and keeps your settings.
+
+**Keeping Android up to date:** ArkMD doesn't install updates itself on Android. Settings > Check for updates now tells you when a newer version exists and opens its download. To have updates fetched in the background, add this repository to [Obtainium](https://obtainium.imranr.dev) (open the link `obtainium://add/https://github.com/cj0r/arkmd` on the phone, or paste `https://github.com/cj0r/arkmd` into Obtainium's Add app screen). Obtainium installs the new APK over the old one, and on recent versions of Android it can do so without asking each time.
 
 **Windows:** run the installer. The installers aren't code-signed, so Windows SmartScreen may show a warning; choose **More info**, then **Run anyway**.
 

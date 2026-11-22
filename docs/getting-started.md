@@ -2,7 +2,7 @@
 
 ## Install
 
-Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest) and follow the steps for [Android, Windows and Linux](../README.md#install). To update, install the new release over the old one; your settings stay.
+Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest) and follow the steps for [Android, Windows and Linux](../README.md#install). To update, install the new release over the old one; your settings stay. On Windows and Linux, **Settings** > **Check for updates now** does that for you. On Android it opens the download, and [Obtainium](../README.md#install) can fetch new versions in the background.
 
 ## Open a file
 

@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.14.1 (2026-11-22)
+
+### Changed
+- **Android:** the app no longer installs updates itself and no longer asks for the permission to install apps, which Google Play Protect blocked as harmful on every version since 0.6.0. Settings > Check for updates now still reports a newer version; its button opens the download in the browser and the dialog shows the file's SHA-256. Android's own installer then installs it. Windows and Linux updating is unchanged.
+- The README describes keeping Android up to date with Obtainium, which can check this repository's releases and update the app in the background.
+
 ## 0.14.0 (2026-11-22)
 
 ### Added

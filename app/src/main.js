@@ -938,10 +938,17 @@ function showUpdate() {
   const notes = para(summarizeNotes(pendingUpdate.notes), "about notes");
   const status = para("", "about"); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
-  const now = button("Update now", () => installUpdate(status, [now, later, notesBtn]));
+  // Android: ArkMD doesn't install anything itself; the button hands the APK's address to the browser.
+  const now = platform.update.install
+    ? button("Update now", () => installUpdate(status, [now, later, notesBtn]))
+    : button("Download the update", () => {
+      platform.openUrl(pendingUpdate.downloadUrl).catch(() => {});
+      status.textContent = "Your browser downloads the file. Open it to install; Android asks you to confirm.";
+    });
   const later = button("Later", closeDialog);
   const notesBtn = button("Release notes", () => { platform.openUrl(`${REPO_URL}/releases/tag/v${pendingUpdate.version}`).catch(() => {}); });
-  d.replaceChildren(h, para(`You have ${shownVersion}.`), notes, status, now, later, notesBtn);
+  const sums = pendingUpdate.sha256 ? [para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes")] : [];
+  d.replaceChildren(h, para(`You have ${shownVersion}.`), notes, ...sums, status, now, later, notesBtn);
   $("dialog-backdrop").hidden = false;
   now.focus({ preventScroll: true });
 }
