@@ -3,10 +3,11 @@
 export const SHORTCUTS = [
   ["Files and tabs", [
     ["Ctrl+O", "Open a file"], ["Ctrl+N, Ctrl+T", "New file"], ["Ctrl+S", "Save"], ["Ctrl+Shift+S", "Save as"],
-    ["Ctrl+W", "Close the current tab"], ["Ctrl+Shift+T", "Reopen the last closed tab"], ["Ctrl+Tab, Ctrl+Shift+Tab", "Next, previous tab"],
+    ["Ctrl+W", "Close the current tab"], ["Ctrl+Shift+T", "Reopen the last closed tab"], ["Ctrl+Tab, Ctrl+Shift+Tab", "Next, previous tab"], ["Ctrl+Shift+PageUp, Ctrl+Shift+PageDown", "Move the tab left, right"],
   ]],
   ["View", [
-    ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+Shift+O", "Outline of the document"], ["Ctrl+,", "Settings"], ["F1", "This list"],
+    ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+Shift+O", "Outline of the document"], ["Ctrl+F", "Find"], ["Ctrl+H", "Find and replace (in the editor)"],
+    ["Enter, Shift+Enter, F3", "Next, previous match while the find bar is open"], ["Ctrl+P", "Print"], ["Ctrl+,", "Settings"], ["F1", "This list"],
     ["Ctrl + and Ctrl −", "Larger, smaller window content"], ["Esc", "Close a menu or dialog"],
   ]],
   ["Headings (while editing)", [
@@ -20,7 +21,7 @@ export const SHORTCUTS = [
   ["Lists and blocks (while editing)", [
     ["Ctrl+Shift+8", "Bulleted list"], ["Ctrl+Shift+7", "Numbered list"], ["Ctrl+Shift+9", "Task list"],
     ["Ctrl+Shift+Q", "Quote"], ["Ctrl+Shift+K", "Code block"],
-    ["Enter", "Continue the list; on an empty item, end it"], ["Tab, Shift+Tab", "On a list item: nest, un-nest"],
+    ["Enter", "Continue the list; on an empty item, end it"], ["Tab, Shift+Tab", "In a table: next, previous cell (Tab in the last cell adds a row)"], ["Tab, Shift+Tab", "On a list item: nest, un-nest"],
     ["Ctrl+Z, Ctrl+Shift+Z", "Undo, redo (also buttons in the top bar)"],
   ]],
 ];

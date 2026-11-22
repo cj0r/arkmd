@@ -44,6 +44,8 @@ const androidImpl = {
   async launchFile() { return call("takeLaunch"); },                        // -> {ref, name, text} | null
   async confirm(message, title) { return call("confirm", title, message); },
   async openUrl(url) { android.openUrl(url); },
+  openLinked: null,                                                          // files next to a document aren't reachable through the system picker
+  readLinkedImage: null,
   setTitle() {},
   onCloseRequested() {},
   onBack(handler) { window.arkBack = () => handler(); },                    // returns true if handled
@@ -94,9 +96,9 @@ const desktopImpl = {
     const { writeTextFile } = await import("@tauri-apps/plugin-fs");
     await writeTextFile(ref, text);
   },
-  async saveAs(name, text) {
+  async saveAs(name, text, filters = this.filters) {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    const ref = await save({ defaultPath: name, filters: this.filters });
+    const ref = await save({ defaultPath: name, filters });
     if (!ref) return null;
     await this.writeFile(ref, text);
     return { ref, name: baseName(ref) };
@@ -113,6 +115,10 @@ const desktopImpl = {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
   },
+  /** A Markdown file next to the open document: gives the app access to it and returns its path. */
+  async openLinked(base, rel) { return invoke("open_linked", { base, rel }); },
+  /** The bytes (an ArrayBuffer) of an image next to the open document. */
+  async readLinkedImage(base, rel) { return invoke("read_linked_image", { base, rel }); },
   async setTitle(title) {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     getCurrentWindow().setTitle(title);

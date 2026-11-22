@@ -197,6 +197,66 @@ export function callout(src, s, e, type) {
   return block(src, s, e, `${head}${title}\n${body}`, head.length, head.length + title.length);
 }
 
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_SEPARATOR = /^\s*\|?(?:\s*:?-+:?\s*\|)+\s*(?::?-+:?\s*)?$/;
+
+/** The cells of a table row: [{ from, to, pipe }] with `from`/`to` bounding the cell's text within the line. */
+function tableCells(line) {
+  const pipes = [];
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "\\") i++;
+    else if (line[i] === "|") pipes.push(i);
+  }
+  const cells = [];
+  for (let k = 0; k + 1 < pipes.length; k++) {
+    const raw = line.substring(pipes[k] + 1, pipes[k + 1]);
+    const lead = raw.length - raw.trimStart().length;
+    const body = raw.trim();
+    const from = pipes[k] + 1 + (body ? lead : Math.min(1, raw.length));
+    cells.push({ left: pipes[k] + 1, right: pipes[k + 1], from, to: from + body.length });
+  }
+  return cells;
+}
+
+/**
+ * Tab / Shift+Tab inside a table: move to the next or previous cell and select its text. Tab in the last cell of
+ * the last row adds a new row. Separator rows (| --- |) are skipped. Returns null outside a table, and for
+ * Shift+Tab in the very first cell, so the editor's own handling applies.
+ */
+export function tableTab(src, s, e, dir) {
+  const str = String(src);
+  const lines = str.split("\n");
+  let offset = 0, at = 0;
+  const starts = lines.map((l) => { const o = offset; offset += l.length + 1; return o; });
+  while (at + 1 < lines.length && starts[at + 1] <= s) at++;
+  if (!TABLE_ROW.test(lines[at])) return null;
+  const cells = tableCells(lines[at]);
+  if (!cells.length) return null;
+  const col = s - starts[at];
+  let c = cells.findIndex((cell) => col >= cell.left && col <= cell.right);
+  if (c < 0) c = col < cells[0].left ? 0 : cells.length - 1;
+  const go = (row, cell) => {
+    const target = tableCells(lines[row])[cell];
+    return { start: starts[row] + target.from, end: starts[row] + target.from, text: "", selStart: starts[row] + target.from, selEnd: starts[row] + target.to };
+  };
+  const isRow = (n) => n >= 0 && n < lines.length && TABLE_ROW.test(lines[n]) && !TABLE_SEPARATOR.test(lines[n]);
+  if (dir > 0) {
+    if (c + 1 < cells.length) return go(at, c + 1);
+    let n = at + 1;
+    if (n < lines.length && TABLE_SEPARATOR.test(lines[n]) && TABLE_ROW.test(lines[n])) n++;
+    if (isRow(n)) return go(n, 0);
+    const row = "| " + cells.map(() => "").join(" | ") + " |";
+    const end = starts[at] + lines[at].length;
+    const first = end + 1 + 2;
+    return { start: end, end, text: "\n" + row, selStart: first, selEnd: first };
+  }
+  if (c > 0) return go(at, c - 1);
+  let n = at - 1;
+  if (n >= 0 && TABLE_SEPARATOR.test(lines[n])) n--;
+  if (isRow(n)) return go(n, tableCells(lines[n]).length - 1);
+  return null;
+}
+
 export const MarkdownFormat = {
   wrap,
   link,
@@ -207,6 +267,7 @@ export const MarkdownFormat = {
   toggleHeading,
   shiftHeading,
   indentList,
+  tableTab,
   endEmptyTask,
   block,
   codeBlock,

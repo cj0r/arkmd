@@ -36,3 +36,10 @@ test("an LF file stays LF", () => {
 test("a file without a trailing newline keeps that", () => {
   assert.equal(docText(open("a\r\nb")), "a\r\nb");
 });
+
+import { withLineBreak } from "./eol.js";
+test("withLineBreak converts inserted text to the document's line break", () => {
+  assert.equal(withLineBreak("a\nb\n", "\r\n"), "a\r\nb\r\n");
+  assert.equal(withLineBreak("a\r\nb", "\r\n"), "a\r\nb");
+  assert.equal(withLineBreak("a\nb", "\n"), "a\nb");
+});

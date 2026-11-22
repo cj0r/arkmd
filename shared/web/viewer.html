@@ -65,7 +65,7 @@ li { margin:.2em 0; }
 li::marker { color: var(--accent); }
 ul.contains-task-list { list-style:none; padding-left:.4em; }
 li.task-list-item { position:relative; }
-li.task-list-item input[type=checkbox] {
+li.task-list-item input[type=checkbox] { cursor:pointer;
   appearance:none; -webkit-appearance:none; width:1.05em; height:1.05em; margin:0 .5em -.15em 0;
   border:1.5px solid var(--checkbox); border-radius:4px; vertical-align:baseline; position:relative;
 }
@@ -75,6 +75,7 @@ li.task-list-item input[type=checkbox]:checked::after {
   border:solid var(--bg); border-width:0 2px 2px 0; transform:rotate(45deg);
 }
 li.task-done { color:var(--fg-soft); text-decoration:line-through; }
+li.task-done > ul, li.task-done > ol { display:inline-block; width:100%; color:var(--fg); }   /* inline-block stops the strike-through reaching nested items */
 table { border-collapse:collapse; margin:1em 0; display:block; overflow-x:auto; max-width:100%; }
 th, td { border:1px solid var(--surface); padding:.4em .75em; overflow-wrap:normal; word-break:normal; }
 th { white-space:nowrap; }
@@ -84,7 +85,8 @@ img { max-width:100%; border-radius:6px; }
   color:var(--tag); background: color-mix(in srgb, var(--tag) 14%, transparent);
   border-radius:999px; padding:.05em .55em; font-size:.9em; white-space:nowrap;
 }
-.wikilink { color:var(--accent); border-bottom:1px dashed var(--accent); }
+.wikilink { color:var(--accent); border-bottom:1px dashed var(--accent); cursor:pointer; }
+.img-missing { color:var(--fg-muted); border:1px dashed var(--fg-muted); border-radius:4px; padding:0 .4em; font-size:.9em; }
 .footnotes { font-size:.9em; color:var(--fg-soft); }
 .footnotes-sep { border-top:1px solid var(--surface); }
 /* Obsidian-style callouts */
@@ -122,6 +124,17 @@ img { max-width:100%; border-radius:6px; }
 .hljs-deletion { color:var(--hl-deletion); }
 .hljs-addition { color:var(--hl-addition); }
 .hljs-emphasis { font-style:italic; } .hljs-strong { font-weight:bold; }
+mark.find-hit { background:#ffd54f; color:#000; border-radius:2px; }
+mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
+@media print {
+  html, body { background:#fff !important; color:#000 !important; }
+  #doc { max-width:none !important; }
+  h1, h2, h3, h4, h5, h6, strong, em, li::marker { color:#000 !important; }
+  a { color:#0645ad !important; }
+  pre, code, .frontmatter, th { background:#f4f4f4 !important; color:#111 !important; }
+  pre, table, blockquote, .callout { break-inside:avoid; }
+  mark.find-hit, mark.find-hit.current { background:none !important; outline:none !important; color:inherit !important; }
+}
 </style>
 <script src="markdown-it.min.js"></script>
 <script src="markdown-it-task-lists.min.js"></script>
@@ -143,8 +156,14 @@ img { max-width:100%; border-radius:6px; }
       } catch (e) {}
       return esc(code);
     }
-  }).use(window.markdownitTaskLists, { enabled: false, label: false })
+  }).use(window.markdownitTaskLists, { enabled: true, label: false })
     .use(window.markdownitFootnote);
+  // Remember which source line each task item came from, so ticking a box can be written back to the file.
+  md.core.ruler.push("task_lines", function (state) {
+    state.tokens.forEach(function (t) {
+      if (t.type === "list_item_open" && t.map && (t.attrGet("class") || "").indexOf("task-list-item") >= 0) t.attrSet("data-line", String(t.map[0] + (state.env.lineOffset || 0)));
+    });
+  });
 
   // Show the fence language as a small label.
   var defaultFence = md.renderer.rules.fence;
@@ -168,7 +187,7 @@ img { max-width:100%; border-radius:6px; }
         while ((m = re.exec(s))) {
           text(s.slice(last, m.index));
           if (m[1] !== undefined) raw("<mark>" + esc(m[1]) + "</mark>");
-          else if (m[2] !== undefined) raw('<span class="wikilink">' + esc(m[3] || m[2]) + "</span>");
+          else if (m[2] !== undefined) raw('<span class="wikilink" data-target="' + esc(m[2]) + '">' + esc((m[3] || m[2]).trim()) + "</span>");
           else { text(m[4]); raw('<span class="tag">#' + esc(m[5]) + "</span>"); }
           last = re.lastIndex;
         }
@@ -209,13 +228,52 @@ img { max-width:100%; border-radius:6px; }
     Object.keys(vars).forEach(function (k) { st.setProperty("--" + k, vars[k]); });
   };
 
+  // GitHub-style anchors on headings, so [text](#heading) links and [[Note#Heading]] can jump to them.
+  function slugify(text) { return String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-"); }
+  function prepareHeadings(doc) {
+    var seen = {};
+    doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach(function (h) {
+      var base = slugify(h.textContent || ""), n = seen[base] = (seen[base] === undefined ? 0 : seen[base] + 1);
+      h.id = n ? base + "-" + n : base;
+    });
+  }
+  window.scrollToAnchor = function (fragment) {
+    var doc = document.getElementById("doc");
+    var want = slugify(fragment);
+    var el = null;
+    doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach(function (h) {
+      if (!el && (h.id === want || slugify(h.textContent || "") === want)) el = h;
+    });
+    if (el) { el.scrollIntoView({ block: "start" }); return true; }
+    return false;
+  };
+
+  // Images next to the document (desktop): the host reads the file and returns an address the page can show.
+  function loadLocalImages(doc) {
+    doc.querySelectorAll("img").forEach(function (img) {
+      var src = img.getAttribute("src") || "";
+      if (!src || /^([a-z][a-z0-9+.-]*:|\/)/i.test(src)) return;
+      img.removeAttribute("src");
+      var host = window.parent !== window && window.parent.arkLoadImage;
+      function missing() {
+        var s = document.createElement("span");
+        s.className = "img-missing";
+        s.textContent = "Image not found: " + (img.getAttribute("alt") || src);
+        if (img.parentNode) img.parentNode.replaceChild(s, img);
+      }
+      if (!host) return missing();
+      Promise.resolve(host(src)).then(function (url) { img.src = url; }).catch(missing);
+    });
+  }
+
   window.render = function (src, scrollFraction) {
     var doc = document.getElementById("doc");
     var front = "";
     var fm = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(src);
-    if (fm) { front = '<div class="frontmatter">' + esc(fm[1]) + "</div>"; src = src.slice(fm[0].length); }
+    var lineOffset = 0;
+    if (fm) { front = '<div class="frontmatter">' + esc(fm[1]) + "</div>"; lineOffset = fm[0].split("\n").length - 1; src = src.slice(fm[0].length); }
     if (!src.trim() && !front) { doc.innerHTML = '<p class="empty">Empty file</p>'; return; }
-    doc.innerHTML = front + md.render(src);
+    doc.innerHTML = front + md.render(src, { lineOffset: lineOffset });
     callouts(doc);
     doc.querySelectorAll("li.task-list-item input:checked").forEach(function (i) { i.parentNode.classList.add("task-done"); });
     // Accessibility: task checkboxes are named by their item text; wide tables/code blocks are keyboard-scrollable.
@@ -227,6 +285,8 @@ img { max-width:100%; border-radius:6px; }
       el.setAttribute("role", "region");
       el.setAttribute("aria-label", el.tagName === "PRE" ? "Code" + (el.dataset.lang ? " (" + el.dataset.lang + ")" : "") : "Table");
     });
+    prepareHeadings(doc);
+    loadLocalImages(doc);
     if (scrollFraction) {
       requestAnimationFrame(function () {
         window.scrollTo(0, scrollFraction * (document.body.scrollHeight - window.innerHeight));
@@ -254,6 +314,70 @@ img { max-width:100%; border-radius:6px; }
     return h > 0 ? window.scrollY / h : 0;
   };
 
+  // Find in the page: wrap matches (within single text nodes) in <mark class="find-hit">.
+  window.findClear = function () {
+    document.querySelectorAll("mark.find-hit").forEach(function (m) {
+      var p = m.parentNode;
+      p.replaceChild(document.createTextNode(m.textContent), m);
+      p.normalize();
+    });
+  };
+  window.findAll = function (source, flags) {
+    window.findClear();
+    var re = new RegExp(source, flags), count = 0, nodes = [];
+    var walker = document.createTreeWalker(document.getElementById("doc"), NodeFilter.SHOW_TEXT, null);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      if (count >= 10000 || /^(SCRIPT|STYLE|TEXTAREA)$/.test(node.parentNode.nodeName)) return;
+      var text = node.nodeValue, m, last = 0, frag = null;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) && count < 10000) {
+        if (m[0] === "") { re.lastIndex++; continue; }
+        frag = frag || document.createDocumentFragment();
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var mark = document.createElement("mark");
+        mark.className = "find-hit";
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        last = m.index + m[0].length;
+        count++;
+      }
+      if (frag) {
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      }
+    });
+    return count;
+  };
+  window.findStep = function (i) {
+    var marks = document.querySelectorAll("mark.find-hit");
+    marks.forEach(function (m) { m.classList.remove("current"); });
+    var m = marks[i];
+    if (!m) return;
+    m.classList.add("current");
+    for (var d = m.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+    m.scrollIntoView({ block: "center" });
+  };
+
+  // A standalone copy of the rendered page (theme colours inline, no scripts), for Export as HTML.
+  window.exportHtml = function (title) {
+    var copy = document.documentElement.cloneNode(true);
+    copy.querySelectorAll("script").forEach(function (n) { n.remove(); });
+    var fonts = copy.querySelector("#fontface"); if (fonts) fonts.remove();
+    copy.querySelectorAll("style").forEach(function (n) { n.textContent = n.textContent.replace(/@font-face\s*\{[^}]*\}/g, ""); });
+    copy.querySelectorAll("mark.find-hit").forEach(function (m) { m.replaceWith(document.createTextNode(m.textContent)); });
+    var t = copy.querySelector("title"); if (t) t.textContent = title || "Document";
+    // Images next to the document were shown from temporary addresses; save them inside the page instead.
+    var live = Array.prototype.slice.call(document.querySelectorAll("#doc img"));
+    var saved = Array.prototype.slice.call(copy.querySelectorAll("#doc img"));
+    var host = window.parent !== window && window.parent.arkImageData;
+    return Promise.all(saved.map(function (img, i) {
+      var src = live[i] && live[i].getAttribute("src") || "";
+      if (src.indexOf("blob:") !== 0 || !host) return null;
+      return Promise.resolve(host(src)).then(function (data) { img.setAttribute("src", data); }).catch(function () { img.removeAttribute("src"); });
+    })).then(function () { return "<!doctype html>\n" + copy.outerHTML; });
+  };
+
   // The headings of the rendered document, for the host's Outline flyout.
   function headingEls() { return Array.prototype.slice.call(document.querySelectorAll("#doc h1, #doc h2, #doc h3, #doc h4, #doc h5, #doc h6")); }
   window.headings = function () {
@@ -272,11 +396,33 @@ img { max-width:100%; border-radius:6px; }
     return at;
   };
 
+  // Ticking a task box in the reader changes the file's text through the host (it saves like any edit).
+  document.addEventListener("change", function (e) {
+    var box = e.target;
+    var li = box && box.closest && box.closest("li.task-list-item");
+    if (!li || !li.hasAttribute("data-line")) return;
+    var ok = window.parent !== window && window.parent.arkToggleTask && window.parent.arkToggleTask(Number(li.getAttribute("data-line")), box.checked);
+    if (!ok) { box.checked = !box.checked; return; }
+    li.classList.toggle("task-done", box.checked);
+  });
+
   // Embedded in the desktop app (iframe): hand links to the host so they open in the system browser.
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a[href]");
-    if (!a || a.getAttribute("href").charAt(0) === "#") return;
-    if (window.parent !== window && window.parent.arkOpenLink) { e.preventDefault(); window.parent.arkOpenLink(a.href); }
+    if (a) {
+      var href = a.getAttribute("href");
+      if (href.charAt(0) === "#") {
+        e.preventDefault();
+        var frag = href.slice(1);
+        try { frag = decodeURIComponent(frag); } catch (x) { /* keep as is */ }
+        window.scrollToAnchor(frag);
+        return;
+      }
+      if (window.parent !== window && window.parent.arkOpenLink) { e.preventDefault(); window.parent.arkOpenLink(href); }
+      return;
+    }
+    var wiki = e.target.closest && e.target.closest(".wikilink");
+    if (wiki && window.parent !== window && window.parent.arkOpenWikilink) window.parent.arkOpenWikilink(wiki.getAttribute("data-target") || wiki.textContent);
   });
 
   if (window.Host) Host.ready();

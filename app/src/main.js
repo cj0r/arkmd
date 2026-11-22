@@ -1,7 +1,7 @@
 // ArkMD UI, shared by desktop and Android (and iOS later). The reader is the shared viewer.html in an
 // iframe; the editor is CodeMirror 6. Files, dialogs and the window go through platform.js.
 import { createEditor } from "./editor.js";
-import { platform } from "./platform.js";
+import { platform, baseName } from "./platform.js";
 import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
@@ -10,6 +10,9 @@ import { shouldAutoCheck, summarizeNotes } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
+import { stats, formatStats } from "./stats.js";
+import { parseLink, wikilinkTarget, imageType } from "./links.js";
+import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
 import { fileKey, formatWhen, formatSize, lineDelta, draftsToOffer, pushClosed } from "./history.js";
 import * as hdb from "./historydb.js";
 
@@ -43,7 +46,7 @@ const cur = () => tabs.active;
 const mode = () => cur()?.mode ?? "home";
 
 const editor = createEditor($("editor"), {
-  onChange(text) { const t = cur(); if (t) { setDirty(t, text !== t.saved); scheduleDraft(); } updateUndoButtons(); },
+  onChange(text) { const t = cur(); if (t) { setDirty(t, text !== t.saved); scheduleDraft(); scheduleAutosave(); } updateUndoButtons(); refreshFindSoon(); },
   extraKeys: [
     { key: "Mod-b", run: () => (format((t, s, e) => F.wrap(t, s, e, "**")), true) },
     { key: "Mod-i", run: () => (format((t, s, e) => F.wrap(t, s, e, "*")), true) },
@@ -58,7 +61,7 @@ const editor = createEditor($("editor"), {
     { key: "Mod-Shift-k", run: () => (format(F.codeBlock), true) },
     ...[1, 2, 3, 4, 5, 6].map((n) => ({ key: `Mod-${n}`, run: () => (format((t, s, e) => F.toggleHeading(t, s, e, n)), true) })),
     { key: "Mod-0", run: () => (format((t, s, e) => F.heading(t, s, e, 0)), true) },
-    { key: "Enter", run: () => { const [s, e] = editor.selection(); const ed = F.endEmptyTask(editor.getText(), s, e); if (!ed) return false; editor.applyEdit(ed); return true; } },
+    { key: "Enter", run: () => { const [s, e] = editor.selection(); const ed = F.endEmptyTask(editor.docString(), s, e); if (!ed) return false; editor.applyEdit(ed); return true; } },
     // Tab on a heading goes one level deeper and on a list item nests it; anywhere else it indents as usual.
     { key: "Tab", run: () => tabEdit(1) },
     { key: "Shift-Tab", run: () => tabEdit(-1) },
@@ -138,6 +141,9 @@ function updateChrome() {
   $("btn-save").hidden = !(open && t.dirty);
   $("btn-format").hidden = mode() !== "edit";
   $("btn-outline").hidden = !open;
+  $("btn-find").hidden = !open;
+  if (!open) closeFind();
+  $("find-more").hidden = mode() !== "edit";
   if (!open) closeOutline();
   for (const id of ["btn-undo", "btn-redo"]) $(id).hidden = mode() !== "edit";
   updateUndoButtons();
@@ -153,6 +159,52 @@ function updateChrome() {
   $("toggle").innerHTML = svg(mode() === "edit" ? "view" : "edit");
   $("toggle").title = mode() === "edit" ? "Read (Ctrl+E)" : "Edit (Ctrl+E)";
   $("toggle").setAttribute("aria-label", mode() === "edit" ? "Switch to reading" : "Switch to editing");
+  renderTabs();
+}
+
+let tabDragged = false;      // true just after a drag, so the click that ends it doesn't also switch tabs
+
+/** Drag a tab sideways to reorder it (mouse and pen; touch keeps scrolling the strip). */
+function startTabDrag(e, t) {
+  if (e.button !== 0 || e.pointerType === "touch" || tabs.count < 2) return;
+  const strip = $("tabs");
+  const startX = e.clientX;
+  let dragging = false, target = tabs.all.indexOf(t);
+  const mark = (to) => strip.querySelectorAll(".tab").forEach((el, i) => {
+    el.classList.toggle("drop-before", dragging && i === to && to <= tabs.all.indexOf(t));
+    el.classList.toggle("drop-after", dragging && i === to && to > tabs.all.indexOf(t));
+  });
+  const move = (ev) => {
+    if (!dragging && Math.abs(ev.clientX - startX) < 6) return;
+    dragging = true;
+    strip.classList.add("reordering");
+    const els = [...strip.querySelectorAll(".tab")];
+    target = els.findIndex((el) => ev.clientX < el.getBoundingClientRect().right);
+    if (target < 0) target = els.length - 1;
+    mark(target);
+  };
+  const up = () => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", up);
+    document.removeEventListener("pointercancel", up);
+    strip.classList.remove("reordering");
+    if (!dragging) return;
+    tabDragged = true; setTimeout(() => { tabDragged = false; }, 0);
+    tabs.move(t.id, target);
+    renderTabs();
+  };
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", up);
+  document.addEventListener("pointercancel", up);
+}
+
+/** Move the active tab one place left (-1) or right (+1). */
+function moveTab(dir) {
+  const t = cur();
+  if (!t) return;
+  const to = tabs.all.indexOf(t) + dir;
+  if (to < 0 || to >= tabs.count) return;
+  tabs.move(t.id, to);
   renderTabs();
 }
 
@@ -174,7 +226,8 @@ function renderTabs() {
     }
     main.append(t.name);
     if (t.dirty) { const sr = document.createElement("span"); sr.className = "sr-only"; sr.textContent = " (unsaved changes)"; main.append(sr); }
-    main.onclick = () => activateTab(t.id);
+    main.onclick = () => { if (!tabDragged) activateTab(t.id); };
+    main.onpointerdown = (e) => startTabDrag(e, t);
     main.onauxclick = (e) => { if (e.button === 1) { e.preventDefault(); closeTab(t.id); } };
     main.onmousedown = (e) => { if (e.button === 1) e.preventDefault(); };   // no middle-click autoscroll
     main.onkeydown = (e) => {
@@ -194,8 +247,25 @@ function renderTabs() {
   if (hadFocus) activeMain?.focus({ preventScroll: true });
 }
 
+const imageBlobs = new Map();
+let imageUrls = [];      // temporary addresses of the images shown in the reader, released on the next render
+
+/** Open a file linked from the document (a relative link or a [[wikilink]]), then jump to its heading if one was given. */
+async function openLinkedFile(path, fragment = "") {
+  const t = cur();
+  if (!t?.ref || !platform.openLinked) { toast("Linked files open on desktop only, from a saved file."); return; }
+  try {
+    const abs = await platform.openLinked(t.ref, path);
+    await openRef(abs, baseName(abs));
+    if (fragment && cur()?.mode === "read" && readerReady) setTimeout(() => $("reader").contentWindow.scrollToAnchor(fragment), 150);
+  } catch (e) {
+    toast(`Could not open ${path}: ${e.message || e}`);
+  }
+}
+
 function render(scroll = 0) {
-  if (readerReady && cur()) $("reader").contentWindow.render(editor.getText(), scroll);
+  imageUrls.forEach((u) => URL.revokeObjectURL(u)); imageUrls = []; imageBlobs.clear();
+  if (readerReady && cur()) { $("reader").contentWindow.render(editor.getText(), scroll); refreshFindSoon(); }
 }
 
 /** Store the visible editor/reader view in the active tab before leaving it. */
@@ -213,7 +283,7 @@ function show() {
   editor.setState(t.state);
   updateChrome();
   if (t.mode === "read") render(t.scroll);
-  else { editor.scrollToFraction(t.scroll); editor.view.focus(); }
+  else { editor.scrollToFraction(t.scroll); editor.view.focus(); refreshFindSoon(); }
 }
 
 function openTab(props) {
@@ -229,6 +299,7 @@ function activateTab(id) {
   snapshot();
   tabs.activate(id);
   show();
+  checkExternal();
 }
 
 function cycleTab(dir) {
@@ -412,10 +483,26 @@ function newFile() {
   openTab({ ref: null, name: tabs.untitledName(), text: "", mode: "edit" });
 }
 
-async function save(as = false) {
+const readDisk = async (t) => (await platform.readFile(t.ref)).replace(/^\uFEFF/, "");
+
+/** Whether the file now holds something other than what ArkMD loaded or last wrote (another program changed it). */
+async function changedOnDisk(t) {
+  if (!t.ref) return false;
+  try { return (await readDisk(t)) !== t.saved; } catch { return false; }      // unreadable or gone: nothing to compare
+}
+
+async function save(as = false, quiet = false) {
   const t = cur();
   if (!t) return;
+  if (t.ref && !as && !quiet && await changedOnDisk(t)) {
+    const choice = await ask("File changed on disk", `${t.name} was changed by another program after ArkMD opened it. Saving replaces those changes with yours.`,
+      ["Save anyway", "Save as a copy…", "Cancel"]);
+    if (choice === 1) return save(true);
+    if (choice !== 0) return;
+    t.warnedDisk = false;
+  }
   const text = editor.getText();
+  t.saving = true;
   try {
     if (!t.ref || as) {
       const r = await platform.saveAs(t.name.includes(".") ? t.name : t.name + ".md", text);
@@ -423,7 +510,11 @@ async function save(as = false) {
       t.ref = r.ref; t.name = r.name;
     } else {
       // Keep the text being replaced as a version first; a history problem never blocks the save.
-      if (historyOn()) await withTimeout(hdb.addVersion(fileKey(t.ref), t.name, t.saved)).catch(() => {});
+      // An autosave keeps a version at most every few minutes, so history isn't filled by every pause in typing.
+      if (historyOn() && (!quiet || Date.now() - (t.versionAt || 0) > 5 * 60 * 1000)) {
+        t.versionAt = Date.now();
+        await withTimeout(hdb.addVersion(fileKey(t.ref), t.name, t.saved)).catch(() => {});
+      }
       await platform.writeFile(t.ref, text);
     }
     t.saved = text;
@@ -431,10 +522,49 @@ async function save(as = false) {
     addRecent(t.ref, t.name);
     if (!t.dirty) { hdb.deleteDraft(t.draftKey); t.hasDraft = false; }
     updateChrome();
-    toast("Saved");
+    if (!quiet) toast("Saved");
   } catch (e) {
     toast(`Could not save: ${e.message || e}`);
+  } finally {
+    t.saving = false;
   }
+}
+
+/** When the window or a tab comes back into view: reload an unchanged tab whose file changed, or warn about a changed one. */
+async function checkExternal(t = cur()) {
+  if (!t || !t.ref || t.checking || t.saving) return;
+  t.checking = true;
+  try {
+    let disk;
+    try { disk = await readDisk(t); } catch { return; }
+    if (disk === t.saved) { t.warnedDisk = false; return; }
+    if (!t.dirty) {
+      t.saved = disk;
+      t.state = editor.newState(disk);
+      if (cur() === t) {
+        const f = t.mode === "edit" ? editor.scrollFraction() : readerReady ? $("reader").contentWindow.scrollFraction() : 0;
+        editor.setState(t.state);
+        if (t.mode === "read") render(f); else editor.scrollToFraction(f);
+        updateChrome();
+      }
+      toast(`${t.name} changed on disk and was reloaded`);
+    } else if (!t.warnedDisk) {
+      t.warnedDisk = true;
+      toast(`${t.name} changed on disk. Saving will ask before replacing it.`);
+    }
+  } finally { t.checking = false; }
+}
+
+let autosaveTimer;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  const t = cur();
+  if (!t || !t.ref || !t.dirty || !store.get("autosave", false)) return;
+  autosaveTimer = setTimeout(async () => {
+    if (cur() !== t || !t.dirty || !store.get("autosave", false)) return;
+    if (await changedOnDisk(t)) { if (!t.warnedDisk) { t.warnedDisk = true; toast(`${t.name} changed on disk, so it wasn't autosaved. Save to choose what to keep.`); } return; }
+    await save(false, true);
+  }, 2500);
 }
 
 function toggleMode() {
@@ -446,6 +576,7 @@ function toggleMode() {
     updateChrome();
     editor.scrollToFraction(f);
     editor.view.focus();
+    refreshFindSoon();
   } else {
     const f = editor.scrollFraction();
     t.mode = "read";
@@ -483,8 +614,8 @@ function renderRecents() {
 // ------------------------------------------------------------------ formatting panel
 function tabEdit(dir) {
   const [s, e] = editor.selection();
-  const text = editor.getText();
-  const edit = F.shiftHeading(text, s, e, dir) || F.indentList(text, s, e, dir);
+  const text = editor.docString();
+  const edit = F.shiftHeading(text, s, e, dir) || F.indentList(text, s, e, dir) || (text.slice(s, e).includes("\n") ? null : F.tableTab(text, dir > 0 ? e : s, dir > 0 ? e : s, dir));
   if (!edit) return false;
   editor.applyEdit(edit);
   return true;
@@ -492,7 +623,7 @@ function tabEdit(dir) {
 
 function format(op) {
   const [s, e] = editor.selection();
-  editor.applyEdit(op(editor.getText(), s, e));
+  editor.applyEdit(op(editor.docString(), s, e));   // docString: the same character positions as the selection, also in CRLF files
 }
 
 function buildFormatBar() {
@@ -584,11 +715,33 @@ function choose(title, sections, selected, onPick, after) {
   sel?.focus({ preventScroll: true });
 }
 let dialogReturn = null;
+let pendingAsk = null;
 function closeDialog() {
+  if (pendingAsk) { const r = pendingAsk; pendingAsk = null; r(-1); }
   if ($("dialog-backdrop").hidden) return;
   $("dialog-backdrop").hidden = true;
   $("dialog").className = "";
   dialogReturn?.focus?.({ preventScroll: true });
+}
+
+/** A message with a few buttons; resolves with the index of the one chosen, or -1 for Esc or a click outside. */
+function ask(title, message, buttons) {
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  d.className = "";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = title;
+  const p = document.createElement("p"); p.className = "about"; p.textContent = message;
+  return new Promise((resolve) => {
+    pendingAsk = resolve;
+    const items = buttons.map((label, i) => {
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = label;
+      b.onclick = () => { pendingAsk = null; closeDialog(); resolve(i); };
+      return b;
+    });
+    d.replaceChildren(h, p, ...items);
+    $("dialog-backdrop").hidden = false;
+    items[0].focus({ preventScroll: true });
+  });
 }
 
 // Custom themes: the CSS files the user imported, kept as text in settings and read again at start.
@@ -803,6 +956,10 @@ function openSettings() {
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
 
+  section("Saving");
+  toggle("Autosave", "Saves a file a few seconds after you stop typing. Off by default. Earlier versions are still kept.", "autosave", false,
+    (on) => { if (on) scheduleAutosave(); });
+
   section("History and recovery");
   toggle("Keep file history", "Keeps the previous text each time you save, on this device only.", "history", true);
   toggle("Recover unsaved work", "Saves a draft of unsaved changes every few seconds, so a crash doesn't lose them.", "recover", true,
@@ -856,12 +1013,40 @@ function showShortcuts() {
   back.focus({ preventScroll: true });
 }
 
+/** The rendered document, ready to print or export: switch to reading mode and wait for the render. */
+async function readerForOutput() {
+  const t = cur();
+  if (!t || !readerReady) return null;
+  if (t.mode === "edit") toggleMode(); else render(readerScrollFraction());
+  await new Promise((r) => setTimeout(r, 250));
+  return $("reader").contentWindow;
+}
+const readerScrollFraction = () => ($("reader").contentWindow.scrollFraction?.() ?? 0);
+
+async function printDoc() {
+  const w = await readerForOutput();
+  if (!w) return;
+  try { w.focus(); w.print(); } catch (e) { toast(`Could not print: ${e.message || e}`); }
+}
+
+async function exportHtml() {
+  const t = cur();
+  const w = await readerForOutput();
+  if (!w) return;
+  try {
+    const name = t.name.replace(/\.(md|markdown|mdown|mkd|txt)$/i, "") + ".html";
+    const r = await platform.saveAs(name, await w.exportHtml(t.name), [{ name: "HTML page", extensions: ["html"] }]);
+    if (r) toast(`Exported ${r.name}`);
+  } catch (e) { toast(`Could not export: ${e.message || e}`); }
+}
+
 function moreMenu() {
   const open = !!cur();
   const entries = [];
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
   if (open) entries.push(["File history…", showHistory]);
+  if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
   entries.push([platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
   menu($("btn-more"), entries);
@@ -884,10 +1069,13 @@ function wire() {
   $("btn-redo").onclick = () => editor.redo();
   addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushDrafts(); });
   addEventListener("pagehide", flushDrafts);
-  $("btn-theme").onclick = pickTheme;
+  addEventListener("focus", () => checkExternal());
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkExternal(); });
+  $("btn-theme").onclick = () => pickTheme();   // not pickTheme itself: it would receive the click event as its `after` callback
   $("btn-more").onclick = moreMenu;
   $("btn-outline").innerHTML = svg("outline");
   $("btn-outline").onclick = toggleOutline;
+  wireFind();
   $("outline").addEventListener("keydown", outlineKey);
   $("btn-format").onclick = () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); };
   $("toggle").onclick = toggleMode;
@@ -901,7 +1089,33 @@ function wire() {
   document.addEventListener("keydown", onKey);
 
   // Links in the reader open in the system browser (viewer.html calls this when embedded).
-  window.arkOpenLink = (url) => { if (/^(https?:|mailto:)/i.test(url)) platform.openUrl(url).catch(() => {}); };
+  window.arkToggleTask = (line, checked) => editor.setTask(line, checked);
+  window.arkOpenLink = (href) => {
+    const link = parseLink(href);
+    if (link?.kind === "external") platform.openUrl(link.url).catch(() => {});
+    else if (link?.kind === "file") openLinkedFile(link.path, link.fragment);
+  };
+  window.arkOpenWikilink = (text) => { const w = wikilinkTarget(text); if (w) openLinkedFile(w.path, w.fragment); };
+  // Images next to the document: read by the app (desktop only) and shown from a temporary address.
+  window.arkLoadImage = async (src) => {
+    const t = cur();
+    const link = parseLink(src);
+    const type = link?.kind === "file" && imageType(link.path);
+    if (!t?.ref || !platform.readLinkedImage || !type) throw new Error("not available");
+    const bytes = await platform.readLinkedImage(t.ref, link.path);
+    const blob = new Blob([bytes], { type });
+    const url = URL.createObjectURL(blob);
+    imageUrls.push(url); imageBlobs.set(url, blob);
+    return url;
+  };
+  // For Export as HTML: an image shown from a temporary address, as a data: address that works in the saved file.
+  window.arkImageData = (url) => new Promise((resolve, reject) => {
+    const blob = imageBlobs.get(url);
+    if (!blob) return reject(new Error("unknown image"));
+    const r = new FileReader();
+    r.onload = () => resolve(r.result); r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
 
   // The reader may finish loading before this runs, so check as well as listen.
   $("reader").addEventListener("load", onReaderLoad);
@@ -934,14 +1148,154 @@ function onKey(e) {
     e.preventDefault();
   }
   if (e.key === "F1") { e.preventDefault(); showShortcuts(); return; }
+  if (e.key === "F3" && find.open) { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); return; }
   if (!mod) return;
+  if (e.shiftKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moveTab(e.key === "PageUp" ? -1 : 1); return; }
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }
   if (e.shiftKey && e.key.toLowerCase() === "t") { e.preventDefault(); reopenClosed(); return; }
   if (e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); toggleOutline(); return; }
-  const act = { o: openFile, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
+  if (!e.shiftKey && !e.altKey && (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "h")) {
+    e.preventDefault(); if (cur()) openFind(e.key.toLowerCase() === "h"); return;
+  }
+  const act = { o: openFile, p: () => { if (!platform.mobile && cur()) printDoc(); }, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
   if (act) { e.preventDefault(); act(); }
+}
+
+// ---- Find and replace --------------------------------------------------------------------------------------
+// One bar for both modes. While editing, matches are drawn in the editor and can be replaced; while reading,
+// matches are highlighted in the page (find only; the replace row appears in the editor).
+const find = { open: false, replace: false, q: "", r: "", opts: store.get("findOpts", {}), matches: [], count: 0, idx: -1, error: null };
+let findTimer;
+
+function findPattern() { return buildPattern(find.q, find.opts); }
+
+function updateFindUi() {
+  const label = $("find-count");
+  const empty = !find.q;
+  label.textContent = empty ? "" : find.error ? "Invalid pattern" : find.count ? `${find.idx + 1} of ${find.count}` : "No results";
+  label.title = find.error || "";
+  $("find-q").classList.toggle("bad", !!find.error);
+  const edit = mode() === "edit";
+  $("find-replace-row").hidden = !(find.replace && edit);
+  $("find-more").hidden = !edit;
+  $("find-more").setAttribute("aria-expanded", String(find.replace && edit));
+  $("find-replace-one").disabled = !find.count;
+  $("find-replace-all").disabled = !find.count;
+  for (const [id, key] of [["find-case", "caseSensitive"], ["find-word", "wholeWord"], ["find-regex", "regex"]]) $(id).setAttribute("aria-pressed", String(!!find.opts[key]));
+}
+
+/** Search again. `from`: a position to start from, "keep" to stay on the current match, or null to start at the cursor. */
+function runFind(from = null) {
+  if (!find.open || !cur()) return;
+  if (mode() === "edit") {
+    const r = findMatches(editor.docString(), find.q, find.opts);
+    find.matches = r.matches; find.error = r.error; find.count = r.matches.length;
+    if (from === "keep") find.idx = find.count ? Math.min(Math.max(find.idx, 0), find.count - 1) : -1;
+    else find.idx = nextIndex(find.matches, from ?? editor.selection()[0]);
+    editor.setFind(find.matches, find.idx, from !== "keep");
+  } else if (readerReady) {
+    const w = $("reader").contentWindow;
+    const p = findPattern();
+    find.error = p.error || null; find.matches = [];
+    find.count = p.source ? w.findAll(p.source, p.flags) : (w.findClear(), 0);
+    find.idx = find.count ? (from === "keep" ? Math.min(Math.max(find.idx, 0), find.count - 1) : 0) : -1;
+    if (find.count) w.findStep(find.idx);
+  }
+  updateFindUi();
+}
+
+function findStep(dir) {
+  if (!find.count) return;
+  find.idx = (find.idx + dir + find.count) % find.count;
+  if (mode() === "edit") editor.setFind(find.matches, find.idx, true);
+  else $("reader").contentWindow.findStep(find.idx);
+  updateFindUi();
+}
+
+function selectedText() {
+  let s = "";
+  if (mode() === "edit") { const [a, b] = editor.selection(); s = editor.docString().slice(a, b); }
+  else if (readerReady) s = $("reader").contentWindow.getSelection()?.toString() ?? "";
+  return /^[^\n\r]{1,120}$/.test(s) ? s : "";
+}
+
+function openFind(withReplace = false) {
+  if (!cur()) return;
+  closeMenu(); closeOutline();
+  if (withReplace && mode() === "read") toggleMode();      // replacing needs the editor
+  const seed = selectedText();
+  if (seed) { find.q = seed; $("find-q").value = seed; }
+  find.open = true;
+  find.replace = withReplace || (find.replace && mode() === "edit");
+  $("findbar").hidden = false;
+  $("btn-find").setAttribute("aria-expanded", "true"); $("btn-find").classList.add("on");
+  runFind();
+  const input = withReplace && find.q ? $("find-r") : $("find-q");
+  input.focus(); input.select();
+}
+
+function closeFind(restoreFocus = false) {
+  if (!find.open) return;
+  find.open = false;
+  clearTimeout(findTimer);
+  $("findbar").hidden = true;
+  $("btn-find").setAttribute("aria-expanded", "false"); $("btn-find").classList.remove("on");
+  if (cur()) {
+    if (mode() === "edit") { editor.setFind([], -1); if (restoreFocus) editor.view.focus(); }
+    else if (readerReady) $("reader").contentWindow.findClear();
+  }
+}
+
+/** Re-run the search shortly after the document or the view changed. */
+function refreshFindSoon() {
+  if (!find.open) return;
+  clearTimeout(findTimer);
+  findTimer = setTimeout(() => { updateFindUi(); runFind("keep"); }, 120);
+}
+
+function replaceOne() {
+  if (mode() !== "edit" || !find.count) return;
+  if (find.idx < 0) find.idx = 0;
+  const m = find.matches[find.idx];
+  const insert = expandReplacement(m, find.r, find.opts);
+  editor.replaceRanges([{ from: m.from, to: m.to, insert }]);
+  runFind(m.from + insert.length);
+}
+
+function replaceAllMatches() {
+  if (mode() !== "edit" || !find.count) return;
+  const n = find.count;
+  editor.replaceRanges(find.matches.map((m) => ({ from: m.from, to: m.to, insert: expandReplacement(m, find.r, find.opts) })));
+  runFind("keep");
+  toast(`Replaced ${n} ${n === 1 ? "match" : "matches"}`);
+}
+
+function wireFind() {
+  $("btn-find").innerHTML = svg("search");
+  $("btn-find").onclick = () => (find.open ? closeFind(true) : openFind());
+  $("find-q").value = find.q;
+  $("find-q").oninput = () => { find.q = $("find-q").value; runFind(); };
+  $("find-r").oninput = () => { find.r = $("find-r").value; };
+  $("find-next").onclick = () => findStep(1);
+  $("find-prev").onclick = () => findStep(-1);
+  $("find-close").onclick = () => closeFind(true);
+  $("find-more").onclick = () => {
+    if (mode() !== "edit") return;
+    find.replace = !find.replace; updateFindUi();
+    if (find.replace) $("find-r").focus();
+  };
+  $("find-replace-one").onclick = replaceOne;
+  $("find-replace-all").onclick = replaceAllMatches;
+  for (const [id, key] of [["find-case", "caseSensitive"], ["find-word", "wholeWord"], ["find-regex", "regex"]]) {
+    $(id).onclick = () => { find.opts = { ...find.opts, [key]: !find.opts[key] }; store.set("findOpts", find.opts); runFind(); };
+  }
+  $("findbar").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(true); }
+    else if (e.key === "Enter" && e.target.id === "find-q") { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); }
+    else if (e.key === "Enter" && e.target.id === "find-r") { e.preventDefault(); if (e.ctrlKey || e.metaKey) replaceAllMatches(); else replaceOne(); }
+  });
 }
 
 // ---- Outline flyout: the document's headings, to jump to a section ----------------------------------------
@@ -986,6 +1340,10 @@ function openOutline() {
     b.onclick = () => { goToHeading(i, items); };
     panel.append(b);
   });
+  const foot = document.createElement("div");
+  foot.className = "outline-foot";
+  foot.textContent = formatStats(stats(editor.getText()));
+  panel.append(foot);
   panel.hidden = false;
   $("btn-outline").setAttribute("aria-expanded", "true");
   $("btn-outline").classList.add("on");

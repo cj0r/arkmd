@@ -28,6 +28,8 @@
 
 **Colors look different from the official theme.** The contrast mode adjusts colors that are hard to read. Switch it off in **More** > **Settings** > **Contrast (WCAG AA)** to see the official colors.
 
-**A web image doesn't show.** The device needs a connection to the image's server, and some sites block loading their images in other apps. Images by file path aren't loaded.
+**A local image doesn't show.** Images next to the document load on Windows and Linux, from a saved file, with a relative path such as `images/photo.png`. A document that hasn't been saved yet, an absolute path, an unsupported type or a file over 25 MB shows "Image not found". On Android they never load.
+
+**A web image doesn't show.** The device needs a connection to the image's server, and some sites block loading their images in other apps. 
 
 **Something else.** [Open an issue](https://github.com/cj0r/arkmd/issues) with your ArkMD version (**More** > **About**), your platform and what you did. Security problems go through [SECURITY.md](../SECURITY.md).

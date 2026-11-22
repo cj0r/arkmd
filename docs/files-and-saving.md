@@ -9,11 +9,20 @@
 
 ## Saving
 
-- **Save** (the button in the top bar, or Ctrl+S) writes the document over the file it came from. There is no autosave. ArkMD keeps the text being replaced as an earlier version (see [History and recovery](#history-and-recovery)), but that is not a backup, so keep your own.
+- **Save** (the button in the top bar, or Ctrl+S) writes the document over the file it came from. Nothing is saved automatically unless you turn on Autosave (below). ArkMD keeps the text being replaced as an earlier version (see [History and recovery](#history-and-recovery)), but that is not a backup, so keep your own.
 - **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time.
 - A dot on a tab means it has changes that aren't saved. Closing a tab, or the window, with unsaved changes asks first.
+- **Autosave** is off by default. **Settings** > **Autosave** saves a file a few seconds after you stop typing. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.
 - Saving rewrites the whole file. If the app, the device or the connection to a synced or network folder fails in the middle, the file can be left incomplete.
 - Some places can't be written, for example a read-only folder or a document provider that only allows reading. ArkMD then says "Could not save"; use **Save as…** to write a copy somewhere else.
+
+## When a file changes outside ArkMD
+
+ArkMD checks when you return to its window or to a tab. If the file was changed by another program and you have no unsaved changes in it, ArkMD reloads it and says so. If you do have unsaved changes, it leaves your text alone and warns you; **Save** then asks whether to replace the changed file, save a copy instead, or cancel, and autosave holds off until you decide. The check compares the file's text with what ArkMD last read or wrote, so a program that saves the same text again goes unnoticed.
+
+## Printing and exporting (desktop)
+
+**More** > **Print…** (Ctrl+P) prints the rendered document in a light, ink-friendly style, and the print dialog can write a PDF. **More** > **Export as HTML…** saves a single page with your theme's colors, its text, tables and any local images embedded; links stay links, and it contains no scripts.
 
 ## What ArkMD changes in a file
 

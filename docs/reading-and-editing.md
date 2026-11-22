@@ -6,9 +6,21 @@ Each tab is either reading or editing. The reader draws the document with colore
 
 The round button at the bottom right, or Ctrl+E, switches the current tab and keeps your scroll position. Each tab remembers its own mode.
 
+## Find and replace
+
+The magnifier in the top bar, or **Ctrl+F**, opens the find bar. Type to see every match, step through them with **Enter** and **Shift+Enter** (or the arrows, or F3), and use the buttons for **Aa** (match case), **ab** (whole word) and **.\*** (regular expression). The bar works in reading mode, where matches are highlighted in the page, and in the editor.
+
+**Ctrl+H**, or the arrow at the left of the find bar, adds a replace row in the editor. **Replace** changes the current match and moves to the next; **Replace all** changes every match as one step you can undo. With regular expressions on, `$1` to `$9` in the replacement stand for the groups of the match and `$&` for the whole match. Reading mode has no replace: Ctrl+H switches to the editor first. In reading mode a match must sit inside one piece of formatting, so text split across bold or a link may not be found there; the editor finds it.
+
+## Task lists
+
+In reading mode, tap or click a task's checkbox to tick or untick it. The change is made in the file's text like any edit: the file is marked as changed, Undo works in the editor, and Save writes it.
+
 ## Outline
 
-The list button in the top bar (Ctrl+Shift+O) opens a flyout with the headings of the document, indented by level. Choose one to jump to it: the reader scrolls to the heading, and the editor puts the cursor at the start of its line. The section you are in is marked. Headings inside code blocks and front matter are not listed. Esc or a click outside closes the flyout.
+The list button in the top bar (Ctrl+Shift+O) opens a flyout with the headings of the document, indented by level. Choose one to jump to it: the reader scrolls to the heading, and the editor puts the cursor at the start of its line. The section you are in is marked. Headings inside code blocks and front matter are not listed. Esc or a click outside closes the flyout. At the bottom it shows the word and character count of the document and an estimated reading time.
+
+![The outline flyout](screenshots/outline-dark.png)
 
 ## Code in the editor
 
@@ -19,6 +31,7 @@ Fenced code blocks are colored in the editor with the same colors as in the read
 - Every open file is a tab in the top bar. Tap or click a tab to switch to it.
 - Close a tab with its **✕**, by middle-clicking it, with Ctrl+W, or with the Android back button. A tab with unsaved changes shows a dot and asks before it closes.
 - **Ctrl+Tab** and **Ctrl+Shift+Tab** (or Ctrl+PageDown and Ctrl+PageUp) move to the next and previous tab. With a tab focused, the left and right arrow keys move between tabs, Home and End jump to the first and last, and Delete closes it.
+- Drag a tab sideways to change the order, or press **Ctrl+Shift+PageUp** and **Ctrl+Shift+PageDown** to move the current tab.
 - Each tab keeps its own text, undo history, cursor and scroll position while you work in another.
 - **+** opens a menu with **New file**, **Open file…** and your recent files.
 - On Linux and Windows, opening another file from your file manager adds it as a tab in the window that is already open.
@@ -38,11 +51,13 @@ While you edit, a floating bar offers the most-used Markdown formatting, so you 
 | Code block | Wraps the selection in a fenced block |
 | Table, Divider | Insert a table or a horizontal rule on its own lines |
 
+In a table, **Tab** moves to the next cell and selects its text, **Shift+Tab** to the previous one, and Tab in the last cell adds a row.
+
 Apply a format again to remove it: bold text becomes plain, a bulleted line becomes plain. Every formatting step can be undone.
 
 ## Keyboard shortcuts
 
-**F1** (or **More** > **Settings** > **Keyboard shortcuts**) lists them in the app. On macOS, Cmd works in place of Ctrl.
+**F1** (or **More** > **Settings** > **Keyboard shortcuts**, on desktop) lists them in the app. On macOS, Cmd works in place of Ctrl.
 
 **Files and view**
 
@@ -56,6 +71,11 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+Tab, Ctrl+Shift+Tab | Next, previous tab (also Ctrl+PageDown, Ctrl+PageUp) |
 | Ctrl+E | Switch between reading and editing |
 | Ctrl+Shift+O | Outline of the document |
+| Ctrl+F | Find |
+| Ctrl+H | Find and replace (in the editor) |
+| Enter, Shift+Enter, F3 | Next, previous match while the find bar is open |
+| Ctrl+P | Print (desktop) |
+| Ctrl+Shift+PageUp, Ctrl+Shift+PageDown | Move the current tab left, right |
 | Ctrl+, | Settings |
 | F1 | Keyboard shortcuts |
 | Esc | Close a menu or dialog |
@@ -85,6 +105,7 @@ Each list and style shortcut works on the selected lines or text, and pressing i
 
 - **Heading:** press Ctrl+2 on a line, or type `## `. With the cursor on a heading line, **Tab** makes it one level deeper (`##` becomes `###`) and **Shift+Tab** one level shallower, so you can step through the outline without retyping the marks.
 - **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item (a numbered item moves in by three spaces so the nesting stays valid) and **Shift+Tab** moves it back out. This works on several selected items too.
+- **Tables:** **Tab** and **Shift+Tab** move between cells, and Tab in the last cell adds a row.
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 
 Menus and dialogs work with the arrow keys and Esc, and the focus ring always shows where you are.

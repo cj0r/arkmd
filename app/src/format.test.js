@@ -182,3 +182,50 @@ test("endEmptyTaskLeavesOtherLinesAlone", () => {
   assert.equal(endEmptyTask("- item|", 7, 7), null);
   assert.equal(endEmptyTask("- [ ] |text", 6, 6), null);
 });
+
+import { tableTab } from "./format.js";
+
+const T = "| A | B |\n| --- | --- |\n| one | two |\n";
+const cellSel = (r, src) => src.substring(r.selStart, r.selEnd);
+
+test("Tab moves to the next cell and selects its text", () => {
+  let r = tableTab(T, T.indexOf("A"), T.indexOf("A"), 1);
+  assert.equal(cellSel(r, T), "B");
+  r = tableTab(T, T.indexOf("B"), T.indexOf("B"), 1);       // last cell: next row, skipping the separator
+  assert.equal(cellSel(r, T), "one");
+  r = tableTab(T, T.indexOf("one"), T.indexOf("one"), 1);
+  assert.equal(cellSel(r, T), "two");
+});
+
+test("Shift+Tab moves back, over the separator row, and stops at the first cell", () => {
+  let r = tableTab(T, T.indexOf("two"), T.indexOf("two"), -1);
+  assert.equal(cellSel(r, T), "one");
+  r = tableTab(T, T.indexOf("one"), T.indexOf("one"), -1);
+  assert.equal(cellSel(r, T), "B");
+  assert.equal(tableTab(T, T.indexOf("A"), T.indexOf("A"), -1), null);
+});
+
+test("Tab in the last cell of the last row adds a row", () => {
+  const src = "| A | B |\n| --- | --- |\n| one | two |";
+  const r = tableTab(src, src.indexOf("two"), src.indexOf("two"), 1);
+  assert.equal(r.text, "\n|  |  |");
+  const out = src.slice(0, r.start) + r.text + src.slice(r.end);
+  assert.equal(out.substring(r.selStart - 2, r.selStart + 1), "|  ");
+  assert.equal(r.selStart, r.selEnd);
+});
+
+test("empty cells get the cursor, pipes inside escapes are not cell borders, other lines return null", () => {
+  const src = "| a |  | c |\n";
+  const r = tableTab(src, src.indexOf("a"), src.indexOf("a"), 1);
+  assert.equal(r.selStart, r.selEnd);
+  assert.equal(r.selStart, 6);
+  const esc = "| a \\| b | c |\n";
+  assert.equal(cellSel(tableTab(esc, 2, 2, 1), esc), "c");
+  assert.equal(tableTab("plain text\n", 3, 3, 1), null);
+});
+
+test("Tab from a selected cell moves on, using the end of the selection", () => {
+  const a = T.indexOf("one");
+  const r = tableTab(T, a + 3, a + 3, 1);
+  assert.equal(cellSel(r, T), "two");
+});

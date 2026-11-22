@@ -1,14 +1,34 @@
 // CodeMirror 6 Markdown editor, themed from shared/web/themes.json (same roles as the Android editor).
-import { EditorState, Compartment, RangeSetBuilder, Prec } from "@codemirror/state";
+import { EditorState, Compartment, RangeSetBuilder, Prec, StateField, StateEffect } from "@codemirror/state";
 import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
-import { lineSeparatorFor, docText } from "./eol.js";
+import { lineSeparatorFor, docText, withLineBreak } from "./eol.js";
 
 const look = new Compartment();
+
+// Find: the matches of the open find bar, drawn behind the text; the current one stands out.
+const setFindEffect = StateEffect.define();
+const findField = StateField.define({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const ef of tr.effects) {
+      if (!ef.is(setFindEffect)) continue;
+      const { matches, current } = ef.value;
+      deco = Decoration.set(matches.map((m, i) => Decoration.mark({ class: i === current ? "cm-find-hit cm-find-current" : "cm-find-hit" }).range(m.from, m.to)));
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+const findTheme = EditorView.baseTheme({
+  ".cm-find-hit": { backgroundColor: "rgba(255, 213, 79, 0.35)", borderRadius: "2px" },
+  ".cm-find-current": { backgroundColor: "rgba(255, 152, 0, 0.65)", outline: "1px solid #ff9800" },
+});
 const HEADING_SIZES = [1.6, 1.4, 1.25, 1.12, 1.05, 1.0];
 
 /** 68% fg over bg: readable secondary text (theme comment colours are too faint for prose). */
@@ -122,6 +142,8 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         history(),
         drawSelection(),
         highlightActiveLine(),
+        findField,
+        findTheme,
         EditorView.lineWrapping,
         markdown({ base: markdownLanguage, codeLanguages }),
         extras,
@@ -179,11 +201,36 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
       view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 8 }) });
       view.focus();
     },
+    /** Tick or untick the task item on a 0-based line as one undoable change; false if the line isn't a task item. */
+    setTask(n, checked) {
+      if (n < 0 || n >= view.state.doc.lines) return false;
+      const line = view.state.doc.line(n + 1);
+      const m = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)[ xX](\])/.exec(line.text);
+      if (!m) return false;
+      const at = line.from + m[1].length;
+      view.dispatch({ changes: { from: at, to: at + 1, insert: checked ? "x" : " " }, userEvent: "input.task" });
+      return true;
+    },
+    /** The document with plain "\n" breaks: the character positions the editor itself uses. */
+    docString: () => view.state.doc.toString(),
+    /** Draw find matches ([{from,to}]) and mark index `current`; `reveal` scrolls to it and moves the cursor there. */
+    setFind(matches, current, reveal = false) {
+      const m = matches[current];
+      const effects = [setFindEffect.of({ matches, current })];
+      const spec = { effects };
+      if (reveal && m) { spec.selection = { anchor: m.from, head: m.to }; effects.push(EditorView.scrollIntoView(m.from, { y: "center" })); }
+      view.dispatch(spec);
+    },
+    /** Replace one or several ranges ([{from,to,insert}]) as a single undoable change. */
+    replaceRanges(changes) {
+      const lb = view.state.lineBreak;
+      view.dispatch({ changes: changes.map((c) => ({ ...c, insert: withLineBreak(c.insert, lb) })), userEvent: "input.replace", scrollIntoView: true });
+    },
     cursorLine() { return view.state.doc.lineAt(view.state.selection.main.head).number - 1; },
     /** Apply a format.js edit {start,end,text,selStart,selEnd} as one undoable change. */
     applyEdit(e) {
       view.dispatch({
-        changes: { from: e.start, to: e.end, insert: e.text },
+        changes: { from: e.start, to: e.end, insert: withLineBreak(e.text, view.state.lineBreak) },
         selection: { anchor: e.selStart, head: e.selEnd },
         scrollIntoView: true,
         userEvent: "input.format",

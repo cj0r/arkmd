@@ -2,6 +2,25 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.11.0 (2026-11-22)
+
+### Added
+- **Find and replace.** Ctrl+F (or the magnifier in the top bar) finds text in reading and editing mode, with match case, whole word and regular expression options and a match count. Ctrl+H adds a replace row in the editor; Replace all is a single undo step. Regular expression replacements accept `$1` to `$9` and `$&`.
+- **Links and images next to a document (Windows and Linux).** Relative images such as `![](images/pic.png)` are shown; relative links to Markdown files and `[[wikilinks]]` open that file in a tab, and `[text](#heading)` and `[[Note#Heading]]` jump to the heading.
+- **Autosave** in Settings, off by default.
+- **Changes on disk.** ArkMD reloads an unmodified file that another program changed, warns when a file with unsaved changes did, and asks before Save replaces a file that changed.
+- **Print and Export as HTML** in the More menu (Windows and Linux).
+- **Word and character counts and reading time** at the bottom of the outline.
+- **Tab in tables** moves between cells and adds a row from the last cell.
+- **Reorder tabs** by dragging, or with Ctrl+Shift+PageUp and Ctrl+Shift+PageDown.
+
+### Fixed
+- Formatting shortcuts and Enter on empty list items used the wrong positions in files with Windows line endings (CRLF), and inserted line breaks without the carriage return.
+- Task list checkboxes in the reader can be ticked and unticked. The change is made in the file's text (undoable, saved with Save), including nested, numbered and quoted items; items inside code blocks are untouched.
+- A ticked task no longer strikes through the items nested under it.
+- Choosing a theme from the palette button no longer shows an "r is not a function" error.
+- Ctrl + and Ctrl − (window zoom) work on desktop; they were refused by the app's permissions.
+
 ## 0.10.0 (2026-11-21)
 
 ### Added

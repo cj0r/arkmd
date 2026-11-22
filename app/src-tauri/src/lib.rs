@@ -26,6 +26,66 @@ fn file_arg<I: IntoIterator<Item = PathBuf>>(args: I) -> Option<PathBuf> {
         .and_then(|p| p.canonicalize().ok())
 }
 
+const MARKDOWN_EXT: [&str; 5] = ["md", "markdown", "mdown", "mkd", "txt"];
+const IMAGE_EXT: [&str; 8] = ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp"];
+const MAX_IMAGE_BYTES: u64 = 25 * 1024 * 1024;
+
+/// `[[note]]` should find `Note.md`: look for the file name in its folder ignoring case.
+fn find_ignoring_case(wanted: &std::path::Path) -> std::io::Result<PathBuf> {
+    let (dir, name) = match (wanted.parent(), wanted.file_name().and_then(|n| n.to_str())) {
+        (Some(d), Some(n)) => (d.canonicalize()?, n.to_ascii_lowercase()),
+        _ => return Err(std::io::ErrorKind::NotFound.into()),
+    };
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        if entry.file_name().to_string_lossy().to_ascii_lowercase() == name {
+            return entry.path().canonicalize();
+        }
+    }
+    Err(std::io::ErrorKind::NotFound.into())
+}
+
+/// A file next to an open document: `rel` resolved against the folder of `base`, which must be a file ArkMD was
+/// already given access to. Only files of the listed types are allowed, so a document can't reach other data.
+fn resolve_linked(app: &tauri::AppHandle, base: &str, rel: &str, exts: &[&str]) -> Result<PathBuf, String> {
+    let base = PathBuf::from(base);
+    if !app.fs_scope().is_allowed(&base) {
+        return Err("the document is not open in ArkMD".into());
+    }
+    let dir = base.parent().ok_or("the document has no folder")?;
+    let wanted = dir.join(rel);
+    let target = wanted
+        .canonicalize()
+        .or_else(|_| find_ignoring_case(&wanted))
+        .map_err(|_| "file not found".to_string())?;
+    let ext = target.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).unwrap_or_default();
+    if !target.is_file() || !exts.contains(&ext.as_str()) {
+        return Err("unsupported file".into());
+    }
+    // Windows canonical paths carry a verbatim prefix; drop it so the path matches what the file dialogs produce.
+    let text = target.to_string_lossy().into_owned();
+    Ok(PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text)))
+}
+
+/// Give the app access to the Markdown file `rel` next to `base` and return its path.
+#[tauri::command]
+fn open_linked(app: tauri::AppHandle, base: String, rel: String) -> Result<String, String> {
+    let target = resolve_linked(&app, &base, &rel, &MARKDOWN_EXT)?;
+    app.fs_scope().allow_file(&target).map_err(|e| e.to_string())?;
+    Ok(target.to_string_lossy().into_owned())
+}
+
+/// The bytes of the image `rel` next to `base`.
+#[tauri::command]
+fn read_linked_image(app: tauri::AppHandle, base: String, rel: String) -> Result<tauri::ipc::Response, String> {
+    let target = resolve_linked(&app, &base, &rel, &IMAGE_EXT)?;
+    let len = std::fs::metadata(&target).map_err(|e| e.to_string())?.len();
+    if len > MAX_IMAGE_BYTES {
+        return Err("image too large".into());
+    }
+    std::fs::read(&target).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -65,7 +125,7 @@ pub fn run() {
             app.manage(LaunchFile(Mutex::new(launch)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

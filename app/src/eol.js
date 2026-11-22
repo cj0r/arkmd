@@ -10,6 +10,11 @@ export function lineSeparatorFor(text) {
   return crlf && !loneLf && !loneCr ? "\r\n" : null;
 }
 
+/** `text` (written with "\n" breaks) with the document's own line break, for inserting into a CRLF file. */
+export function withLineBreak(text, lineBreak) {
+  return lineBreak === "\n" ? text : String(text).replace(/\r?\n/g, lineBreak);
+}
+
 /** The document text with the file's own line endings. */
 export function docText(state) {
   return state.sliceDoc(0, state.doc.length);

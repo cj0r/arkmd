@@ -14,11 +14,11 @@ Every file opens in its own tab. Opening a file that is already open switches to
 
 ## Read and edit
 
-A file opens in reading mode. The round button at the bottom right switches between reading and editing (Ctrl+E on desktop) and keeps your place in the document. While you edit, the formatting panel floats above the keyboard; the formatting button (**Tт**) in the top bar shows or hides it.
+A file opens in reading mode. The round button at the bottom right switches between reading and editing (Ctrl+E on desktop) and keeps your place in the document. While you edit, the formatting panel floats above the keyboard; the formatting button (**Tт**) in the top bar shows or hides it. The list button (Ctrl+Shift+O) opens an outline of the document's headings to jump between sections, and in reading mode you can tick task checkboxes.
 
 ## Save
 
-When you change a file, a dot appears on its tab and a **Save** button appears in the top bar (Ctrl+S). **Save** writes over the original file. **More** > **Save as…** (Ctrl+Shift+S) writes a copy somewhere else. ArkMD doesn't autosave. It keeps earlier versions and a draft of unsaved work on the device, but that isn't a backup, so keep your own copies of anything important. See [Files and saving](files-and-saving.md).
+When you change a file, a dot appears on its tab and a **Save** button appears in the top bar (Ctrl+S). **Save** writes over the original file. **More** > **Save as…** (Ctrl+Shift+S) writes a copy somewhere else. ArkMD saves only when you ask, unless you turn on Autosave in Settings. It keeps earlier versions and a draft of unsaved work on the device, but that isn't a backup, so keep your own copies of anything important. See [Files and saving](files-and-saving.md).
 
 ## Make it yours
 

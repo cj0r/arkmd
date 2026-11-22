@@ -11,11 +11,12 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 ![ArkMD showing a Markdown document](docs/screenshots/reader-dark.png)
 
 > [!WARNING]
-> ArkMD **opens, edits and saves your Markdown files in place.** Saving overwrites the original: there is no autosave, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose, and read the [disclaimer](#disclaimer) before you rely on it.
+> ArkMD **opens, edits and saves your Markdown files in place.** Saving overwrites the original: autosave is off unless you turn it on, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose, and read the [disclaimer](#disclaimer) before you rely on it.
 
 ## Features
 
-- **Reader:** colored headings, callouts (including foldable ones), `==highlights==`, `[[wikilinks]]`, `#tags`, task lists, tables, footnotes, front matter and syntax-highlighted code blocks.
+- **Reader:** colored headings, callouts (including foldable ones), `==highlights==`, `[[wikilinks]]`, `#tags`, task lists you can tick, tables, footnotes, front matter and syntax-highlighted code blocks.
+- **Find and replace:** Ctrl+F searches in reading and editing mode with match case, whole word and regular expression options; Ctrl+H replaces in the editor, and Replace all is one undo step.
 - **Editor:** CodeMirror 6 with live Markdown highlighting, including code inside fenced blocks. One tap (or Ctrl+E) switches between reading and editing and keeps your place. A file's line endings are kept.
 - **Tabs:** several files open at once, each with its own text, undo history, cursor and scroll position. Close a tab with its ✕, middle-click, Ctrl+W or the Android back button; switch with Ctrl+Tab. Opening a file that is already open switches to its tab.
 - **Formatting panel:** a floating bar that inserts headings, bold, italic, strikethrough, highlight, code, links, lists, tasks, quotes, callouts, code blocks, tables and dividers, so you don't need to know the syntax. Applying a format again removes it. The same formats have keyboard shortcuts (Ctrl+1 to 6 for headings, Ctrl+Shift+8 for bullets, and more; F1 lists them), and Tab steps a heading one level deeper or nests a list item.
@@ -23,12 +24,14 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Themes:** 21 dark and light themes in eight families (Tokyo Night, Catppuccin, Dracula, GitHub, Monokai, Rosé Pine, One Dark Pro, Nord), generated from the official palettes. Add your own from a CSS file of color variables.
 - **Fonts:** separate reading and editing fonts: the system font, Fira Sans, Atkinson Hyperlegible, Source Serif 4, Lora, iA Writer Quattro, JetBrains Mono and Meslo LG, with sizes from 14 to 28. On Android, text also follows the system font size.
 - **Accessible:** WCAG 2.2 AA contrast by default (text colors below 4.5:1 are adjusted in lightness only; the menu switches back to the official colors), visible keyboard focus, labeled controls and keyboard-operable menus.
-- **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode and updates.
+- **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode, history and recovery, and updates.
 - **Cloud files:** there is no built-in sign-in. On Android the system file picker lists apps such as Google Drive and OneDrive, and on Windows and Linux you open files from the sync folder of their desktop apps.
-- **History and recovery:** the previous text of a file is kept each time you save (More > File history…), unsaved work is restored after a crash, Undo and Redo are in the top bar, and Ctrl+Shift+T reopens a closed tab. Everything stays on the device.
+- **History and recovery:** the previous text of a file is kept each time you save (More > File history…), unsaved work is restored after a crash, Undo and Redo are in the top bar, and Ctrl+Shift+T reopens a closed tab. Everything stays on the device. ArkMD notices when another program changes an open file, and optional autosave is off by default.
 - **Updates:** Settings > Check for updates now installs a new release in place (Windows and Linux packages ask for an administrator password; Android asks you to confirm). An optional daily check is off by default.
+- **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page.
+- **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
 - **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
-- **Small and private:** about 7.5 MB for Android and 3.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
+- **Small and private:** about 8 MB for Android and 4.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
 ## Install
 
@@ -56,6 +59,11 @@ More in [Getting started](docs/getting-started.md).
 |---|---|
 | ![Editor with the formatting panel](docs/screenshots/editor-dark.png) | ![A light theme](docs/screenshots/reader-light.png) |
 | **Editing**: the floating panel formats the selection. | **Themes**: 21 themes, dark and light. |
+
+| Outline of the headings | Settings |
+|---|---|
+| ![The outline flyout](docs/screenshots/outline-dark.png) | ![The settings dialog](docs/screenshots/settings-dark.png) |
+| **Outline**: jump to any heading, while reading or editing. | **Settings**: theme, fonts, history and updates in one place. |
 
 ## User guide
 
@@ -97,7 +105,7 @@ design/              logo sources and a sheet of every theme's colors
 **ArkMD is provided "as is", without warranty of any kind, express or implied.** The [LICENSE](LICENSE) has the full legal text. In plain terms:
 
 - **You use it entirely at your own risk.** The author and contributors accept no responsibility or liability for lost, overwritten, truncated or corrupted files, lost unsaved changes, wrong rendering, exposed information, security incidents or any other damage from using or misusing it.
-- **It writes to your files.** Save overwrites the original file; there is no autosave. ArkMD keeps recent earlier versions of a file on the device (file history, which you can switch off), but that is a convenience, not a backup: it can be cleared, it is lost with the app's data, and it doesn't cover a file changed outside ArkMD. Saving rewrites the whole file, so a crash, a full disk or a dropped connection to a synced or network folder during a save can leave it incomplete. Save as writes a copy instead. Keep independent backups of anything you can't afford to lose.
+- **It writes to your files.** Save overwrites the original file, and so does the optional autosave, which is off by default. ArkMD keeps recent earlier versions of a file on the device (file history, which you can switch off), but that is a convenience, not a backup: it can be cleared, it is lost with the app's data, and it doesn't cover a file changed outside ArkMD. Saving rewrites the whole file, so a crash, a full disk or a dropped connection to a synced or network folder during a save can leave it incomplete. Save as writes a copy instead. Keep independent backups of anything you can't afford to lose.
 - **Unsaved changes can be lost.** Closing a tab or the window asks first. ArkMD saves a draft of unsaved work every few seconds and offers to restore it after a crash, but a draft isn't a saved file, it can be missing if the device fails at the wrong moment, and discarding changes deletes it.
 - **ArkMD can change a file you only meant to open.** Files are read and saved as UTF-8, so a file in another encoding (such as Latin-1) can be damaged when saved, and a leading byte-order mark is dropped. A file that mixes line-ending styles is saved with one style. Check the result before you trust it with documents you can't recreate.
 - **Review documents before you trust them.** ArkMD turns raw HTML off and opens links in your system browser, but a link can lead somewhere you don't expect, and a document that points to an image on the web makes ArkMD load that image from its server, like any browser would.
