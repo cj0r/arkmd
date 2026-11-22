@@ -2,11 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.15.0 (2026-11-22)
 
 ### Added
 - **F-Droid repository** at https://cj0r.github.io/arkmd/fdroid/repo, rebuilt after each release from the signed APKs (0.14.1 and later), so F-Droid, Droid-ify or Neo Store can keep ArkMD up to date on Android. The repository page shows the signing fingerprint.
 - Store metadata (descriptions, changelog, icon) in `fastlane/metadata/android/en-US/`.
+- **Welcome tour.** A document built into the app, with a welcome and a warning at the top, every kind of formatting ArkMD draws and twelve Mermaid diagrams. It opens on a fresh install, and from More > Welcome tour or the home screen at any time. It has no file behind it: Save as keeps a copy, and closing it changes nothing.
 
 ## 0.14.1 (2026-11-22)
 

@@ -27,6 +27,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Settings:** one dialog (More > Settings, or Ctrl+,) for the theme, text size, fonts, contrast mode, history and recovery, and updates.
 - **Cloud files:** there is no built-in sign-in. On Android the system file picker lists apps such as Google Drive and OneDrive, and on Windows and Linux you open files from the sync folder of their desktop apps.
 - **History and recovery:** the previous text of a file is kept each time you save (More > File history…), unsaved work is restored after a crash, Undo and Redo are in the top bar, and Ctrl+Shift+T reopens a closed tab. Everything stays on the device. ArkMD notices when another program changes an open file, and optional autosave is off by default.
+- **Welcome tour:** a document built into the app that shows every kind of formatting ArkMD draws, including twelve Mermaid diagrams. It opens on a fresh install and any time from More > Welcome tour or the home screen.
 - **Updates:** Settings > Check for updates now installs a new release in place on Windows and Linux (the packages ask for an administrator password). On Android it shows the new version and opens the download in your browser, and Android's own installer takes it from there. An optional daily check is off by default.
 - **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page. Insert a picture from the formatting panel, by pasting (Windows) or by dropping a file: it is copied into an `images` folder next to the document.
 - **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
@@ -98,7 +99,7 @@ Set `NDK_HOME` to the NDK folder. Builds are signed with the key named in the fi
 
 ```
 app/                 the app: src/ (front end), src-tauri/ (Rust shell, Tauri config, Android project)
-shared/web/          reader page, themes.json, fonts
+shared/web/          reader page, themes.json, fonts, welcome.md (the built-in welcome tour)
 tools/               gen_themes.py, build_fonts.py, gen_notices.py, version.py
 samples/             feature-tour.md (a document that uses every supported feature), custom-theme.css (an example theme)
 design/              logo sources and a sheet of every theme's colors

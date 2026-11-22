@@ -494,6 +494,21 @@ async function openFile() {
   if (picked) await openRef(picked.ref, picked.name);
 }
 
+/** The built-in welcome document, opened as a new tab with no file behind it: Save as keeps a copy; closing it changes nothing. */
+async function openWelcome() {
+  const name = "Welcome.md";
+  const open = tabs.all.find((t) => !t.ref && t.name === name);
+  if (open) { activateTab(open.id); return; }
+  try {
+    const res = await fetch("/welcome.md");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    openTab({ ref: null, name, text: await res.text(), mode: "read" });
+  } catch (e) {
+    logError("Open welcome tour", e);
+    toast(`Could not open the welcome tour: ${e.message || e}`);
+  }
+}
+
 function newFile() {
   openTab({ ref: null, name: tabs.untitledName(), text: "", mode: "edit" });
 }
@@ -1140,7 +1155,7 @@ function moreMenu() {
   if (open) entries.push(["File history…", showHistory]);
   if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
-  entries.push([platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
+  entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
   menu($("btn-more"), entries);
 }
 
@@ -1177,6 +1192,7 @@ function wire() {
   $("btn-add").onclick = addMenu;
   $("home-open").onclick = openFile;
   $("home-new").onclick = newFile;
+  $("home-tour").onclick = openWelcome;
   $("btn-save").onclick = () => save();
   $("btn-undo").onclick = () => editor.undo();
   $("btn-redo").onclick = () => editor.redo();
@@ -1541,6 +1557,9 @@ async function init() {
   setupWindowControls();
   await openLaunch();
   platform.onLaunch(openLaunch);
+  // A fresh install (no files opened yet, nothing launched) starts with the welcome tour, once.
+  if (!tabs.count && recents().length === 0 && !store.get("welcomed", false)) await openWelcome();
+  store.set("welcomed", true);
   shownVersion = await platform.version();
   offerRecovery();
   // The automatic check is off unless the user turned it on; it runs once a day, a few seconds after start.

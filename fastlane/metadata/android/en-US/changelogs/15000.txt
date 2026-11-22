@@ -1,0 +1,1 @@
+Adds a built-in welcome tour that opens on a fresh install, an F-Droid repository, and a store listing. Android updates now open the download instead of installing from inside the app.

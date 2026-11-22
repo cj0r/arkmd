@@ -4,6 +4,10 @@
 
 Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest) and follow the steps for [Android, Windows and Linux](../README.md#install). To update, install the new release over the old one; your settings stay. On Windows and Linux, **Settings** > **Check for updates now** does that for you. On Android it opens the download, and [Obtainium or ArkMD's F-Droid repository](../README.md#install) can fetch new versions in the background.
 
+## The welcome tour
+
+A fresh install opens a built-in welcome document that shows what ArkMD can draw, with a few things to try. Open it again any time from **More** > **Welcome tour** or the link on the home screen. It isn't a file on your device, so editing it changes nothing unless you choose **Save as** to keep a copy.
+
 ## Open a file
 
 - **From your file manager:** choose ArkMD in **Open with**. On Android you can also use **Share** on a piece of text to open it in ArkMD as a new document.
