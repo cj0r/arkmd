@@ -1,0 +1,1 @@
+Fixes corruption of files that are not UTF-8, makes saves safe against crashes, and turns off Android backup of document data.

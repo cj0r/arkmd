@@ -129,11 +129,49 @@ class MainActivity : TauriActivity() {
 
     private fun fileInfo(uri: Uri) = JSONObject().put("ref", uri.toString()).put("name", displayName(uri))
 
-    private fun readText(uri: Uri): String =
-        contentResolver.openInputStream(uri)!!.use { it.readBytes() }.toString(Charsets.UTF_8)
+    /** The largest file ArkMD opens: a bigger one would freeze or crash the editor. */
+    private val maxBytes = 20 * 1024 * 1024
 
-    private fun writeText(uri: Uri, text: String) =
-        contentResolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+    private fun readBytes(uri: Uri): ByteArray = contentResolver.openInputStream(uri)!!.use { input ->
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(64 * 1024)
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) break
+            out.write(buf, 0, n)
+            // "NOTTEXT:" tells the web layer this is a refusal, not a missing file.
+            check(out.size() <= maxBytes) { "NOTTEXT:This file is larger than ArkMD opens (20 MB)." }
+        }
+        out.toByteArray()
+    }
+
+    /**
+     * The text of a file. UTF-8 comes back as a String and can be edited and saved safely. Any other encoding comes back
+     * as {text, encoding}: reading it as UTF-8 would swap characters for U+FFFD, and saving would write that damage back.
+     */
+    private fun decodeText(bytes: ByteArray): Any {
+        if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte())
+            return JSONObject().put("text", String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)).put("encoding", "utf-16le")
+        if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte())
+            return JSONObject().put("text", String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)).put("encoding", "utf-16be")
+        check(bytes.take(8000).none { it == 0.toByte() }) { "NOTTEXT:This doesn't look like a text file." }
+        return try {
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                .decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        } catch (e: java.nio.charset.CharacterCodingException) {
+            JSONObject().put("text", String(bytes, charset("windows-1252"))).put("encoding", "windows-1252")
+        }
+    }
+
+    private fun readText(uri: Uri): Any = decodeText(readBytes(uri))
+
+    /** The bytes are made before the file is opened for writing ("wt" empties it), so a failure here can't leave it empty. */
+    private fun writeText(uri: Uri, text: String) {
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        contentResolver.openOutputStream(uri, "wt")!!.use { it.write(bytes) }
+    }
 
     private fun reply(id: Int, value: Any?) = post(id, JSONObject().put("value", value ?: JSONObject.NULL))
     private fun fail(id: Int, e: Throwable) = post(id, JSONObject().put("error", e.message ?: e.javaClass.simpleName))
@@ -250,12 +288,15 @@ class MainActivity : TauriActivity() {
             createDoc.launch(name)
         }.let { }
 
+        /** Documents come from the system picker or an Open with intent, so they are always content:// addresses. */
+        private fun documentUri(ref: String): Uri = Uri.parse(ref).also { require(it.scheme == "content") { "not a document address" } }
+
         @JavascriptInterface fun read(id: Int, ref: String) = io.execute {
-            runCatching { readText(Uri.parse(ref)) }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+            runCatching { readText(documentUri(ref)) }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
         }
 
         @JavascriptInterface fun write(id: Int, ref: String, text: String) = io.execute {
-            runCatching { writeText(Uri.parse(ref), text) }.onSuccess { reply(id, true) }.onFailure { fail(id, it) }
+            runCatching { writeText(documentUri(ref), text) }.onSuccess { reply(id, true) }.onFailure { fail(id, it) }
         }
 
         /** The document this activity was opened with (Open with / Share), consumed once. */
@@ -271,7 +312,9 @@ class MainActivity : TauriActivity() {
                         JSONObject().put("ref", JSONObject.NULL).put("name", subject?.let { "$it.md" } ?: "Untitled.md")
                             .put("text", i.getStringExtra(Intent.EXTRA_TEXT) ?: "")
                     } else {
-                        fileInfo(uri).put("text", readText(uri))
+                        val read = readText(uri)
+                        if (read is String) fileInfo(uri).put("text", read)
+                        else fileInfo(uri).put("text", (read as JSONObject).getString("text")).put("notUtf8", read.getString("encoding"))
                     }
                 }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
             }

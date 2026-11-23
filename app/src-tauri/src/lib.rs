@@ -6,6 +6,7 @@
 
 #[cfg(target_os = "linux")]
 mod host;
+mod save;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -358,6 +359,17 @@ fn save_pasted_image(app: tauri::AppHandle, request: tauri::ipc::Request) -> Res
     Ok(format!("images/{}", dest.file_name().and_then(|n| n.to_str()).unwrap_or("image")))
 }
 
+/// Save text to a file the user chose, as one atomic replace (see save.rs). Only files already in the fs scope: the
+/// ones picked in a dialog, launched with, or opened through a link.
+#[tauri::command]
+fn save_text_file(app: tauri::AppHandle, path: String, text: String) -> Result<(), String> {
+    let file = PathBuf::from(&path);
+    if !app.fs_scope().is_allowed(&file) {
+        return Err("the file was not chosen in ArkMD".into());
+    }
+    save::write_atomic(&file, text.as_bytes()).map_err(|e| e.to_string())
+}
+
 /// Give the app access to the Markdown file `rel` next to `base` and return its path.
 #[tauri::command]
 fn open_linked(app: tauri::AppHandle, base: String, rel: String) -> Result<String, String> {
@@ -432,7 +444,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

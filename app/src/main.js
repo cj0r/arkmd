@@ -13,6 +13,7 @@ import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
 import * as R from "./recent.js";
 import { swipeDirection } from "./swipe.js";
+import { NotTextError } from "./encoding.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
 import { extensionForType, isImagePath, pastedStem, altFromPath, pastesAsImage } from "./images.js";
 import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
@@ -487,6 +488,18 @@ async function confirmQuit() {
     "Unsaved changes");
 }
 
+const ENCODING_NAMES = { "windows-1252": "Windows-1252 (an older Western encoding)", "utf-16le": "UTF-16", "utf-16be": "UTF-16" };
+
+/** A file in another encoding can't be edited in place: saving it as UTF-8 would change its characters. Open a copy instead. */
+async function offerConvertedCopy(name, decoded) {
+  const choice = await ask("Not a UTF-8 file",
+    `${name} is encoded as ${ENCODING_NAMES[decoded.encoding] || decoded.encoding}. ArkMD saves UTF-8, so it can't edit this file in place without changing its characters. It can open a copy of the text instead: use Save as to keep it. The original file is not changed.`,
+    ["Open a copy", "Cancel"]);
+  if (choice !== 0) return;
+  const stem = String(name).replace(/\.(md|markdown|mdown|mkd|txt)$/i, "");
+  openTab({ ref: null, name: `${stem} (copy).md`, text: decoded.text.replace(/^\uFEFF/, ""), mode: "read" });
+}
+
 const opening = new Set();
 async function openRef(ref, name) {
   const existing = tabs.findByRef(ref);
@@ -500,10 +513,10 @@ async function openRef(ref, name) {
     openTab({ ref, name, text, mode: "read" });
     addRecent(ref, name, text);
   } catch (e) {
+    if (e.notUtf8) { await offerConvertedCopy(name, e.notUtf8); return; }
     logError("Open file", e);
     toast(`Could not open ${name}: ${e.message || e}`);
-    removeRecent(ref);
-    renderRecents();
+    if (!(e instanceof NotTextError)) { removeRecent(ref); renderRecents(); }   // a file that exists but isn't text stays in the list
   } finally {
     opening.delete(ref);
   }
@@ -1942,6 +1955,7 @@ async function openLaunch() {
   if (!l) return;
   const known = tabs.findByRef(l.ref);
   if (known) { activateTab(known.id); return; }
+  if (l.notUtf8) { await offerConvertedCopy(l.name, { text: l.text, encoding: l.notUtf8 }); return; }
   openTab({ ref: l.ref, name: l.ref ? l.name : tabs.untitledName(), text: l.text.replace(/^\uFEFF/, ""), mode: "read" });
   if (l.ref) addRecent(l.ref, l.name, l.text);
 }

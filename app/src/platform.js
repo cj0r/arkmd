@@ -8,6 +8,7 @@
 // A file "ref" is an opaque string: a filesystem path on desktop, a content:// URI on Android.
 
 import { invoke } from "@tauri-apps/api/core";
+import { decodeBytes, notUtf8Error, NotTextError } from "./encoding.js";
 import { androidRelease, isNewer, ANDROID_MANIFEST_URL } from "./updates.js";
 
 const android = typeof window !== "undefined" && window.ArkAndroid;
@@ -38,7 +39,15 @@ const androidImpl = {
   mobile: true,
   async openFile() { return call("openDocument"); },                       // -> {ref, name} | null
   async openThemeFile() { return call("openCss"); },                        // -> {ref, name} | null
-  async readFile(ref) { return call("read", ref); },                        // -> text
+  async readFile(ref) {                                                      // -> text; throws for a file that is not UTF-8 or not text
+    let v;
+    try { v = await call("read", ref); } catch (e) {
+      if (/^NOTTEXT:/.test(e.message)) throw new NotTextError(e.message.slice(8));
+      throw e;
+    }
+    if (v && typeof v === "object") throw notUtf8Error(v);                   // { text, encoding }: decoded as another encoding
+    return v;
+  },
   async writeFile(ref, text) { await call("write", ref, text); },
   async saveAs(name, text) { return call("createDocument", name, text); },  // -> {ref, name} | null
   async launchFile() { return call("takeLaunch"); },                        // -> {ref, name, text} | null
@@ -98,12 +107,15 @@ const desktopImpl = {
     return ref ? { ref, name: baseName(ref) } : null;
   },
   async readFile(ref) {
-    const { readTextFile } = await import("@tauri-apps/plugin-fs");
-    return readTextFile(ref);
+    // The fs plugin's own readTextFile decodes leniently (invalid bytes become U+FFFD, and saving would write that back),
+    // so read the bytes through the same command and decode them here.
+    const raw = await invoke("plugin:fs|read_text_file", { path: ref });
+    const result = decodeBytes(raw instanceof ArrayBuffer ? new Uint8Array(raw) : Uint8Array.from(raw));
+    if (result.encoding !== "utf-8") throw notUtf8Error(result);
+    return result.text;
   },
   async writeFile(ref, text) {
-    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-    await writeTextFile(ref, text);
+    await invoke("save_text_file", { path: ref, text });        // atomic: a temp file renamed over the original
   },
   async saveAs(name, text, filters = this.filters) {
     const { save } = await import("@tauri-apps/plugin-dialog");
@@ -114,7 +126,12 @@ const desktopImpl = {
   },
   async launchFile() {
     const ref = await invoke("take_launch_file");
-    return ref ? { ref, name: baseName(ref), text: await this.readFile(ref) } : null;
+    if (!ref) return null;
+    try { return { ref, name: baseName(ref), text: await this.readFile(ref) }; }
+    catch (e) {
+      if (e.notUtf8) return { ref, name: baseName(ref), text: e.notUtf8.text, notUtf8: e.notUtf8.encoding };   // main.js offers a copy
+      throw e;
+    }
   },
   async confirm(message, title) {
     const { ask } = await import("@tauri-apps/plugin-dialog");

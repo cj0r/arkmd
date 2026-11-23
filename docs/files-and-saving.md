@@ -45,7 +45,10 @@ ArkMD checks when you return to its window or to a tab. If the file was changed 
 
 ## What ArkMD changes in a file
 
-- Files are read and saved as **UTF-8**. A file in another encoding, such as Latin-1, can be damaged when saved. A byte-order mark at the start is dropped.
+- Files are read and saved as **UTF-8**. A byte-order mark at the start is dropped.
+- **Other encodings.** A file that isn't valid UTF-8 (Windows-1252 or Latin-1, UTF-16) is never opened for editing in place, because saving it as UTF-8 would change its characters. ArkMD says so and offers **Open a copy**: the text, decoded correctly, in a new unsaved tab named `… (copy).md`. **Save as** keeps it as UTF-8. The original file isn't changed.
+- **Size and type.** ArkMD opens files up to 20 MB and refuses ones that look like binary data, which would freeze the editor.
+- **Saving is atomic** on Windows and Linux: the text goes to a temporary file in the same folder and replaces the original in one step, so a crash or a full disk during a save leaves the old file, never a half-written one. On Android, the system file provider does the write, and ArkMD builds the text before it opens the file, so a failure doesn't empty it.
 - A file's **line endings are kept**: a file that uses Windows line endings (CRLF) stays that way, and so does one that uses Unix endings (LF). A file that mixes the two is saved with Unix endings.
 - ArkMD doesn't otherwise rewrite your text: what you see in the editor is what is saved.
 

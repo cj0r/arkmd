@@ -2,6 +2,17 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.23.0 (2026-11-23)
+
+### Fixed
+- **Files in other encodings are no longer corrupted.** A file that isn't valid UTF-8 (Windows-1252, Latin-1, UTF-16) used to open with replacement characters, and saving wrote them back. ArkMD now offers to open a correctly decoded copy and leaves the original alone.
+- **Saves are atomic on Windows and Linux.** A crash or a full disk during a save can no longer leave a truncated file. On Android the text is prepared before the file is opened for writing.
+- Files over 20 MB and binary files are refused instead of freezing the editor.
+
+### Security
+- Android cloud backup and device-to-device transfer are disabled for the app's data, which includes recent-file previews, file history and drafts.
+- The Android bridge accepts only `content:` document addresses, and the desktop app no longer grants the page a general permission to write text files; saves go through one command that checks the file was chosen in ArkMD.
+
 ## 0.22.3 (2026-11-23)
 
 ### Changed
