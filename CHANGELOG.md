@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.20.0 (2026-11-23)
+
+### Changed
+- **Simpler top bar on phones and narrow windows.** The bar now holds the Recent files button, the tabs, +, Save (when there are changes) and More, so tabs have room and are easy to tap and scroll.
+- Find and replace, Outline, Theme and the formatting-bar switch moved into More, below a new list of the open tabs. Undo and Redo moved to the start of the formatting bar.
+
 ## 0.19.0 (2026-11-23)
 
 ### Added

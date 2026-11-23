@@ -43,6 +43,7 @@ Fenced code blocks are colored in the editor with the same colors as in the read
 - **Ctrl+Tab** and **Ctrl+Shift+Tab** (or Ctrl+PageDown and Ctrl+PageUp) move to the next and previous tab. With a tab focused, the left and right arrow keys move between tabs, Home and End jump to the first and last, and Delete closes it.
 - Drag a tab sideways to change the order, or press **Ctrl+Shift+PageUp** and **Ctrl+Shift+PageDown** to move the current tab.
 - Each tab keeps its own text, undo history, cursor and scroll position while you work in another.
+- On a phone or a narrow window the top bar shows only the Recent files button, the tabs, **+**, Save (when there are changes) and **⋮**. **⋮** lists the open tabs, then Find and replace, Outline, the formatting-bar switch and Theme. Undo and Redo are at the start of the formatting bar.
 - **+** opens a menu with **New file**, **Open file…** and your newest files. The clock button to its left opens the Recent files list (Ctrl+Shift+R).
 - On Linux and Windows, opening another file from your file manager adds it as a tab in the window that is already open.
 

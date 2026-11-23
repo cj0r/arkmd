@@ -353,6 +353,7 @@ function updateUndoButtons() {
   if (mode() !== "edit") return;
   $("btn-undo").disabled = !editor.canUndo();
   $("btn-redo").disabled = !editor.canRedo();
+  $("fb-undo").disabled = $("btn-undo").disabled; $("fb-redo").disabled = $("btn-redo").disabled;
 }
 
 function reopenClosed() {
@@ -876,6 +877,14 @@ function buildFormatBar() {
     ["table", "Table", () => format((t, s, e) => F.block(t, s, e, F.TABLE))],
     ["rule", "Divider", () => format((t, s, e) => F.block(t, s, e, F.RULE))],
   ];
+  // On a phone the top bar is kept to tabs, "+", Save and More, so Undo and Redo live here, at the start of the bar.
+  for (const [id, icon, label, run] of [["fb-undo", "undo", "Undo", () => editor.undo()], ["fb-redo", "redo", "Redo", () => editor.redo()]]) {
+    const b = document.createElement("button");
+    b.id = id; b.className = "compact-only"; b.innerHTML = svg(icon); b.title = label; b.setAttribute("aria-label", label);
+    b.onmousedown = (e) => e.preventDefault();
+    b.onclick = run;
+    bar.append(b);
+  }
   for (const [icon, label, run] of items) {
     const b = document.createElement("button");
     b.innerHTML = svg(icon); b.title = label; b.setAttribute("aria-label", label);
@@ -1359,9 +1368,23 @@ function revealLabel() {
   return "Open file location";
 }
 
+/** A phone or a very narrow window: the top bar keeps only the essentials and the rest moves into More. */
+const compactQuery = window.matchMedia("(max-width: 560px)");
+const compact = () => platform.mobile || compactQuery.matches;
+function applyCompact() { document.body.classList.toggle("compact", compact()); }
+
 function moreMenu() {
   const open = !!cur();
   const entries = [];
+  if (compact()) {
+    if (tabs.all.length > 1) {
+      entries.push([`Open tabs (${tabs.all.length})`, null]);
+      for (const t of tabs.all) entries.push([`${t === cur() ? "▸ " : ""}${t.dirty ? "• " : ""}${t.name}`, () => activateTab(t.id)]);
+    }
+    if (open) entries.push(["Find and replace", () => (find.open ? closeFind(true) : openFind())], ["Outline", toggleOutline]);
+    if (mode() === "edit") entries.push([store.get("formatBar", true) ? "Hide formatting bar" : "Show formatting bar", () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); }]);
+    entries.push(["Theme…", () => pickTheme()]);
+  }
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
   if (open) entries.push(["File history…", showHistory]);
@@ -1420,6 +1443,7 @@ function wire() {
   $("btn-outline").onclick = toggleOutline;
   wireFind();
   wireFiles();
+  applyCompact(); compactQuery.addEventListener?.("change", applyCompact);
   // Pasting a picture (and no text) saves it next to the document and links it. Some web views (WebKitGTK on Linux)
   // send a paste event with no data for a picture, so when the event is empty the clipboard is asked directly.
   $("editor").addEventListener("paste", (e) => {

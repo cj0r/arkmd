@@ -1,0 +1,1 @@
+Simplifies the top bar on phones: tabs get more room, and Find, Outline and Theme move into the More menu with a list of open tabs.
