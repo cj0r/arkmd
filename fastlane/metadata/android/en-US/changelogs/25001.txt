@@ -1,0 +1,1 @@
+Fixes renaming a file on Android when the storage app gives it an address ArkMD cannot use.

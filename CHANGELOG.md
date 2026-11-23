@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.25.1 (2026-11-23)
+
+### Fixed
+- **Android: renaming a file in Downloads left the tab unable to save.** Some storage apps give a renamed file an address ArkMD has no access to, so the tab showed the provider's internal id as its name and Save failed. ArkMD now checks access after a rename. If it is lost, the tab keeps the new name, is marked unsaved, and Save as writes a copy; the file on the device is already renamed and unchanged.
+
+### Changed
+- **Release builds check the Windows installer.** Before a release is published, the Windows installer is installed on a Windows runner, a file is opened from the command line, a second launch must add its file to the same window, and the uninstaller must remove the program. The Rust tests also run on Windows.
+
 ## 0.25.0 (2026-11-23)
 
 ### Added
