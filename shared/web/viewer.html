@@ -32,12 +32,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 ::selection { background: var(--selection); }
-/* Scroll bars follow the theme, matching the editor. */
+/* Scroll bars follow the theme through the standard properties only: WebKit's ::-webkit-scrollbar styling scrolls less smoothly. */
 * { scrollbar-width: thin; scrollbar-color: var(--fg-muted) transparent; }
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--fg-muted); border: 3px solid transparent; border-radius: 8px; background-clip: padding-box; min-height: 36px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
 
 #doc { max-width: var(--content-width, 1200px); margin: 0 auto; }
 h1,h2,h3,h4,h5,h6 { line-height:1.3; margin:1.3em 0 .5em; font-weight:700; }
@@ -133,6 +129,7 @@ img { max-width:100%; border-radius:6px; }
 .hljs-emphasis { font-style:italic; } .hljs-strong { font-weight:bold; }
 .mermaid-diagram { margin:1.2em 0; text-align:center; overflow-x:auto; color:var(--fg-muted); }
 .mermaid-diagram svg { max-width:100%; height:auto; }
+.mermaid-diagram.pending { min-height:9rem; display:flex; align-items:center; justify-content:center; }
 .mermaid-diagram.failed { text-align:left; border:1px solid var(--red); border-radius:6px; padding:.5em .8em; }
 .mermaid-diagram .diagram-error { color:var(--red); font-weight:600; margin-bottom:.4em; }
 mark.find-hit { background:#ffd54f; color:#000; border-radius:2px; }
@@ -237,7 +234,7 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
   window.applyTheme = function (vars) {
     var st = document.documentElement.style;
     Object.keys(vars).forEach(function (k) { st.setProperty("--" + k, vars[k]); });
-    if (document.querySelector(".mermaid-diagram")) drawDiagrams();     // redraw diagrams in the new colours
+    if (document.querySelector(".mermaid-diagram")) queueDiagrams(false);     // redraw diagrams in the new colours (cached ones at once)
   };
 
   // GitHub-style anchors on headings, so [text](#heading) links and [[Note#Heading]] can jump to them.
@@ -308,38 +305,76 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
     var pre = document.createElement("pre"), code = document.createElement("code"); code.textContent = src; pre.appendChild(code);
     box.appendChild(head); box.appendChild(pre);
   }
-  function drawDiagrams() {
-    var doc = document.getElementById("doc");
-    var boxes = Array.prototype.slice.call(doc.querySelectorAll(".mermaid-diagram"));
-    if (!boxes.length) return;
-    var gen = ++diagramGen;
-    loadMermaid().then(function (m) {
-      m.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", themeVariables: mermaidTheme(), fontFamily: mermaidTheme().fontFamily });
+  // Drawing a diagram takes tens of milliseconds, so drawn diagrams are remembered (by theme and source) and a diagram
+  // is only drawn when it is near the screen. A tab switch or a re-render then costs nothing for diagrams seen before.
+  var diagramCache = {}, diagramOrder = [], diagramObserver = null, diagramEpoch = 0, mermaidKey = null;
+  function cacheDiagram(key, svg) {
+    if (!(key in diagramCache)) { diagramOrder.push(key); if (diagramOrder.length > 60) delete diagramCache[diagramOrder.shift()]; }
+    diagramCache[key] = svg;
+  }
+  function showDiagram(box, themeKey, svg) {
+    box.className = "mermaid-diagram"; box.innerHTML = svg; box.setAttribute("data-key", themeKey);
+  }
+  /** Draw these boxes, one after another; resolves when all are done. */
+  function drawBoxes(boxes, themeKey, epoch) {
+    return loadMermaid().then(function (m) {
+      if (mermaidKey !== themeKey) { m.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", themeVariables: JSON.parse(themeKey), fontFamily: JSON.parse(themeKey).fontFamily }); mermaidKey = themeKey; }
       return boxes.reduce(function (chain, box) {
         return chain.then(function () {
-          if (gen !== diagramGen) return null;
+          if (epoch !== diagramEpoch || !document.body.contains(box)) return null;
+          var src = box.getAttribute("data-src");
           var id = "arkmd-diagram-" + (++diagramSeq);
-          return m.render(id, box.getAttribute("data-src")).then(function (r) {
-            box.className = "mermaid-diagram"; box.innerHTML = r.svg;
+          return m.render(id, src).then(function (r) {
+            cacheDiagram(themeKey + "\u0000" + src, r.svg);
+            showDiagram(box, themeKey, r.svg);
           }).catch(function (e) {
             var stray = document.getElementById("d" + id); if (stray) stray.remove();   // mermaid leaves its error drawing in the page
             diagramError(box, String((e && e.message) || e).split("\n")[0]);
+            box.setAttribute("data-key", themeKey);
           });
         });
       }, Promise.resolve());
-    }).catch(function (e) { boxes.forEach(function (box) { diagramError(box, String((e && e.message) || e)); }); });
+    }).catch(function (e) {
+      boxes.forEach(function (box) { diagramError(box, String((e && e.message) || e)); });
+    });
   }
+  /** Bring every diagram up to date with the current theme: from the cache at once, the rest when they come near the screen. */
+  function queueDiagrams(all) {
+    var doc = document.getElementById("doc");
+    var boxes = Array.prototype.slice.call(doc.querySelectorAll(".mermaid-diagram"));
+    if (diagramObserver) { diagramObserver.disconnect(); diagramObserver = null; }
+    if (!boxes.length) return Promise.resolve();
+    var epoch = ++diagramEpoch;
+    var themeKey = JSON.stringify(mermaidTheme());
+    var pending = boxes.filter(function (box) {
+      if (box.getAttribute("data-key") === themeKey) return false;
+      var cached = diagramCache[themeKey + "\u0000" + box.getAttribute("data-src")];
+      if (cached) { showDiagram(box, themeKey, cached); return false; }
+      return true;
+    });
+    if (!pending.length) return Promise.resolve();
+    if (all || !("IntersectionObserver" in window)) return drawBoxes(pending, themeKey, epoch);
+    diagramObserver = new IntersectionObserver(function (entries) {
+      var seen = entries.filter(function (e) { return e.isIntersecting; }).map(function (e) { return e.target; });
+      seen.forEach(function (box) { diagramObserver.unobserve(box); });
+      if (seen.length) drawBoxes(seen, themeKey, epoch);
+    }, { rootMargin: "800px 0px" });
+    pending.forEach(function (box) { diagramObserver.observe(box); });
+    return Promise.resolve();
+  }
+  /** Draw every diagram now (before printing or exporting, which need all of them). */
+  window.renderAllDiagrams = function () { return queueDiagrams(true); };
   function prepareDiagrams(doc) {
     doc.querySelectorAll('pre[data-lang="mermaid"]').forEach(function (pre) {
       var box = document.createElement("div");
-      box.className = "mermaid-diagram";
+      box.className = "mermaid-diagram pending";
       box.setAttribute("data-src", pre.textContent);
       box.setAttribute("role", "img");
       box.setAttribute("aria-label", "Diagram");
-      box.textContent = "Drawing diagram…";
+      box.textContent = "Diagram";
       pre.parentNode.replaceChild(box, pre);
     });
-    drawDiagrams();
+    queueDiagrams(false);
   }
 
   // Images next to the document (desktop): the host reads the file and returns an address the page can show.
@@ -456,6 +491,9 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
 
   // A standalone copy of the rendered page (theme colours inline, no scripts), for Export as HTML.
   window.exportHtml = function (title) {
+    return window.renderAllDiagrams().then(function () { return exportCopy(title); });
+  };
+  function exportCopy(title) {
     var copy = document.documentElement.cloneNode(true);
     copy.querySelectorAll("script").forEach(function (n) { n.remove(); });
     var fonts = copy.querySelector("#fontface"); if (fonts) fonts.remove();
@@ -471,7 +509,7 @@ mark.find-hit.current { background:#ff9800; outline:2px solid #e65100; }
       if (src.indexOf("blob:") !== 0 || !host) return null;
       return Promise.resolve(host(src)).then(function (data) { img.setAttribute("src", data); }).catch(function () { img.removeAttribute("src"); });
     })).then(function () { return "<!doctype html>\n" + copy.outerHTML; });
-  };
+  }
 
   // The headings of the rendered document, for the host's Outline flyout.
   function headingEls() { return Array.prototype.slice.call(document.querySelectorAll("#doc h1, #doc h2, #doc h3, #doc h4, #doc h5, #doc h6")); }

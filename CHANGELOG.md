@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.15.2 (2026-11-23)
+
+### Changed
+- **Faster documents with diagrams.** A diagram is drawn when it comes near the screen instead of all at once, and drawn diagrams are remembered, so opening or switching back to a document no longer redraws them. Switching to the welcome tour took about half a second of diagram drawing each time on a desktop; it now takes a few milliseconds. Print and Export as HTML still draw every diagram first.
+- **Scroll bars** are themed through the standard `scrollbar-color` and `scrollbar-width` properties only. WebKit's `::-webkit-scrollbar` styling is no longer used, because it can scroll less smoothly; a web view too old to know the standard properties shows its normal scroll bars.
+
 ## 0.15.1 (2026-11-23)
 
 ### Changed

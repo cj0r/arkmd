@@ -15,7 +15,7 @@ The reader renders CommonMark and the usual GitHub extensions, plus several feat
 
 ## Diagrams
 
-A fenced code block tagged `mermaid` is drawn as a diagram with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and the other types Mermaid supports (version 11). The diagram follows the theme's colors and is redrawn when you switch themes. It prints and exports with the page. A diagram with a mistake shows Mermaid's error message above its source, so you can fix it in the editor. Diagrams are drawn with Mermaid's strict security level: no scripts, and no click actions. The Mermaid library is only loaded when a document contains a diagram, and everything works offline.
+A fenced code block tagged `mermaid` is drawn as a diagram with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and the other types Mermaid supports (version 11). The diagram follows the theme's colors and is redrawn when you switch themes. It prints and exports with the page. A diagram with a mistake shows Mermaid's error message above its source, so you can fix it in the editor. Diagrams are drawn with Mermaid's strict security level: no scripts, and no click actions. The Mermaid library is only loaded when a document contains a diagram, each diagram is drawn when you scroll near it (and remembered after that), and everything works offline.
 
 ````markdown
 ```mermaid

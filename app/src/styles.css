@@ -201,11 +201,7 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
 .tab.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
 .tab.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 
-/* Scroll bars follow the theme, in every view and on every platform. */
+/* Scroll bars follow the theme through the standard properties only: WebKit's ::-webkit-scrollbar styling scrolls less smoothly. */
 * { scrollbar-width: thin; scrollbar-color: var(--fg-muted) transparent; }
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--fg-muted); border: 3px solid transparent; border-radius: 8px; background-clip: padding-box; min-height: 36px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
 
 #home .tour { margin: 6px 0 -6px; text-align: center; }

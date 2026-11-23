@@ -1,0 +1,1 @@
+Documents with diagrams open and switch faster: diagrams are drawn when they come near the screen and remembered. Scroll bars use the standard theming properties.

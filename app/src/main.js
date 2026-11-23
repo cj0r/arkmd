@@ -1180,6 +1180,7 @@ async function readerForOutput() {
   if (!t || !readerReady) return null;
   if (t.mode === "edit") toggleMode(); else render(readerScrollFraction());
   await new Promise((r) => setTimeout(r, 250));
+  await $("reader").contentWindow.renderAllDiagrams?.();      // diagrams are drawn on demand; print and export need them all
   return $("reader").contentWindow;
 }
 const readerScrollFraction = () => ($("reader").contentWindow.scrollFraction?.() ?? 0);
