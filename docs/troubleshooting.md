@@ -40,4 +40,6 @@
 
 **Finding out what went wrong.** **More** > **Settings** > **Troubleshooting** has **Copy diagnostic information**, which puts the version, system, settings and the end of the log on the clipboard to paste into a bug report. On Windows and Linux, **Open the log folder** shows `arkmd.log`, a plain text file of errors and crashes (about 1 MB at most, older entries move to `arkmd.log.1`). It never holds document text, shows your home folder as `~`, and stays on the device, but an error message can name a file, so read it before you share it. On Android, the system log (logcat) has ArkMD's errors.
 
+**Support and contributing.** **More** > **About** > **Contribute and support** opens a page with the links to support the project and to contribute on GitHub.
+
 **Something else.** [Open an issue](https://github.com/cj0r/arkmd/issues) with your ArkMD version (**More** > **About**), your platform and what you did. Security problems go through [SECURITY.md](../SECURITY.md).

@@ -44,6 +44,7 @@ const androidImpl = {
   async launchFile() { return call("takeLaunch"); },                        // -> {ref, name, text} | null
   async confirm(message, title) { return call("confirm", title, message); },
   async openUrl(url) { android.openUrl(url); },
+  async copyText(text) { await navigator.clipboard.writeText(text); },
   logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
   async logTail() { return ""; },
   openLogFolder: null,
@@ -119,10 +120,12 @@ const desktopImpl = {
     const { ask } = await import("@tauri-apps/plugin-dialog");
     return ask(message, { title, kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" });
   },
-  async openUrl(url) {
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(url);
+  async openUrl(url) { await invoke("open_external", { url }); },     // the host's own opener; see host.rs
+  async copyText(text) {
+    // The web view on Linux gives the page no clipboard access, so the system clipboard is set natively first.
+    try { await invoke("copy_text", { text }); } catch { await navigator.clipboard.writeText(text); }
   },
+
   /** Show a saved file in the system file manager (its location). */
   async revealFile(ref) { return invoke("reveal_in_folder", { path: ref }); },
   /** Troubleshooting log (a file in the app's log folder). Failures to log are ignored. */

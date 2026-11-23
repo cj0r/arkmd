@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.22.2 (2026-11-23)
+
+### Fixed
+- **Open the log folder, Copy diagnostic information and links on Linux.** Open the log folder did nothing when ArkMD ran as an AppImage, because the AppImage's own libraries were passed on to the file manager; links to web pages could fail the same way. ArkMD now starts the system's opener with a clean environment, and copies text to the clipboard itself, since the web view on Linux doesn't allow it. Only http, https and mailto addresses are opened.
+
+### Added
+- **About > Contribute and support** opens a page with links to support the project on Ko-fi and Buy Me a Coffee and to report a bug, suggest a feature or contribute code on GitHub.
+
 ## 0.22.1 (2026-11-23)
 
 ### Changed

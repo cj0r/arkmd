@@ -4,6 +4,9 @@
 //! any later launch, which arrive as a "arkmd-open" event and become tabs. Uses only plugins that
 //! also exist on iOS/Android, except single-instance and persisted-scope (desktop only).
 
+#[cfg(target_os = "linux")]
+mod host;
+
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -92,7 +95,7 @@ fn reveal_in_folder(app: tauri::AppHandle, log: tauri::State<LogFile>, path: Str
             // No file manager that can select the file (or no D-Bus service for it): open its folder instead.
             append_log(&log.0, "info", &format!("reveal failed ({first}); opening the folder"));
             let folder = file.parent().ok_or("the file has no folder")?.to_string_lossy().into_owned();
-            app.opener().open_path(folder, None::<&str>).map_err(|e| e.to_string())
+            open_folder(&app, folder)
         }
     }
 }
@@ -102,7 +105,66 @@ fn reveal_in_folder(app: tauri::AppHandle, log: tauri::State<LogFile>, path: Str
 fn open_log_folder(app: tauri::AppHandle, state: tauri::State<LogFile>) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let dir = state.0.parent().ok_or("no log folder")?.to_string_lossy().into_owned();
-    app.opener().open_path(dir, None::<&str>).map_err(|e| e.to_string())
+    open_folder(&app, dir)
+}
+
+/// Show a folder in the file manager. On Linux through the host's own xdg-open with the AppImage's environment removed
+/// (see host.rs); elsewhere through the opener plugin.
+fn open_folder(app: &tauri::AppHandle, folder: String) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = app;
+        host::open_target(&folder)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        app.opener().open_path(folder, None::<&str>).map_err(|e| e.to_string())
+    }
+}
+
+/// Open a web or mail link in the system's default program. Only http, https and mailto addresses.
+#[tauri::command]
+fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let lower = url.to_ascii_lowercase();
+    if url.len() > 4096 || url.chars().any(|c| c.is_control()) || !(lower.starts_with("https://") || lower.starts_with("http://") || lower.starts_with("mailto:")) {
+        return Err("only web and mail addresses can be opened".into());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = app;
+        host::open_target(&url)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+    }
+}
+
+/// Put text on the system clipboard. The web view on Linux doesn't give the page clipboard access, so Copy diagnostic
+/// information asks for it here. The clipboard handle stays alive between calls: on Linux the copied text is served by the
+/// process that owns it.
+#[cfg(desktop)]
+struct ClipboardHandle(Mutex<Option<arboard::Clipboard>>);
+#[cfg(not(desktop))]
+struct ClipboardHandle;
+
+#[tauri::command]
+fn copy_text(state: tauri::State<ClipboardHandle>, log: tauri::State<LogFile>, text: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let mut slot = state.0.lock().map_err(|_| "the clipboard is busy".to_string())?;
+        if slot.is_none() {
+            *slot = Some(arboard::Clipboard::new().map_err(|e| { append_log(&log.0, "warn", &format!("clipboard not available: {e}")); e.to_string() })?);
+        }
+        slot.as_mut().unwrap().set_text(text).map_err(|e| { append_log(&log.0, "warn", &format!("clipboard text not set: {e}")); e.to_string() })
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (state, log, text);
+        Err("not supported on this platform".into())
+    }
 }
 
 #[tauri::command]
@@ -352,6 +414,10 @@ pub fn run() {
                 launch = Some(path.to_string_lossy().into_owned());
             }
             app.manage(LaunchFile(Mutex::new(launch)));
+            #[cfg(desktop)]
+            app.manage(ClipboardHandle(Mutex::new(None)));
+            #[cfg(not(desktop))]
+            app.manage(ClipboardHandle);
 
             let dir = app.path().app_log_dir().unwrap_or_else(|_| std::env::temp_dir().join("arkmd"));
             let _ = std::fs::create_dir_all(&dir);
@@ -366,7 +432,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

@@ -1,0 +1,1 @@
+Adds a Contribute and support page to About, and fixes opening links and the log folder on Linux.

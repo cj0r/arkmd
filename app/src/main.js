@@ -1238,6 +1238,21 @@ async function openNotices() {
   }
 }
 
+/** The bundled "Contribute to ArkMD" page (how to support and contribute), opened as a tab. */
+async function openContribute() {
+  const name = "Contribute.md";
+  const open = tabs.all.find((t) => t.name === name && !t.ref);
+  if (open) { activateTab(open.id); return; }
+  try {
+    const res = await fetch("/contribute.md");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    openTab({ ref: null, name, text: await res.text(), mode: "read" });
+  } catch (e) {
+    logError("Open contribute page", e);
+    toast(`Could not open the page: ${e.message || e}`);
+  }
+}
+
 async function about() {
   const d = $("dialog");
   dialogReturn = document.activeElement;
@@ -1248,6 +1263,7 @@ async function about() {
   shownVersion = v;
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
+    button("Contribute and support", () => { closeDialog(); openContribute(); }),
     button("Project page", () => { platform.openUrl(REPO_URL).catch(() => {}); }),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
     ...(platform.update ? [button("Check for updates", () => { closeDialog(); checkForUpdates(); })] : []),
@@ -1439,8 +1455,8 @@ async function copyDiagnostics() {
   ];
   const tail = await platform.logTail();
   const text = lines.join("\n") + (tail ? "\n\nRecent log:\n" + tail : "");
-  try { await navigator.clipboard.writeText(text); toast("Diagnostic information copied"); }
-  catch { toast("Could not copy to the clipboard"); }
+  try { await platform.copyText(text); toast("Diagnostic information copied"); }
+  catch (e) { logError("Copy diagnostic information", e); toast("Could not copy to the clipboard"); }
 }
 
 let toastTimer;
