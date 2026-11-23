@@ -7,7 +7,7 @@ Versions follow [semantic versioning](https://semver.org).
 ### Changed
 - **Very large files open faster.** A file over about 8 MB opens in the editor, which takes about a second, instead of the reading view, which took 20 to 40 seconds to draw at 20 MB. In documents over 1 MB the reading view skips drawing the parts that are off screen until they are scrolled to: a 5 MB document now opens in about 5 seconds instead of 13, and a 2 MB table-heavy one in 2 seconds instead of 7.
 - The test run opens a 9 MB file and a document with scripts, raw HTML, `javascript:` and `data:` links, and checks that nothing runs and the large file opens in the editor.
-- `THIRD_PARTY_NOTICES.md` is regenerated and checked on every push: it listed an older version of one dependency.
+- `THIRD_PARTY_NOTICES.md` is regenerated: it listed an older version of one dependency.
 
 ## 0.25.1 (2026-11-23)
 

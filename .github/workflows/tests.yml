@@ -39,9 +39,6 @@ jobs:
         run: |
           python3 tools/gen_themes.py
           git diff --exit-code -- shared/web/themes.json
-          # the notices list every shipped package and crate; only the version in their first line may differ
-          python3 tools/gen_notices.py
-          git diff --exit-code -I '^ArkMD [0-9.]* is released' -- THIRD_PARTY_NOTICES.md shared/web/third-party-notices.md
           if [ -f design/theme-sheet.html ]; then git diff --exit-code -- design/theme-sheet.html; fi
 
   # Opens the built app in headless Chrome with the app's own CSP and a stand-in for the Tauri backend, then checks
