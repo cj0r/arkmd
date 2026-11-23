@@ -18,7 +18,7 @@ Add a picture while editing in any of three ways: the image button in the format
 
 - The document has to be saved first, because the folder goes next to it. An untitled document asks you to save it.
 - PNG, JPEG, GIF, WebP, AVIF, BMP and SVG files up to 25 MB are accepted.
-- Pasting works when the clipboard holds a picture and no text (a screenshot, say). It is saved as `pasted-` and the date and time. On Linux the web view doesn't pass clipboard pictures to ArkMD, so use the image button or drag a file there.
+- Pasting works when the clipboard holds a picture and no text (a screenshot, say). It is saved as `pasted-` and the date and time. Where the web view doesn't hand the picture to ArkMD (as on some Linux setups), ArkMD reads it from the system clipboard itself; this reads the clipboard only at the moment you paste into the editor.
 - Dropping several images inserts them all, one paragraph each. Dropping a Markdown file on the window opens it as a tab.
 - Android doesn't have this yet.
 

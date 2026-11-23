@@ -32,7 +32,7 @@
 
 **Colors look different from the official theme.** The contrast mode adjusts colors that are hard to read. Switch it off in **More** > **Settings** > **Contrast (WCAG AA)** to see the official colors.
 
-**Pasting a picture does nothing on Linux.** The Linux web view doesn't hand clipboard pictures to ArkMD. Use the image button in the formatting panel (Ctrl+Shift+I) or drag the image file onto the window.
+**Pasting a picture does nothing.** Save the document first, because the picture is stored in an `images` folder next to it, and paste while the editor is showing. On Linux, ArkMD reads the picture from the system clipboard, which needs an X11 session or a Wayland compositor that supports the data-control protocol. If your desktop doesn't, use the image button in the formatting panel (Ctrl+Shift+I) or drag the image file onto the window.
 
 **A local image doesn't show.** Images next to the document load on Windows and Linux, from a saved file, with a relative path such as `images/photo.png`. A document that hasn't been saved yet, an absolute path, an unsupported type or a file over 25 MB shows "Image not found". On Android they never load.
 

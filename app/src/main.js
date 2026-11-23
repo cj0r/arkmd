@@ -660,17 +660,6 @@ function format(op) {
 // ---- Inserting pictures (Windows and Linux) -------------------------------------------------------------
 // A picture chosen, pasted or dropped is copied into an "images" folder next to the document and linked from it.
 
-/** A picture on the clipboard, read directly: { type, blob }, or null (no picture, or the clipboard can't be read). */
-async function clipboardPicture() {
-  try {
-    for (const item of await navigator.clipboard.read()) {
-      const type = item.types.find((t) => extensionForType(t));
-      if (type && !item.types.includes("text/plain")) return { type, blob: await item.getType(type) };
-    }
-  } catch (err) { platform.logEvent("info", `clipboard picture not readable: ${err?.name || err}`); }
-  return null;
-}
-
 /** Copy one or more pictures next to the open file (`importers` each resolve a relative path) and link them at the cursor. */
 async function placeImages(importers) {
   const t = cur();
@@ -679,7 +668,8 @@ async function placeImages(importers) {
   if (!t.ref) { toast("Save the file first, so its pictures can be stored next to it."); return; }
   try {
     const paths = [];
-    for (const run of importers) paths.push(await run(t.ref));
+    for (const run of importers) { const p = await run(t.ref); if (p) paths.push(p); }     // an importer resolves null when there was nothing to add
+    if (!paths.length) return;
     const [s, e] = editor.selection();
     const doc = editor.docString();
     if (paths.length === 1) { editor.applyEdit(F.image(doc, s, e, paths[0], altFromPath(paths[0]))); return; }
@@ -1269,10 +1259,9 @@ function wire() {
     if (file) {
       e.preventDefault(); e.stopPropagation();
       placeImages([async (base) => platform.savePastedImage(base, extensionForType(file.type), pastedStem(), await file.arrayBuffer())]);
-    } else if (!data || data.items.length === 0) {
-      clipboardPicture().then((pic) => {
-        if (pic) placeImages([async (base) => platform.savePastedImage(base, extensionForType(pic.type), pastedStem(), await pic.blob.arrayBuffer())]);
-      });
+    } else if (platform.pasteClipboardImage && (!data || data.items.length === 0)) {
+      platform.logEvent("info", "paste event without data; asking the system clipboard for a picture");
+      placeImages([(base) => platform.pasteClipboardImage(base, pastedStem())]);
     }
   }, true);
   platform.onFileDrop(handleDrop);

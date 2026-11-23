@@ -1,0 +1,1 @@
+Linux desktop: pasting a picture into the editor works. Nothing changes on Android.

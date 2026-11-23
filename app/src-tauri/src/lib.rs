@@ -198,6 +198,46 @@ fn import_image(app: tauri::AppHandle, base: String, source: String) -> Result<S
     Ok(format!("images/{}", dest.file_name().and_then(|n| n.to_str()).unwrap_or("image")))
 }
 
+/// A picture on the system clipboard, saved into the images folder next to `base` as `<stem>.png`; resolves
+/// "images/name.png", or None when the clipboard holds no picture. The web view on Linux gives the page no clipboard
+/// pictures, so the editor asks for it here when a paste arrives empty.
+#[tauri::command]
+fn paste_clipboard_image(app: tauri::AppHandle, log: tauri::State<LogFile>, base: String, stem: String) -> Result<Option<String>, String> {
+    #[cfg(desktop)]
+    {
+        let mut clipboard = arboard::Clipboard::new().map_err(|e| { append_log(&log.0, "warn", &format!("clipboard not available: {e}")); e.to_string() })?;
+        let image = match clipboard.get_image() {
+            Ok(image) => image,
+            Err(arboard::Error::ContentNotAvailable) => { append_log(&log.0, "info", "paste: no picture on the clipboard"); return Ok(None) }
+            Err(e) => { append_log(&log.0, "warn", &format!("clipboard picture not read: {e}")); return Err(e.to_string()) }
+        };
+        let (width, height) = (image.width as u32, image.height as u32);
+        if (width as u64) * (height as u64) > 100_000_000 {
+            return Err("image too large".into());
+        }
+        let mut data = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut data, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+            writer.write_image_data(&image.bytes).map_err(|e| e.to_string())?;
+        }
+        if data.len() as u64 > MAX_IMAGE_BYTES {
+            return Err("image too large".into());
+        }
+        let dir = images_folder(&app, &base)?;
+        let dest = free_path(&dir, &safe_stem(&stem), "png");
+        std::fs::write(&dest, data).map_err(|e| e.to_string())?;
+        Ok(Some(format!("images/{}", dest.file_name().and_then(|n| n.to_str()).unwrap_or("image.png"))))
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (app, log, base, stem);
+        Err("not supported on this platform".into())
+    }
+}
+
 /// Decode %XX escapes (the front end sends file paths in a header, which must be plain ASCII).
 fn percent_decode(text: &str) -> String {
     let bytes = text.as_bytes();
@@ -303,7 +343,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, log_event, log_tail, open_log_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

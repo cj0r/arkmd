@@ -47,7 +47,7 @@ const androidImpl = {
   logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
   async logTail() { return ""; },
   openLogFolder: null,
-  pickImage: null, importImage: null, savePastedImage: null,                  // inserting pictures is desktop only for now
+  pickImage: null, importImage: null, savePastedImage: null, pasteClipboardImage: null,                  // inserting pictures is desktop only for now
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
@@ -138,6 +138,8 @@ const desktopImpl = {
   async savePastedImage(base, ext, stem, bytes) {
     return invoke("save_pasted_image", bytes, { headers: { "x-base": encodeURIComponent(base), "x-ext": ext, "x-stem": encodeURIComponent(stem) } });
   },
+  /** A picture on the system clipboard, saved next to the document: resolves "images/name.png", or null when there is none. */
+  async pasteClipboardImage(base, stem) { return invoke("paste_clipboard_image", { base, stem }); },
   /** Files dropped onto the window: handler({ type: "enter" | "leave" | "drop", paths }). */
   async onFileDrop(handler) {
     const { getCurrentWebview } = await import("@tauri-apps/api/webview");

@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.15.3 (2026-11-23)
+
+### Fixed
+- **Pasting a picture on Linux.** When the web view delivers an empty paste for a picture, ArkMD now reads the picture from the system clipboard (X11, and Wayland compositors with the data-control protocol), saves it as a PNG in the document's `images` folder and links it. Pasting text is unchanged.
+
 ## 0.15.2 (2026-11-23)
 
 ### Changed
@@ -30,7 +35,7 @@ Versions follow [semantic versioning](https://semver.org).
 ## 0.14.0 (2026-11-22)
 
 ### Added
-- **Insert pictures** (Windows and Linux). The image button in the formatting panel (Ctrl+Shift+I), pasting a picture, or dropping image files copies them into an `images` folder next to the document and links them at the cursor as their own paragraph. Pasting from the clipboard needs a web view that passes pictures to the page, which Windows has and Linux does not.
+- **Insert pictures** (Windows and Linux). The image button in the formatting panel (Ctrl+Shift+I), pasting a picture, or dropping image files copies them into an `images` folder next to the document and links them at the cursor as their own paragraph. Pasting from the clipboard works where the web view passes pictures to the page (Windows); 0.15.3 added a fallback for Linux.
 - **Drop Markdown files** on the window to open them as tabs.
 
 ## 0.13.0 (2026-11-22)
