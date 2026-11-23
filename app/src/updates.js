@@ -48,6 +48,25 @@ export function androidRelease(manifest, abis) {
   return null;
 }
 
+/**
+ * The dialog text for an Android download, from the Download Manager's status:
+ * { status: "pending" | "running" | "paused" | "done" | "failed" | "gone", done, total, reason }.
+ * Returns { state: "running" | "waiting" | "done" | "failed", text }.
+ */
+export function describeDownload(s) {
+  switch (s?.status) {
+    case "done": return { state: "done", text: "Downloaded. Now tap Open Downloads, tap the ArkMD file, and choose Install." };
+    case "failed": return { state: "failed", text: `The download failed${s.reason ? ` (code ${s.reason})` : ""}. Check your connection and try again.` };
+    case "gone": return { state: "failed", text: "The download was removed. Try again." };
+    case "paused": return { state: "waiting", text: "The download is paused, waiting for a connection." };
+    case "pending": return { state: "waiting", text: "Starting the download…" };
+    default: {
+      const pct = s?.total > 0 ? Math.min(100, Math.floor((s.done / s.total) * 100)) : null;
+      return { state: "running", text: pct === null ? "Downloading…" : `Downloading… ${pct}%` };
+    }
+  }
+}
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The automatic check runs at most once a day, and only when the user has switched it on. */

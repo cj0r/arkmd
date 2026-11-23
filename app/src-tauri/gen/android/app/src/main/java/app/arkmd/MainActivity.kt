@@ -1,9 +1,12 @@
 package app.arkmd
 
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.OpenableColumns
@@ -142,12 +145,94 @@ class MainActivity : TauriActivity() {
 
     private val updateCheck by lazy { UpdateCheck(this) }
 
+    /** Store and updater apps ArkMD can hand an update to (the same packages are listed under <queries> in the manifest). */
+    private val stores = mapOf(
+        "org.fdroid.fdroid" to "F-Droid", "org.fdroid.basic" to "F-Droid", "com.machiav3lli.fdroid" to "Neo Store",
+        "com.looker.droidify" to "Droid-ify", "dev.imranr.obtainium" to "Obtainium", "dev.imranr.obtainium.fdroid" to "Obtainium",
+        "com.android.vending" to "Google Play",
+    )
+
+    /** The package that installed ArkMD, if any. */
+    private fun installerPackage(): String? = runCatching {
+        if (Build.VERSION.SDK_INT >= 30) packageManager.getInstallSourceInfo(packageName).installingPackageName
+        else @Suppress("DEPRECATION") packageManager.getInstallerPackageName(packageName)
+    }.getOrNull()
+
     inner class Bridge {
         /** android.json as text, plus this device's ABIs (best first) so the page can pick its entry. */
         @JavascriptInterface fun updateManifest(id: Int, url: String) = io.execute {
             runCatching { JSONObject().put("manifest", updateCheck.fetchManifest(url)).put("abis", JSONArray(Build.SUPPORTED_ABIS.toList())) }
                 .onSuccess { reply(id, it) }.onFailure { fail(id, it) }
         }
+
+        /**
+         * Download an update with Android's Download Manager. The system shows the progress and a notification; ArkMD
+         * never launches the installer, the user opens the finished file from the notification or Downloads.
+         */
+        @JavascriptInterface fun downloadUpdate(id: Int, url: String, fileName: String) = main.post {
+            runCatching {
+                val uri = Uri.parse(url)
+                require(uri.scheme == "https" && uri.host == "github.com") { "updates come from github.com over https" }
+                val name = fileName.replace(Regex("[^A-Za-z0-9._-]"), "-")
+                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val downloadId = dm.enqueue(
+                    DownloadManager.Request(uri)
+                        .setTitle(name)
+                        .setDescription("ArkMD update")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+                )
+                JSONObject().put("id", downloadId)
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }.let { }
+
+        /** Progress of a download started by downloadUpdate: status, bytes so far and in total. */
+        @JavascriptInterface fun downloadStatus(id: Int, downloadId: String) = io.execute {
+            runCatching {
+                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                dm.query(DownloadManager.Query().setFilterById(downloadId.toLong())).use { c ->
+                    if (!c.moveToFirst()) return@use JSONObject().put("status", "gone")
+                    val state = when (c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
+                        DownloadManager.STATUS_SUCCESSFUL -> "done"
+                        DownloadManager.STATUS_FAILED -> "failed"
+                        DownloadManager.STATUS_PAUSED -> "paused"
+                        DownloadManager.STATUS_PENDING -> "pending"
+                        else -> "running"
+                    }
+                    JSONObject().put("status", state)
+                        .put("done", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)))
+                        .put("total", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)))
+                        .put("reason", c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)))
+                }
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        /** The app store or updater that installed ArkMD, when it is one we know ({ package, name }). */
+        @JavascriptInterface fun installSource(id: Int) = io.execute {
+            runCatching {
+                val pkg = installerPackage()
+                JSONObject().put("package", pkg ?: JSONObject.NULL).put("name", pkg?.let { stores[it] } ?: JSONObject.NULL)
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        /** Open that app at ArkMD's page (its own Update button does the install), or just open the app. */
+        @JavascriptInterface fun openStore(id: Int) = main.post {
+            runCatching {
+                val pkg = installerPackage() ?: error("ArkMD wasn't installed from a store app")
+                val tries = listOfNotNull(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("fdroid.app:$packageName")).setPackage(pkg),
+                    Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")).setPackage(pkg),
+                    packageManager.getLaunchIntentForPackage(pkg),
+                )
+                val opened = tries.any { runCatching { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess }
+                JSONObject().put("opened", opened)
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }.let { }
+
+        /** The system's list of downloads. */
+        @JavascriptInterface fun openDownloads() = main.post {
+            runCatching { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }.let { }
 
         @JavascriptInterface fun openDocument(id: Int) = main.post {
             openId = id

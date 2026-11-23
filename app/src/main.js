@@ -6,7 +6,7 @@ import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
-import { shouldAutoCheck, summarizeNotes } from "./updates.js";
+import { shouldAutoCheck, summarizeNotes, describeDownload } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
@@ -944,28 +944,82 @@ async function checkForUpdates(quiet = false) {
   }
 }
 
-function showUpdate() {
+let updateDialogId = 0;
+async function showUpdate() {
   if (!pendingUpdate) return;
   const d = $("dialog");
   dialogReturn = document.activeElement;
+  const mine = ++updateDialogId;
+  // Android: the app store or updater app that installed ArkMD (F-Droid, Obtainium...) can install the update itself.
+  const store = platform.update.source ? await platform.update.source() : null;
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = `ArkMD ${pendingUpdate.version} is available`;
   const para = (text, cls = "about") => { const p = document.createElement("p"); p.className = cls; p.textContent = text; return p; };
   const notes = para(summarizeNotes(pendingUpdate.notes), "about notes");
   const status = para("", "about"); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
-  // Android: ArkMD doesn't install anything itself; the button hands the APK's address to the browser.
-  const now = platform.update.install
-    ? button("Update now", () => installUpdate(status, [now, later, notesBtn]))
-    : button("Download the update", () => {
-      platform.openUrl(pendingUpdate.downloadUrl).catch(() => {});
-      status.textContent = "Your browser downloads the file. Open it to install; Android asks you to confirm.";
-    });
   const later = button("Later", closeDialog);
   const notesBtn = button("Release notes", () => { platform.openUrl(`${REPO_URL}/releases/tag/v${pendingUpdate.version}`).catch(() => {}); });
-  const sums = pendingUpdate.sha256 ? [para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes")] : [];
-  d.replaceChildren(h, para(`You have ${shownVersion}.`), notes, ...sums, status, now, later, notesBtn);
+  const intro = para(`You have ${shownVersion}.`);
+
+  if (platform.update.install) {                      // Windows and Linux: ArkMD installs the update and restarts
+    const now = button("Update now", () => installUpdate(status, [now, later, notesBtn]));
+    d.replaceChildren(h, intro, notes, status, now, later, notesBtn);
+    $("dialog-backdrop").hidden = false;
+    now.focus({ preventScroll: true });
+    return;
+  }
+
+  // Android: ArkMD installs nothing itself. Either the store app does it, or the file is downloaded for the user to open.
+  const nodes = [h, intro, notes];
+  const openDownloads = button("Open Downloads", () => platform.update.openDownloads());
+  const download = button(store ? "Download the file here instead" : "Download the update", async () => {
+    download.disabled = true;
+    try {
+      const id = await platform.update.download(pendingUpdate.downloadUrl, `ArkMD-${pendingUpdate.version}-android-arm64.apk`);
+      const started = Date.now();
+      for (;;) {
+        if (mine !== updateDialogId || $("dialog-backdrop").hidden) return;       // the dialog was closed
+        const info = describeDownload(await platform.update.downloadStatus(id));
+        status.textContent = info.text;
+        if (info.state === "done") {
+          // The download can finish before anyone looks at the dialog, so replace it with what to do next, and open Downloads.
+          h.textContent = "Download complete";
+          const file = `ArkMD-${pendingUpdate.version}-android-arm64.apk`;
+          d.replaceChildren(h, para("One more step: Android needs you to start the install."),
+            para(`1. In Downloads, tap ${file}`), para("2. Tap Install when Android asks"), status, openDownloads, later);
+          status.textContent = "Opening Downloads…";
+          openDownloads.focus({ preventScroll: true });
+          setTimeout(() => { if (mine === updateDialogId && !$("dialog-backdrop").hidden) { platform.update.openDownloads(); status.textContent = "Downloads is open. If you came back here, tap Open Downloads."; } }, 900);
+          return;
+        }
+        if (info.state === "failed" || Date.now() - started > 20 * 60 * 1000) { download.disabled = false; return; }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    } catch (e) {
+      logError("Update download", e);
+      status.textContent = `Could not start the download: ${e.message || e}`;
+      download.disabled = false;
+    }
+  });
+  if (store) {
+    const primary = button(`Update in ${store.name}`, async () => {
+      try {
+        if (!(await platform.update.openStore())) throw new Error(`${store.name} could not be opened`);
+        status.textContent = `${store.name} is open at ArkMD. Tap its Update or Install button.`;
+      } catch (e) {
+        logError("Open store", e);
+        status.textContent = `${e.message || e}. Use the download below instead.`;
+      }
+    });
+    nodes.push(para(`ArkMD was installed from ${store.name}, which can install the update for you.`), status, primary, download);
+  } else {
+    nodes.push(status, download);
+  }
+  if (pendingUpdate.sha256) nodes.push(para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes"));
+  nodes.push(openDownloads, button("Open the download in the browser", () => { platform.openUrl(pendingUpdate.downloadUrl).catch(() => {}); }), later, notesBtn);
+  d.replaceChildren(...nodes);
   $("dialog-backdrop").hidden = false;
-  now.focus({ preventScroll: true });
+  (nodes.find((n) => n.tagName === "BUTTON"))?.focus({ preventScroll: true });
 }
 
 let shownVersion = "";

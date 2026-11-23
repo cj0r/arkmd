@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.15.1 (2026-11-23)
+
+### Changed
+- **Android updates.** Settings > Check for updates now > Download the update downloads the new version with Android's Download Manager instead of handing the link to the browser, which could stall on its download screen. The dialog shows the progress; when the download finishes it shows what to tap next and opens Downloads. Open Downloads and Open the download in the browser remain as fallbacks. ArkMD still doesn't install anything itself or ask for the permission to install apps.
+- **Android, installed from a store app.** When ArkMD was installed from F-Droid, Neo Store, Droid-ify, Obtainium or Google Play, the update dialog offers Update in that app, which opens it at ArkMD's page. The manifest lists those apps under queries so ArkMD can see and open them.
+
 ## 0.15.0 (2026-11-22)
 
 ### Added

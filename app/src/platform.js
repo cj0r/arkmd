@@ -65,6 +65,15 @@ const androidImpl = {
       if (!release || !isNewer(release.version, await version())) return null;
       return { version: release.version, notes: release.notes, downloadUrl: release.url, sha256: release.sha256 };
     },
+    /** Download the APK with the system Download Manager; resolves the download's id. */
+    async download(url, fileName) { return (await call("downloadUpdate", url, fileName)).id; },
+    /** { status, done, total, reason } of a download started above. */
+    async downloadStatus(id) { return call("downloadStatus", String(id)); },
+    openDownloads() { android.openDownloads(); },
+    /** The app store or updater app that installed ArkMD ({ id, name }), or null (for example when installed from a file). */
+    async source() { try { const r = await call("installSource"); return r.name ? { id: r.package, name: r.name } : null; } catch { return null; } },
+    /** Open that app at ArkMD's page, where its own Update button installs the new version. */
+    async openStore() { return !!(await call("openStore")).opened; },
   },
   setChrome(bg, dark) { android.setChrome(bg, !!dark); },
   ready() { android.requestInsets(); },

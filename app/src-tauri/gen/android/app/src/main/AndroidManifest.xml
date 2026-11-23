@@ -2,6 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Lets ArkMD see the store and updater apps it can hand an update to (F-Droid and its clients, Obtainium, Google Play). -->
+    <queries>
+        <package android:name="org.fdroid.fdroid" />
+        <package android:name="org.fdroid.basic" />
+        <package android:name="com.machiav3lli.fdroid" />
+        <package android:name="com.looker.droidify" />
+        <package android:name="dev.imranr.obtainium" />
+        <package android:name="dev.imranr.obtainium.fdroid" />
+        <package android:name="com.android.vending" />
+    </queries>
+
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
 

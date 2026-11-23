@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseVersion, compareVersions, isNewer, androidRelease, shouldAutoCheck, summarizeNotes, DAY_MS } from "./updates.js";
+import { parseVersion, compareVersions, isNewer, androidRelease, shouldAutoCheck, summarizeNotes, describeDownload, DAY_MS } from "./updates.js";
 
 test("parseVersion reads plain and v-prefixed versions", () => {
   assert.deepEqual(parseVersion("1.2.3"), [1, 2, 3]);
@@ -81,4 +81,17 @@ test("summarizeNotes trims markdown and caps the length", () => {
   assert.ok(s.endsWith("…"));
   assert.equal(summarizeNotes(""), "");
   assert.equal(summarizeNotes(undefined), "");
+});
+
+test("describeDownload explains each Download Manager state", () => {
+  assert.equal(describeDownload({ status: "running", done: 4_000_000, total: 8_000_000 }).text, "Downloading… 50%");
+  assert.equal(describeDownload({ status: "running", done: 1, total: 0 }).text, "Downloading…");
+  assert.equal(describeDownload({ status: "running", done: 9, total: 3 }).text, "Downloading… 100%");
+  assert.equal(describeDownload({ status: "pending" }).state, "waiting");
+  assert.equal(describeDownload({ status: "paused" }).state, "waiting");
+  assert.equal(describeDownload({ status: "done" }).state, "done");
+  assert.match(describeDownload({ status: "done" }).text, /Open Downloads/);
+  assert.equal(describeDownload({ status: "failed", reason: 1008 }).text.includes("1008"), true);
+  assert.equal(describeDownload({ status: "gone" }).state, "failed");
+  assert.equal(describeDownload(undefined).state, "running");
 });

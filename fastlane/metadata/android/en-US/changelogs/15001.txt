@@ -1,0 +1,1 @@
+Android: the update dialog now downloads with the system Download Manager, shows progress and what to tap next, and hands over to F-Droid, Obtainium and similar apps when ArkMD was installed from one.
