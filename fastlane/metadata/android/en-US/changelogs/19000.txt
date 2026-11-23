@@ -1,0 +1,1 @@
+Adds pinned files: favorite notes stay at the top of the recent files list, the home screen and the + menu.

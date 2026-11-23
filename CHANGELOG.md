@@ -2,6 +2,19 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.19.0 (2026-11-23)
+
+### Added
+- **Pinned files.** A pinned file stays at the top of the Recent files flyout, on the home screen and in the + menu, in its own Pinned group, and is never dropped from the list. Stars in the flyout are always visible, and an All / Pinned switch shows only pinned files.
+- Pin or unpin the file in the current tab with Ctrl+D or More > Pin to recent files. Pinned files show a star on their tab.
+
+## 0.18.0 (2026-11-23)
+
+### Added
+- **Recent files flyout.** The clock button at the top left (Ctrl+Shift+R) lists the files you've opened or saved, newest first and grouped by Today, Yesterday and so on, as cards with the title, file name and folder, a two-line preview, when it was last used and its word count. Search narrows the list, a star pins a file to the top, and the ✕ removes it from the list without touching the file. Open… and New are at the top, and arrow keys and Enter work. Files that are open in a tab are marked.
+- The list now remembers up to 200 files (plus pinned ones) instead of 20. The home screen shows the newest six with a See all link, and the + menu the newest five with All recent files….
+- **Settings > History and recovery > Remember recent files** turns the list off and clears it. Titles and previews are stored only on the device.
+
 ## 0.17.0 (2026-11-23)
 
 ### Added

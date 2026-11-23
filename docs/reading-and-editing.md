@@ -43,7 +43,7 @@ Fenced code blocks are colored in the editor with the same colors as in the read
 - **Ctrl+Tab** and **Ctrl+Shift+Tab** (or Ctrl+PageDown and Ctrl+PageUp) move to the next and previous tab. With a tab focused, the left and right arrow keys move between tabs, Home and End jump to the first and last, and Delete closes it.
 - Drag a tab sideways to change the order, or press **Ctrl+Shift+PageUp** and **Ctrl+Shift+PageDown** to move the current tab.
 - Each tab keeps its own text, undo history, cursor and scroll position while you work in another.
-- **+** opens a menu with **New file**, **Open file…** and your recent files.
+- **+** opens a menu with **New file**, **Open file…** and your newest files. The clock button to its left opens the Recent files list (Ctrl+Shift+R).
 - On Linux and Windows, opening another file from your file manager adds it as a tab in the window that is already open.
 
 ## The formatting panel
@@ -82,6 +82,8 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+Tab, Ctrl+Shift+Tab | Next, previous tab (also Ctrl+PageDown, Ctrl+PageUp) |
 | Ctrl+E | Switch between reading and editing |
 | Ctrl+Shift+O | Outline of the document |
+| Ctrl+Shift+R | Recent files |
+| Ctrl+D | Pin or unpin the file in this tab |
 | Ctrl+F | Find |
 | Ctrl+H | Find and replace (in the editor) |
 | Enter, Shift+Enter, F3 | Next, previous match while the find bar is open |

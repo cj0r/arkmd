@@ -31,7 +31,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Updates:** Settings > Check for updates now installs a new release in place on Windows and Linux (the packages ask for an administrator password). On Android it shows the new version and opens the download in your browser, and Android's own installer takes it from there. An optional daily check is off by default.
 - **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page. Insert a picture from the formatting panel, by pasting (Windows) or by dropping a file: it is copied into an `images` folder next to the document.
 - **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
-- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as; Open file location (desktop) shows a file in your file manager. A second launch adds its file as a tab in the running window.
+- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; a Recent files flyout with previews, search and pinned favorites (Ctrl+Shift+R); Save as; Open file location (desktop) shows a file in your file manager. A second launch adds its file as a tab in the running window.
 - **Small and private:** about 8 MB for Android and 4.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
 ## Install

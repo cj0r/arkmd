@@ -1,0 +1,1 @@
+Adds a Recent files list with previews, search and pinning, opened from the clock button at the top left.

@@ -13,6 +13,7 @@
 - [ ] Switch to the editor and back: the round button, or **Ctrl+E**
 - [ ] Open the outline from the list button in the top bar (**Ctrl+Shift+O**) and jump to [Diagrams](#diagrams-with-mermaid)
 - [ ] Find a word with the magnifier (**Ctrl+F**)
+- [ ] Open the clock button at the top left (**Ctrl+Shift+R**): your recent files, with previews, search and pins
 - [ ] Change the look with the palette button, and watch the diagrams follow
 - [ ] Tick this box: task boxes can be ticked right in the reader
 

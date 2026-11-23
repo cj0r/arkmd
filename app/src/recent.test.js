@@ -1,0 +1,112 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { summarize, normalize, touch, setPinned, remove, folderOf, search, group, ago } from "./recent.js";
+
+test("summarize takes the first heading as the title and the opening text as the preview", () => {
+  const s = summarize("---\ntags: x\n---\n# Trip plan\n\nBook the **ferry** and [hotel](https://x.y).\n\n## Day one\n\n- [ ] Pack\n- Passports\n");
+  assert.equal(s.title, "Trip plan");
+  assert.equal(s.preview, "Book the ferry and hotel. · Pack · Passports");
+  assert.ok(s.words >= 8);
+});
+
+test("summarize uses the first line when there is no heading, and skips code", () => {
+  const s = summarize("Groceries for the week\n\n```\nnot this\n```\n\nmilk and eggs\n");
+  assert.equal(s.title, "Groceries for the week");
+  assert.equal(s.preview, "milk and eggs");
+  assert.equal(summarize("# T\n\nfirst line\nsecond line\n\n- one\n- two\n").preview, "first line second line · one · two");
+});
+
+test("summarize copes with empty text and long lines", () => {
+  assert.deepEqual(summarize(""), { title: "", preview: "", words: 0 });
+  const s = summarize("# " + "a".repeat(200) + "\n\n" + "word ".repeat(100));
+  assert.ok(s.title.length <= 90 && s.title.endsWith("…"));
+  assert.ok(s.preview.length <= 160 && s.preview.endsWith("…"));
+});
+
+test("normalize reads older entry shapes and drops broken ones", () => {
+  const list = normalize([{ path: "/a.md", name: "a.md", t: 5 }, { ref: "b", name: "b.md" }, { name: "x" }, null, { ref: "c", name: "c.md", pinned: 1, title: "T" }]);
+  assert.deepEqual(list.map((r) => r.ref), ["/a.md", "b", "c"]);
+  assert.equal(list[2].pinned, true);
+  assert.equal(list[0].t, 5);
+  assert.deepEqual(normalize("nope"), []);
+});
+
+test("touch moves a file to the front, keeping its pin and earlier preview", () => {
+  let list = touch([], { ref: "a", name: "a.md", t: 1, title: "A", preview: "first" });
+  list = touch(list, { ref: "b", name: "b.md", t: 2 });
+  list = setPinned(list, "a", true);
+  list = touch(list, { ref: "a", name: "a.md", t: 3 });
+  assert.deepEqual(list.map((r) => r.ref), ["a", "b"]);
+  assert.equal(list[0].pinned, true);
+  assert.equal(list[0].preview, "first");
+  assert.equal(list[0].t, 3);
+  list = touch(list, { ref: "a", name: "a.md", t: 4, preview: "new text" });
+  assert.equal(list[0].preview, "new text");
+});
+
+test("touch trims to the limit but never drops a pinned file", () => {
+  let list = [];
+  for (let i = 0; i < 6; i++) list = touch(list, { ref: `f${i}`, name: `f${i}.md`, t: i }, 3);
+  assert.deepEqual(list.map((r) => r.ref), ["f5", "f4", "f3"]);
+  list = setPinned(list, "f3", true);
+  for (let i = 6; i < 9; i++) list = touch(list, { ref: `f${i}`, name: `f${i}.md`, t: i }, 3);
+  assert.ok(list.some((r) => r.ref === "f3"));
+  assert.equal(list.filter((r) => !r.pinned).length, 3);
+});
+
+test("remove drops a file", () => {
+  assert.deepEqual(remove([{ ref: "a" }, { ref: "b" }], "a"), [{ ref: "b" }]);
+});
+
+test("folderOf shows the last two folders of a path or a content address", () => {
+  assert.equal(folderOf("/Users/me/Documents/Notes/todo.md"), "Documents/Notes");
+  assert.equal(folderOf("C:\\Users\\me\\Notes\\todo.md"), "me/Notes");
+  assert.equal(folderOf("/todo.md"), "");
+  assert.equal(folderOf("content://com.android.externalstorage.documents/document/primary%3ADocuments%2FNotes%2Ftodo.md"), "Documents/Notes");
+  assert.equal(folderOf(""), "");
+});
+
+test("search needs every word to match the name, title, preview or folder", () => {
+  const list = [
+    { ref: "/x/Work/plan.md", name: "plan.md", title: "Quarterly plan", preview: "budget and hiring" },
+    { ref: "/x/Home/list.md", name: "list.md", title: "Shopping", preview: "milk" },
+  ];
+  assert.deepEqual(search(list, "plan budget").map((r) => r.name), ["plan.md"]);
+  assert.deepEqual(search(list, "WORK").map((r) => r.name), ["plan.md"]);
+  assert.deepEqual(search(list, "milk hiring"), []);
+  assert.equal(search(list, "  ").length, 2);
+});
+
+test("group puts pinned files first, then by how long ago", () => {
+  const now = new Date(2026, 10, 23, 15, 0).getTime();
+  const at = (d, h = 12) => new Date(2026, 10, d, h, 0).getTime();
+  const list = [
+    { ref: "p", pinned: true, t: at(1) }, { ref: "a", t: at(23, 9) }, { ref: "b", t: at(22) },
+    { ref: "c", t: at(19) }, { ref: "d", t: at(5) }, { ref: "e", t: new Date(2026, 8, 1).getTime() },
+  ];
+  assert.deepEqual(group(list, now).map((g) => [g.label, g.items.map((r) => r.ref)]), [
+    ["Pinned", ["p"]], ["Today", ["a"]], ["Yesterday", ["b"]], ["Previous 7 days", ["c"]], ["Previous 30 days", ["d"]], ["Older", ["e"]],
+  ]);
+  assert.deepEqual(group([], now), []);
+});
+
+test("ago gives a short relative time", () => {
+  const now = new Date(2026, 10, 23, 15, 0, 0).getTime();
+  assert.equal(ago(now - 20000, now), "just now");
+  assert.equal(ago(now - 5 * 60000, now), "5 min ago");
+  assert.equal(ago(now - 3 * 3600000, now), "3 h ago");
+  assert.equal(ago(new Date(2026, 10, 22, 8, 0).getTime(), now), "Yesterday");
+  assert.equal(ago(new Date(2026, 10, 19, 8, 0).getTime(), now), "4 days ago");
+  assert.equal(ago(new Date(2026, 8, 3, 8, 0).getTime(), now), "Sep 3");
+  assert.equal(ago(new Date(2025, 8, 3, 8, 0).getTime(), now), "Sep 3, 2025");
+  assert.equal(ago(0, now), "");
+});
+
+import { isPinned, pinned } from "./recent.js";
+test("isPinned and pinned look at the pin flag", () => {
+  const list = setPinned([{ ref: "a" }, { ref: "b" }], "b", true);
+  assert.equal(isPinned(list, "b"), true);
+  assert.equal(isPinned(list, "a"), false);
+  assert.equal(isPinned(list, "zzz"), false);
+  assert.deepEqual(pinned(list).map((r) => r.ref), ["b"]);
+});

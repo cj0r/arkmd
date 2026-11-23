@@ -4,8 +4,22 @@
 
 - **Open with** from your file manager, **+** > **Open file…** (Ctrl+O), a recent file, or on Android **Share** > ArkMD for a piece of text. Every file opens in a tab.
 - If a file is already open, ArkMD switches to its tab instead of opening it twice. On Android a file reached through a different folder or picker view can have a different internal address, so ArkMD also treats a file as already open when a tab has the same name and the same saved text.
-- ArkMD lists your 20 most recent files under **+** and on the home screen, which has **Clear**. The list holds file names and addresses, not contents. On Android a recent file opens again only while the system still allows ArkMD to read it.
+- ArkMD remembers the files you open or save in a **Recent files** list: see the next section. The home screen shows the newest few, and the **+** menu the newest five.
 - Text shared from another app opens as `Untitled.md`, `Untitled 2.md` and so on, with no file behind it until you save.
+
+## Recent files
+
+The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files flyout, the way back to notes you've already used without searching your folders.
+
+- **Cards with a preview.** Each file shows its title (its first heading, or its first line), its file name and folder, the first lines of its text, when you last opened or saved it, and its word count. Files that are open in a tab are marked **Open**.
+- **Newest first,** grouped as Today, Yesterday, the previous 7 and 30 days, and Older.
+- **Search.** Type in the search box to narrow the list. Every word you type has to appear in the title, file name, folder or preview.
+- **Pin your favorites.** The star on a card pins it to a **Pinned** group at the top of the list, which stays put however long ago you used the file. Pinned files also appear first on the home screen and in the **+** menu, and show a star on their tab. The **All / Pinned** switch above the search box shows only pinned files. To pin the note you're in, press **Ctrl+D** or choose **⋮** > **Pin to recent files**. Only saved files can be pinned, and a pinned file is never dropped from the list.
+- **Remove.** The ✕ on a card removes it from the list only; the file isn't touched. **Clear recent files** at the bottom empties the list.
+- **Open… and New** at the top are the same as in the **+** menu. Arrow keys move through the list and Enter opens a file; Esc closes the flyout.
+- **How many.** The list keeps the 200 most recently used files, plus any you've pinned.
+- **Privacy.** The list, with the titles and previews, is kept only in ArkMD's own storage on the device, like the rest of your settings. **Settings** > **History and recovery** > **Remember recent files** switches it off and clears it.
+- Files whose preview isn't known yet (from before this list existed) fill in the first time you open the flyout, where ArkMD can read them. A file that has since been moved or deleted stays in the list until you open it, and ArkMD then says it couldn't open it and removes it.
 
 ## Saving
 

@@ -11,6 +11,7 @@ import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
+import * as R from "./recent.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
 import { extensionForType, isImagePath, pastedStem, altFromPath, pastesAsImage } from "./images.js";
 import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
@@ -226,6 +227,7 @@ function renderTabs() {
   const strip = $("tabs");
   const hadFocus = strip.contains(document.activeElement);
   const active = cur();
+  const pinnedNow = recents();
   strip.replaceChildren(...tabs.all.map((t) => {
     const el = document.createElement("div");
     el.className = "tab" + (t === active ? " active" : "");
@@ -237,7 +239,12 @@ function renderTabs() {
       const dot = document.createElement("span"); dot.className = "dot"; dot.setAttribute("aria-hidden", "true"); dot.textContent = "●";
       main.append(dot);
     }
+    if (t.ref && recentOn() && R.isPinned(pinnedNow, t.ref)) {
+      const star = document.createElement("span"); star.className = "pin-mark"; star.setAttribute("aria-hidden", "true"); star.textContent = "★";
+      main.append(star);
+    }
     main.append(t.name);
+    if (t.ref && recentOn() && R.isPinned(pinnedNow, t.ref)) { const sr = document.createElement("span"); sr.className = "sr-only"; sr.textContent = " (pinned)"; main.append(sr); }
     if (t.dirty) { const sr = document.createElement("span"); sr.className = "sr-only"; sr.textContent = " (unsaved changes)"; main.append(sr); }
     main.onclick = () => { if (!tabDragged) activateTab(t.id); };
     main.onpointerdown = (e) => startTabDrag(e, t);
@@ -478,7 +485,7 @@ async function openRef(ref, name) {
     const same = tabs.findSame(name, text);
     if (same) { activateTab(same.id); addRecent(ref, name); return; }   // same file via another reference
     openTab({ ref, name, text, mode: "read" });
-    addRecent(ref, name);
+    addRecent(ref, name, text);
   } catch (e) {
     logError("Open file", e);
     toast(`Could not open ${name}: ${e.message || e}`);
@@ -549,7 +556,7 @@ async function save(as = false, quiet = false) {
     }
     t.saved = text;
     t.dirty = textOf(t) !== text;            // typing may have continued while a dialog was open
-    addRecent(t.ref, t.name);
+    addRecent(t.ref, t.name, text);
     if (!t.dirty) { hdb.deleteDraft(t.draftKey); t.hasDraft = false; }
     updateChrome();
     if (!quiet) toast("Saved");
@@ -617,29 +624,176 @@ function toggleMode() {
 }
 
 // ------------------------------------------------------------------ recents
-function recents() { return store.get("recent", []).map((r) => ({ ref: r.ref ?? r.path, name: r.name })); }
-function addRecent(ref, name) {
-  store.set("recent", [{ ref, name, t: Date.now() }, ...recents().filter((r) => r.ref !== ref)].slice(0, 20));
+/** The remembered files, newest first. Each has { ref, name, t, title, preview, words, pinned }. */
+function recents() { return R.normalize(store.get("recent", [])); }
+const recentOn = () => store.get("recentOn", true);
+/** Remember a file as just opened or saved. With `text`, also remember its title and a short preview. */
+function addRecent(ref, name, text) {
+  if (!recentOn()) return;
+  const summary = typeof text === "string" ? R.summarize(text) : {};
+  store.set("recent", R.touch(recents(), { ref, name, t: Date.now(), ...summary }));
+  if (!$("files").hidden) renderFilesList();
 }
-function removeRecent(ref) { store.set("recent", recents().filter((r) => r.ref !== ref)); }
+function removeRecent(ref) { store.set("recent", R.remove(recents(), ref)); }
+
+/** The home screen's short list: the newest few files. The full list is in the Recent files flyout. */
 function renderRecents() {
-  const list = $("recent");
-  list.replaceChildren();
-  for (const r of recents()) {
-    const li = document.createElement("li");
-    const b = document.createElement("button"); b.className = "recent-item";
-    const name = document.createElement("span"); name.className = "name"; name.textContent = r.name;
-    b.append(name);
-    if (!platform.mobile) {
-      const where = document.createElement("span"); where.className = "path"; where.textContent = r.ref;
-      b.append(where);
+  const all = recentOn() ? recents() : [];
+  const pins = R.pinned(all).slice(0, 8);
+  const rest = all.filter((r) => !r.pinned);
+  const fill = (list, files) => {
+    list.replaceChildren();
+    for (const r of files) {
+      const li = document.createElement("li");
+      const b = document.createElement("button"); b.className = "recent-item";
+      const name = document.createElement("span"); name.className = "name"; name.textContent = r.title || r.name;
+      const where = document.createElement("span"); where.className = "path";
+      where.textContent = [r.title ? r.name : "", platform.mobile ? "" : R.folderOf(r.ref), R.ago(r.t)].filter(Boolean).join(" · ");
+      b.append(name, where);
+      b.onclick = () => openRef(r.ref, r.name);
+      li.append(b);
+      list.append(li);
     }
-    b.onclick = () => openRef(r.ref, r.name);
-    li.append(b);
-    list.append(li);
+  };
+  fill($("pinned"), pins);
+  $("pinned-head").hidden = pins.length === 0;
+  fill($("recent"), rest.slice(0, 6));
+  $("no-recent").hidden = all.length > 0;
+  $("clear-recent").hidden = all.length === 0;
+  $("see-all").hidden = all.length <= pins.length + 6;
+}
+
+/** Pin or unpin the file in the active tab (only a saved file can be pinned). */
+function togglePinCurrent() {
+  const t = cur();
+  if (!t) return;
+  if (!t.ref) { toast("Save the file first: only saved files can be pinned."); return; }
+  if (!recentOn()) { toast("Turn on Remember recent files in Settings to pin files."); return; }
+  if (!recents().some((r) => r.ref === t.ref)) addRecent(t.ref, t.name, textOf(t));
+  const now = !R.isPinned(recents(), t.ref);
+  store.set("recent", R.setPinned(recents(), t.ref, now));
+  toast(now ? `Pinned ${t.name}` : `Unpinned ${t.name}`);
+  renderRecents(); renderTabs();
+  if (!$("files").hidden) renderFilesList();
+}
+
+// ---- Recent files flyout: get back to past notes without a file picker -------------------------------------
+// A list of the files opened or saved before, with titles and previews, newest first, pinnable and searchable.
+// It remembers file addresses and a short preview on this device only; Settings can switch it off.
+let filesQuery = "";
+let filesPinnedOnly = store.get("filesPinnedOnly", false);
+const filesFailed = new Set();       // files that couldn't be read for a preview this session
+
+function stripExt(name) { return String(name).replace(/\.(md|markdown|mdown|mkd|txt)$/i, ""); }
+
+function fileRow(r, isOpen) {
+  const row = document.createElement("div");
+  row.className = "file-row"; row.setAttribute("role", "listitem");
+  const main = document.createElement("button"); main.className = "file-main";
+  const title = document.createElement("span"); title.className = "file-title"; title.textContent = r.title || stripExt(r.name);
+  main.append(title);
+  const where = [r.name, platform.mobile ? "" : R.folderOf(r.ref)].filter(Boolean).join(" · ");
+  if (where && where !== title.textContent) { const w = document.createElement("span"); w.className = "file-name"; w.textContent = where; main.append(w); }
+  if (r.preview) { const p = document.createElement("span"); p.className = "file-preview"; p.textContent = r.preview; main.append(p); }
+  const meta = document.createElement("span"); meta.className = "file-meta";
+  meta.textContent = [R.ago(r.t), r.words ? `${r.words.toLocaleString("en-US")} words` : "", isOpen ? "Open" : ""].filter(Boolean).join(" · ");
+  main.append(meta);
+  main.onclick = () => { closeFiles(); openRef(r.ref, r.name); };
+  const pin = document.createElement("button"); pin.className = "file-act file-pin";
+  pin.innerHTML = svg(r.pinned ? "star" : "starOutline");
+  pin.setAttribute("aria-pressed", String(!!r.pinned)); pin.setAttribute("aria-label", `${r.pinned ? "Unpin" : "Pin"} ${r.name}`); pin.title = r.pinned ? "Unpin" : "Pin to the top";
+  pin.onclick = () => { store.set("recent", R.setPinned(recents(), r.ref, !r.pinned)); renderFilesList(); renderRecents(); renderTabs(); };
+  const x = document.createElement("button"); x.className = "file-act file-x";
+  x.innerHTML = svg("close"); x.setAttribute("aria-label", `Remove ${r.name} from the list`); x.title = "Remove from the list (the file isn't touched)";
+  x.onclick = () => { removeRecent(r.ref); renderFilesList(); };
+  row.append(main, pin, x);
+  return row;
+}
+
+function renderFilesList() {
+  const box = $("files-list");
+  const keep = box.scrollTop;
+  box.replaceChildren();
+  const note = (text) => { const p = document.createElement("p"); p.className = "files-note"; p.textContent = text; box.append(p); };
+  if (!recentOn()) { note("The recent files list is switched off in Settings."); $("files-clear").hidden = true; return; }
+  const all = recents();
+  $("files-pinned").textContent = R.pinned(all).length ? `Pinned (${R.pinned(all).length})` : "Pinned";
+  $("files-all").setAttribute("aria-pressed", String(!filesPinnedOnly)); $("files-all").classList.toggle("on", !filesPinnedOnly);
+  $("files-pinned").setAttribute("aria-pressed", String(filesPinnedOnly)); $("files-pinned").classList.toggle("on", filesPinnedOnly);
+  $("files-clear").hidden = all.length === 0;
+  if (!all.length) { note("Files you open or save appear here, so you can get back to them in one tap."); return; }
+  let found = R.search(all, filesQuery);
+  if (filesPinnedOnly) found = found.filter((r) => r.pinned);
+  if (!found.length) {
+    note(filesPinnedOnly && !R.pinned(all).length ? "No pinned files yet. Tap the star on a file to pin the notes you use most."
+      : filesPinnedOnly ? `No pinned file matches "${filesQuery.trim()}".` : `No recent file matches "${filesQuery.trim()}".`);
+    return;
   }
-  $("no-recent").hidden = recents().length > 0;
-  $("clear-recent").hidden = recents().length === 0;
+  const open = new Set(tabs.all.filter((t) => t.ref).map((t) => t.ref));
+  for (const g of R.group(found)) {
+    const head = document.createElement("div"); head.className = "files-group"; head.setAttribute("role", "presentation"); head.textContent = g.label;
+    box.append(head);
+    for (const r of g.items) box.append(fileRow(r, open.has(r.ref)));
+  }
+  box.scrollTop = keep;
+}
+
+/** Older entries have no title or preview: read a few of those files in the background to fill them in. */
+async function backfillRecents() {
+  if (!recentOn()) return;
+  const todo = recents().filter((r) => !r.title && !r.preview && !filesFailed.has(r.ref)).slice(0, 10);
+  for (const r of todo) {
+    try {
+      const summary = R.summarize((await platform.readFile(r.ref)).replace(/^\uFEFF/, ""));
+      store.set("recent", recents().map((e) => (e.ref === r.ref ? { ...e, ...summary } : e)));
+    } catch { filesFailed.add(r.ref); }
+  }
+  if (todo.length && !$("files").hidden) renderFilesList();
+}
+
+function openFiles() {
+  closeMenu(); closeOutline();
+  filesQuery = ""; $("files-q").value = "";
+  renderFilesList();
+  $("files").hidden = false;
+  $("btn-files").setAttribute("aria-expanded", "true"); $("btn-files").classList.add("on");
+  if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
+  else $("files-q").focus();
+  backfillRecents();
+}
+
+function closeFiles(restoreFocus = false) {
+  if ($("files").hidden) return;
+  $("files").hidden = true;
+  $("btn-files").setAttribute("aria-expanded", "false"); $("btn-files").classList.remove("on");
+  if (restoreFocus) $("btn-files").focus({ preventScroll: true });
+}
+
+function toggleFiles() { if ($("files").hidden) openFiles(); else closeFiles(true); }
+
+function wireFiles() {
+  $("btn-files").innerHTML = svg("history");
+  $("btn-files").onclick = toggleFiles;
+  const filter = (pinnedOnly) => { filesPinnedOnly = pinnedOnly; store.set("filesPinnedOnly", pinnedOnly); renderFilesList(); };
+  $("files-all").onclick = () => filter(false);
+  $("files-pinned").onclick = () => filter(true);
+  $("files-q").oninput = () => { filesQuery = $("files-q").value; renderFilesList(); };
+  $("files-open").onclick = () => { closeFiles(); openFile(); };
+  $("files-new").onclick = () => { closeFiles(); newFile(); };
+  $("files-clear").onclick = async () => {
+    if ((await ask("Clear recent files", "Remove every file from the recent list? Your files aren't touched.", ["Clear the list", "Cancel"])) !== 0) return;
+    store.set("recent", []); renderFilesList(); renderRecents();
+  };
+  $("see-all").onclick = openFiles;
+  $("files").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFiles(true); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const stops = [$("files-q"), ...$("files-list").querySelectorAll(".file-main")];
+    const at = stops.indexOf(document.activeElement);
+    if (at < 0) return;
+    const next = stops[Math.min(stops.length - 1, Math.max(0, at + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (next !== document.activeElement) { e.preventDefault(); next.focus(); }
+  });
 }
 
 // ------------------------------------------------------------------ formatting panel
@@ -896,8 +1050,11 @@ function pickSize(after) {
 function addMenu() {
   const hint = (label, keys) => (platform.mobile ? label : `${label}    ${keys}`);
   const entries = [[hint("New file", "Ctrl+N"), newFile], [hint("Open file…", "Ctrl+O"), openFile]];
-  const rec = recents().slice(0, 8);
-  if (rec.length) { entries.push(["Recent", null]); for (const r of rec) entries.push([r.name, () => openRef(r.ref, r.name)]); }
+  const all = recentOn() ? recents() : [];
+  const pins = R.pinned(all).slice(0, 5), rec = all.filter((r) => !r.pinned).slice(0, 5);
+  if (pins.length) { entries.push(["Pinned", null]); for (const r of pins) entries.push([r.title || r.name, () => openRef(r.ref, r.name)]); }
+  if (rec.length) { entries.push(["Recent", null]); for (const r of rec) entries.push([r.title || r.name, () => openRef(r.ref, r.name)]); }
+  if (all.length) entries.push([hint("All recent files…", "Ctrl+Shift+R"), openFiles]);
   if (closed.length) entries.push([hint("Reopen closed tab", "Ctrl+Shift+T"), reopenClosed]);
   menu($("btn-add"), entries);
 }
@@ -1111,6 +1268,8 @@ function openSettings() {
   toggle("Keep file history", "Keeps the previous text each time you save, on this device only.", "history", true);
   toggle("Recover unsaved work", "Saves a draft of unsaved changes every few seconds, so a crash doesn't lose them.", "recover", true,
     (on) => { if (on) flushDrafts(); else hdb.clearDrafts(); });
+  toggle("Remember recent files", "Keeps the names, titles and a short preview of files you open, on this device only, for the Recent files list.", "recentOn", true,
+    (on) => { if (!on) { store.set("recent", []); renderRecents(); } });
   row("Clear history and drafts", "", async () => {
     if (await platform.confirm("Delete every saved version and unsaved-work draft kept by ArkMD? Your files aren't touched.", "Clear history")) {
       await hdb.clearVersions(); await hdb.clearDrafts(); for (const t of tabs.all) t.hasDraft = false; toast("History cleared");
@@ -1206,6 +1365,7 @@ function moreMenu() {
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
   if (open) entries.push(["File history…", showHistory]);
+  if (open && cur().ref && recentOn()) entries.push([`${R.isPinned(recents(), cur().ref) ? "Unpin from recent files" : "Pin to recent files"}${platform.mobile ? "" : "  (Ctrl+D)"}`, togglePinCurrent]);
   if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => { logError("Open file location", e); toast(`Could not open the location: ${e.message || e}`); })]);
   if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
@@ -1259,6 +1419,7 @@ function wire() {
   $("btn-outline").innerHTML = svg("outline");
   $("btn-outline").onclick = toggleOutline;
   wireFind();
+  wireFiles();
   // Pasting a picture (and no text) saves it next to the document and links it. Some web views (WebKitGTK on Linux)
   // send a paste event with no data for a picture, so when the event is empty the clipboard is asked directly.
   $("editor").addEventListener("paste", (e) => {
@@ -1283,6 +1444,7 @@ function wire() {
   document.addEventListener("pointerdown", (e) => { if (!$("menu").contains(e.target)) $("menu").hidden = true; });
   // The outline closes on a tap or click outside it (the toggle button handles its own click).
   document.addEventListener("pointerdown", (e) => { if (!$("outline").contains(e.target) && !$("btn-outline").contains(e.target)) closeOutline(); });
+  document.addEventListener("pointerdown", (e) => { if (!$("files").contains(e.target) && !$("btn-files").contains(e.target)) closeFiles(); });
 
   document.addEventListener("keydown", onKey);
 
@@ -1337,7 +1499,7 @@ function wire() {
 
 function onKey(e) {
   const mod = e.ctrlKey || e.metaKey;
-  if (e.key === "Escape") { closeMenu(); closeDialog(); closeOutline(); }
+  if (e.key === "Escape") { closeMenu(); closeDialog(); closeOutline(); closeFiles(); }
   // Arrow keys move between menu items / dialog options.
   if ((e.key === "ArrowDown" || e.key === "ArrowUp") && (!$("menu").hidden || !$("dialog-backdrop").hidden)) {
     const items = [...(!$("menu").hidden ? $("menu") : $("dialog")).querySelectorAll("button")];
@@ -1354,11 +1516,12 @@ function onKey(e) {
   }
   if (e.shiftKey && e.key.toLowerCase() === "t") { e.preventDefault(); reopenClosed(); return; }
   if (e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); toggleOutline(); return; }
+  if (e.shiftKey && e.key.toLowerCase() === "r") { e.preventDefault(); toggleFiles(); return; }
   if (e.shiftKey && e.key.toLowerCase() === "i" && platform.pickImage) { e.preventDefault(); insertImageFromPicker(); return; }
   if (!e.shiftKey && !e.altKey && (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "h")) {
     e.preventDefault(); if (cur()) openFind(e.key.toLowerCase() === "h"); return;
   }
-  const act = { o: openFile, p: () => { if (!platform.mobile && cur()) printDoc(); }, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
+  const act = { o: openFile, d: togglePinCurrent, p: () => { if (!platform.mobile && cur()) printDoc(); }, n: newFile, t: newFile, w: () => closeTab(), e: toggleMode, s: () => save(e.shiftKey), ",": openSettings }[e.key.toLowerCase()];
   if (act) { e.preventDefault(); act(); }
 }
 
@@ -1512,7 +1675,7 @@ function outlineCurrent(items) {
 
 function openOutline() {
   if (!cur()) return;
-  closeMenu();
+  closeMenu(); closeFiles();
   const panel = $("outline");
   const items = outlineItems();
   const at = outlineCurrent(items);
@@ -1584,7 +1747,7 @@ function onReaderLoad() {
   // Shortcuts keep working after clicking into the reader (its keys go to the iframe document).
   $("reader").contentDocument.addEventListener("keydown", onKey);
   // Taps inside the reader land in the iframe document, so close the menu from there too.
-  $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; closeOutline(); });
+  $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; closeOutline(); closeFiles(); });
   applyLook();
   if (cur()) render(cur().scroll);
 }
@@ -1655,7 +1818,7 @@ async function openLaunch() {
   const known = tabs.findByRef(l.ref);
   if (known) { activateTab(known.id); return; }
   openTab({ ref: l.ref, name: l.ref ? l.name : tabs.untitledName(), text: l.text.replace(/^\uFEFF/, ""), mode: "read" });
-  if (l.ref) addRecent(l.ref, l.name);
+  if (l.ref) addRecent(l.ref, l.name, l.text);
 }
 
 init();

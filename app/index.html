@@ -8,6 +8,7 @@
 </head>
 <body>
   <header id="bar" data-tauri-drag-region>
+    <button class="icon" id="btn-files" title="Recent files (Ctrl+Shift+R)" aria-label="Recent files" aria-haspopup="true" aria-expanded="false" aria-controls="files"></button>
     <div id="tabs" role="group" aria-label="Open files"></div>
     <button class="icon" id="btn-add" title="New or open" aria-label="New or open file" aria-haspopup="menu"></button>
     <div class="spacer" data-tauri-drag-region></div>
@@ -47,7 +48,9 @@
         <button id="home-new" class="tile">New file</button>
       </div>
       <p class="tour"><button id="home-tour" class="link">Take the welcome tour</button></p>
-      <div class="recent-head"><span>Recent</span><button id="clear-recent" class="link">Clear</button></div>
+      <div id="pinned-head" class="recent-head" hidden><span>Pinned</span></div>
+      <ul id="pinned" aria-label="Pinned files"></ul>
+      <div class="recent-head"><span>Recent</span><span><button id="see-all" class="link">See all</button><button id="clear-recent" class="link">Clear</button></span></div>
       <ul id="recent" aria-label="Recent files"></ul>
       <p id="no-recent" class="muted">Open a Markdown file here, or use "Open with ArkMD" from your file manager.</p>
     </section>
@@ -71,6 +74,20 @@
         <button id="find-replace-all" class="fbtn wide">Replace all</button>
       </div>
     </div>
+    <nav id="files" aria-label="Recent files" hidden>
+      <div class="files-head">
+        <span class="files-title">Recent files</span>
+        <button id="files-open" class="fbtn wide">Open…</button>
+        <button id="files-new" class="fbtn wide">New</button>
+      </div>
+      <div class="files-filter" role="group" aria-label="Show">
+        <button id="files-all" class="pill on" aria-pressed="true">All</button>
+        <button id="files-pinned" class="pill" aria-pressed="false">Pinned</button>
+      </div>
+      <input id="files-q" type="search" placeholder="Search recent files" aria-label="Search recent files" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="files-list" role="list"></div>
+      <div class="files-foot"><button id="files-clear" class="link">Clear recent files</button></div>
+    </nav>
     <nav id="outline" aria-label="Outline" hidden></nav>
     <div id="formatbar" role="toolbar" aria-label="Formatting" hidden></div>
     <button id="toggle" class="fab" title="Edit (Ctrl+E)" aria-label="Edit" hidden></button>

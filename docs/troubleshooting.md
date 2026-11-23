@@ -10,7 +10,7 @@
 
 **"Could not save".** The place the file lives may be read-only, or its document provider may allow reading only. Use **More** > **Save as…** to write a copy somewhere else.
 
-**A recent file won't open.** Android lets ArkMD read a file only while the system keeps that permission. Open the file again with **+** > **Open file…**.
+**A recent file won't open.** The file may have been moved or deleted; ArkMD then says it couldn't open it and removes it from the list. On Android, the system lets ArkMD read a file only while it keeps that permission: open the file again with **+** > **Open file…**.
 
 **The text is too small or too large.** ArkMD follows the font size in Android's system settings, and **More** > **Settings** > **Text size** adjusts it further.
 

@@ -11,7 +11,7 @@ How to report a problem is in [SECURITY.md](../SECURITY.md). This page covers wh
 - **Diagrams** are drawn by the bundled Mermaid library at its strict security level (no scripts, no click actions), from the text in the document; nothing is fetched.
 - **Raw HTML is off,** so a document can't run scripts or embed active content in the reader.
 - **Log file (Windows and Linux):** errors and crashes are written to a text file in the app's log folder, up to about 1 MB. It holds no document text, is never sent anywhere, and you can delete it at any time.
-- **What it stores:** your settings (theme, fonts, text size) and the list of recent files (names and addresses, never contents), in the app's own storage on your device.
+- **What it stores:** your settings (theme, fonts, text size) and the list of recent files (file names and addresses, plus each file's title, its first lines as a short preview and its word count, so the list can show them), in the app's own storage on your device. **Settings** > **History and recovery** > **Remember recent files** switches the list off and clears it.
 
 ## The F-Droid repository
 

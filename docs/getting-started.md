@@ -11,10 +11,10 @@ A fresh install opens a built-in welcome document that shows what ArkMD can draw
 ## Open a file
 
 - **From your file manager:** choose ArkMD in **Open with**. On Android you can also use **Share** on a piece of text to open it in ArkMD as a new document.
-- **From ArkMD:** tap **+** and choose **Open file…** (Ctrl+O on desktop). The same menu lists your recent files.
+- **From ArkMD:** tap **+** and choose **Open file…** (Ctrl+O on desktop). The same menu lists your newest files, and the clock button at the top left (Ctrl+Shift+R) opens the full Recent files list, with previews, search and pinning.
 - **A new document:** **+** > **New file** (Ctrl+N) starts an empty `Untitled.md` in editing mode.
 
-Every file opens in its own tab. Opening a file that is already open switches to its tab. The home screen, shown when no file is open, lists recent files as well.
+Every file opens in its own tab. Opening a file that is already open switches to its tab. The home screen, shown when no file is open, lists your recent files too.
 
 ## Read and edit
 
