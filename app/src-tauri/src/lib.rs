@@ -262,9 +262,13 @@ fn resolve_linked(app: &tauri::AppHandle, base: &str, rel: &str, exts: &[&str]) 
     if !target.is_file() || !exts.contains(&ext.as_str()) {
         return Err("unsupported file".into());
     }
-    // Windows canonical paths carry a verbatim prefix; drop it so the path matches what the file dialogs produce.
-    let text = target.to_string_lossy().into_owned();
-    Ok(PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text)))
+    Ok(without_verbatim_prefix(&target))
+}
+
+/// Windows canonical paths carry a verbatim prefix (`\\?\C:\`); drop it so the path matches what the file dialogs produce.
+fn without_verbatim_prefix(path: &std::path::Path) -> PathBuf {
+    let text = path.to_string_lossy().into_owned();
+    PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text))
 }
 
 // ---- Inserting images ---------------------------------------------------------------------------------
@@ -418,9 +422,7 @@ fn save_text_file(app: tauri::AppHandle, path: String, text: String) -> Result<(
 /// Whether `target` lies inside the folder of the document `base` (or one below it).
 fn within_document_folder(base: &str, target: &std::path::Path) -> bool {
     let Some(dir) = std::path::Path::new(base).parent() else { return false };
-    let dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
-    let text = dir.to_string_lossy().into_owned();
-    let dir = PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text));
+    let dir = without_verbatim_prefix(&dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()));
     target.starts_with(dir)
 }
 
@@ -545,15 +547,19 @@ mod tests {
     #[test]
     fn links_stay_within_the_document_folder() {
         let dir = std::env::temp_dir().join(format!("arkmd-scope-{}", std::process::id()));
-        let sub = dir.join("notes/sub");
-        std::fs::create_dir_all(&sub).unwrap();
-        let doc = dir.join("notes/a.md");
-        let doc = doc.to_string_lossy().into_owned();
-        let inside = sub.join("b.md").canonicalize().unwrap_or_else(|_| sub.join("b.md"));
-        assert!(within_document_folder(&doc, &inside));
-        assert!(within_document_folder(&doc, &dir.join("notes").canonicalize().unwrap().join("c.md")));
-        assert!(!within_document_folder(&doc, &dir.canonicalize().unwrap().join("other.md")));
-        assert!(!within_document_folder(&doc, &dir.canonicalize().unwrap().join("notes-x/d.md")));
+        for d in ["notes/sub", "notes-x"] {
+            std::fs::create_dir_all(dir.join(d)).unwrap();
+        }
+        for f in ["notes/a.md", "notes/sub/b.md", "notes/c.md", "other.md", "notes-x/d.md"] {
+            std::fs::write(dir.join(f), "x").unwrap();
+        }
+        // links are resolved to canonical paths before the check, so the test does the same
+        let canon = |f: &str| without_verbatim_prefix(&dir.join(f).canonicalize().unwrap());
+        let doc = dir.join("notes/a.md").to_string_lossy().into_owned();
+        assert!(within_document_folder(&doc, &canon("notes/sub/b.md")));
+        assert!(within_document_folder(&doc, &canon("notes/c.md")));
+        assert!(!within_document_folder(&doc, &canon("other.md")));
+        assert!(!within_document_folder(&doc, &canon("notes-x/d.md")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
