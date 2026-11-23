@@ -309,8 +309,11 @@ class MainActivity : TauriActivity() {
             runCatching {
                 val renamed = DocumentsContract.renameDocument(contentResolver, documentUri(ref), name)
                     ?: error("This location doesn't allow renaming")
-                persist(renamed)
-                fileInfo(renamed)
+                // Some providers (Downloads) give the renamed file an address ArkMD has no access to: say so, so the page
+                // doesn't keep a tab it can no longer save
+                val usable = runCatching { contentResolver.openInputStream(renamed)!!.close(); true }.getOrDefault(false)
+                if (usable) persist(renamed)
+                JSONObject().put("ref", renamed.toString()).put("name", if (usable) displayName(renamed) else name).put("access", usable)
             }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
         }
 

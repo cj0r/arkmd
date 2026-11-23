@@ -1575,6 +1575,15 @@ async function renameFile() {
   const old = t.ref;
   try {
     const r = await platform.renameFile(old, name);
+    if (r.access === false) {
+      // Renamed, but the storage app gave the file an address ArkMD may not use. Keep the text open as an unsaved copy.
+      store.set("recent", R.remove(recents(), old));
+      t.ref = null; t.name = r.name; t.saved = ""; t.dirty = true;
+      if (!$("files").hidden) renderFilesList();
+      updateChrome();
+      toast(`Renamed to ${r.name}. This storage app no longer lets ArkMD save to it, so the text is open as an unsaved copy; use Save as, or open the file again.`);
+      return;
+    }
     await withTimeout(hdb.moveVersions(fileKey(old), fileKey(r.ref), r.name)).catch(() => {});
     t.ref = r.ref; t.name = r.name;
     store.set("recent", R.rename(recents(), old, r.ref, r.name));
