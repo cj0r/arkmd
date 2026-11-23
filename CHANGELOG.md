@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.25.3 (2026-11-23)
+
+### Fixed
+- **Desktop: the window no longer runs off the bottom of the screen.** The window opened at a fixed 920 x 1000, which is taller than the usable area of a 1080p screen with a taskbar and of most laptops, so the bottom (formatting bar, messages) was cut off. It is now sized to fit the screen it opens on (up to 920 x 1000) and placed before it is shown. The Windows check in release builds verifies that the window fits the screen.
+
 ## 0.25.2 (2026-11-23)
 
 ### Changed

@@ -450,6 +450,24 @@ fn read_linked_image(app: tauri::AppHandle, base: String, rel: String) -> Result
     std::fs::read(&target).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
 }
 
+/// The size in tauri.conf.json is for a large screen; on a smaller one (a 1080p screen with a taskbar, a laptop) it
+/// would run off the bottom. Shrink the window to fit the screen it opens on, and centre it.
+#[cfg(desktop)]
+fn fit_window_to_screen(app: &tauri::App) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    // the window is created hidden (tauri.conf.json), so it is sized and placed before anyone sees it
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let scale = monitor.scale_factor();
+        let (screen_w, screen_h) = (monitor.size().width as f64 / scale, monitor.size().height as f64 / scale);
+        let width = (screen_w * 0.9).clamp(360.0, 920.0);
+        let height = (screen_h * 0.82).clamp(480.0, 1000.0);
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+        // placed by hand: centre() would use the size from before the resize has been applied
+        let _ = window.set_position(tauri::LogicalPosition::new(((screen_w - width) / 2.0).max(0.0), ((screen_h - height) / 3.0).max(0.0)));
+    }
+    let _ = window.show();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -491,6 +509,8 @@ pub fn run() {
             app.manage(ClipboardHandle(Mutex::new(None)));
             #[cfg(not(desktop))]
             app.manage(ClipboardHandle);
+            #[cfg(desktop)]
+            fit_window_to_screen(app);
 
             let dir = app.path().app_log_dir().unwrap_or_else(|_| std::env::temp_dir().join("arkmd"));
             let _ = std::fs::create_dir_all(&dir);

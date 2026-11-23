@@ -209,6 +209,14 @@ jobs:
             WaitTitle $app "smoke one.md" 60
             Start-Sleep -Seconds 3
             Shot "windows-launch"
+            # the window must fit on the screen (the runner's screen is small)
+            Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public struct RECT { public int L, T, R, B; } public class Win { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }'
+            $app.Refresh()
+            $rect = New-Object RECT
+            [void][Win]::GetWindowRect($app.MainWindowHandle, [ref]$rect)
+            $area = [System.Windows.Forms.SystemInformation]::WorkingArea
+            Write-Host "Window $($rect.L),$($rect.T) to $($rect.R),$($rect.B); work area $($area.Left),$($area.Top) to $($area.Right),$($area.Bottom)"
+            if ($rect.B -gt $area.Bottom + 12 -or $rect.R -gt $area.Right + 12) { throw "The window does not fit on the screen" }
             Start-Process $exe.FullName -ArgumentList "`"$two`""    # a second launch hands its file to the running window
             WaitTitle $app "smoke-two.md" 30
             Shot "windows-second-launch"
