@@ -265,23 +265,26 @@ body.compact .tab-x { width: 32px; height: 32px; }
 body.compact #formatbar #fb-redo { margin-right: 4px; border-right: 1px solid var(--surface); border-radius: 9px 0 0 9px; width: 44px; }
 
 /* Updates: the one action that matters is a filled button, in a card where it is offered. */
-#dialog .opt.primary { justify-content: center; width: auto; margin: 8px 22px 4px; padding: 12px 18px; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; text-align: center; }
+#dialog .opt.primary { justify-content: center; width: auto; margin: 6px 22px 2px; padding: 8px 16px; border-radius: 8px; background: var(--accent); color: var(--bg); font-size: 14px; font-weight: 600; text-align: center; }
 #dialog .opt.primary:hover { background: var(--accent); filter: brightness(1.1); }
 #dialog .opt.primary:disabled { opacity: .55; filter: none; }
-.update-callout { margin: 6px 22px 12px; padding: 12px 14px 10px; border: 1px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.update-callout strong { display: block; }
+.update-callout { margin: 6px 22px 10px; padding: 10px 14px 8px; border: 1px solid var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.update-callout strong { display: block; font-size: 14px; }
 .update-callout .opt.primary { width: 100%; box-sizing: border-box; margin: 10px 0 2px; }
 .other-ways { margin: 4px 22px 4px; }
 .other-ways summary { padding: 8px 0; cursor: pointer; font-size: 14px; color: var(--fg-muted); }
 .other-ways .opt { padding-left: 0; padding-right: 0; }
 .other-ways p { margin-left: 0; margin-right: 0; }
-#update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+#update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 10px; font-size: 14px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 #update-banner[hidden] { display: none; }
-#update-banner button { flex: none; padding: 8px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
-#menu button.accent { color: var(--bg); background: var(--accent); font-weight: 600; margin-bottom: 4px; }
+#update-banner button { flex: none; padding: 6px 14px; border: 0; border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+#menu button.accent { color: var(--bg); background: var(--accent); font-weight: 600; margin-bottom: 2px; }
 #menu button.accent:hover { background: var(--accent); filter: brightness(1.1); }
 
 /* Menus: the shortcut is at the right, muted. */
 .popup button.has-keys { display: flex; justify-content: space-between; align-items: baseline; gap: 28px; }
 .popup .menu-keys { color: var(--fg-muted); font-size: 12px; white-space: nowrap; }
 #menu button.accent .menu-keys { color: inherit; opacity: .75; }
+
+/* The card's button fills the card (the dialog rule above is more specific than .update-callout alone). */
+#dialog .update-callout .opt.primary { width: 100%; box-sizing: border-box; margin: 8px 0 2px; padding: 7px 14px; }

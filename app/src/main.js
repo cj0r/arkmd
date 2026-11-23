@@ -6,7 +6,7 @@ import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
-import { shouldAutoCheck, summarizeNotes, describeDownload } from "./updates.js";
+import { shouldAutoCheck, summarizeNotes, describeDownload, restorePending } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS, KEY } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
@@ -1160,6 +1160,7 @@ async function checkForUpdates(quiet = false) {
     const found = await platform.update.check();
     store.set("updateChecked", Date.now());
     pendingUpdate = found;
+    store.set("pendingUpdate", found);          // remembered, so a restart doesn't forget that an update is waiting
     updateBadge();
     if (!found) { if (!quiet) toast(`ArkMD ${await platform.version()} is up to date`); return; }
     if (!quiet) showUpdate();
@@ -1344,12 +1345,14 @@ async function about() {
   const line = (text) => { const p = document.createElement("p"); p.className = "about"; p.textContent = text; return p; };
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
   shownVersion = v;
+  const update = updateNodes();
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
+    ...(pendingUpdate ? update : []),            // a waiting update comes first; the quiet Check for updates button stays with the links
     button("Support and contributing", () => { closeDialog(); openSupport(); }),
     button("Project page", () => openWeb(REPO_URL)),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
-    ...updateNodes(),
+    ...(pendingUpdate ? [] : update),
     button("Close", closeDialog));
   $("dialog-backdrop").hidden = false;
   d.querySelector(".opt")?.focus({ preventScroll: true });
@@ -1971,10 +1974,19 @@ async function init() {
   store.set("welcomed", true);
   shownVersion = await platform.version();
   offerRecovery();
-  // The automatic check is off unless the user turned it on; it runs once a day, a few seconds after start.
-  if (platform.update && shouldAutoCheck(store.get("autoUpdate", false), store.get("updateChecked", 0), Date.now())) {
-    setTimeout(() => checkForUpdates(true), 4000);
+  // An update found earlier is shown again at once, without a network request; it is dropped once the app is that version.
+  if (platform.update) {
+    pendingUpdate = restorePending(store.get("pendingUpdate", null), await platform.version());
+    if (!pendingUpdate) store.set("pendingUpdate", null);
+    updateBadge();
   }
+  // The automatic check is off unless the user turned it on; it runs once a day, a few seconds after start, and again
+  // when the app is brought back to the front after a day (a phone app is rarely restarted).
+  const autoCheck = () => {
+    if (platform.update && shouldAutoCheck(store.get("autoUpdate", false), store.get("updateChecked", 0), Date.now())) checkForUpdates(true);
+  };
+  setTimeout(autoCheck, 4000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") autoCheck(); });
 }
 
 /** Minimize / maximize / close for windows without a native frame, plus edge handles to resize them. */

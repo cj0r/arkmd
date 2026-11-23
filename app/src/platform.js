@@ -213,6 +213,9 @@ const desktopImpl = {
       return { version: found.version, notes: found.body || "" };
     },
     async install(onProgress) {
+      // After a restart the update is known only from what was saved, so fetch the handle that installs it.
+      if (!this._found) await this.check();
+      if (!this._found) throw new Error("The update is no longer available");
       let total = null, done = 0;
       await this._found.downloadAndInstall((e) => {
         if (e.event === "Started") total = e.data.contentLength ?? null;

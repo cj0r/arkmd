@@ -81,3 +81,18 @@ export function summarizeNotes(notes, maxLines = 8) {
   const lines = String(notes ?? "").split(/\r?\n/).map((l) => l.replace(/^#+\s*/, "").replace(/^[-*]\s+/, "• ").replace(/\*\*/g, "").trim()).filter(Boolean);
   return lines.slice(0, maxLines).join("\n") + (lines.length > maxLines ? "\n…" : "");
 }
+
+/**
+ * The update found by an earlier check, as it was saved on the device, if it is still newer than the running version:
+ * the app can then show it again after a restart without asking the network. Only known fields are kept, and a download
+ * address must be an https one; anything else is dropped.
+ */
+export function restorePending(saved, currentVersion) {
+  if (!saved || typeof saved !== "object" || typeof saved.version !== "string") return null;
+  if (!currentVersion || !isNewer(saved.version, currentVersion)) return null;
+  const update = { version: saved.version, notes: typeof saved.notes === "string" ? saved.notes : "" };
+  if (typeof saved.downloadUrl === "string" && /^https:\/\//.test(saved.downloadUrl)) update.downloadUrl = saved.downloadUrl;
+  if (typeof saved.sha256 === "string") update.sha256 = saved.sha256;
+  return update;
+}
+

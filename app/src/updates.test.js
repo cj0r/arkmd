@@ -95,3 +95,19 @@ test("describeDownload explains each Download Manager state", () => {
   assert.equal(describeDownload({ status: "gone" }).state, "failed");
   assert.equal(describeDownload(undefined).state, "running");
 });
+
+import { restorePending } from "./updates.js";
+test("restorePending keeps a saved update only while it is newer than the running version", () => {
+  const saved = { version: "0.24.0", notes: "Fixed things", downloadUrl: "https://github.com/x/y.apk", sha256: "abc", junk: 1 };
+  assert.deepEqual(restorePending(saved, "0.23.2"), { version: "0.24.0", notes: "Fixed things", downloadUrl: "https://github.com/x/y.apk", sha256: "abc" });
+  assert.equal(restorePending(saved, "0.24.0"), null);       // installed since
+  assert.equal(restorePending(saved, "0.25.1"), null);       // superseded
+});
+
+test("restorePending rejects malformed or unsafe saved data", () => {
+  assert.equal(restorePending(null, "0.1.0"), null);
+  assert.equal(restorePending({ version: 5 }, "0.1.0"), null);
+  assert.equal(restorePending({ version: "0.2.0" }, ""), null);
+  assert.equal(restorePending({ version: "0.2.0", downloadUrl: "http://evil.example/x.apk" }, "0.1.0").downloadUrl, undefined);
+  assert.equal(restorePending({ version: "0.2.0", downloadUrl: "javascript:alert(1)" }, "0.1.0").downloadUrl, undefined);
+});

@@ -2,6 +2,15 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.23.3 (2026-11-23)
+
+### Fixed
+- **An update found by a check is remembered.** The banner, the dot on More and the Update buttons used to disappear when the app was closed, and did not return until Check for updates was used again. They now come back at once on the next start, until the app is that version. With automatic checks on, the check also runs when the app is brought back to the front after a day, not only at start.
+- In the update card the Update button now fills the card, and in About the card sits under the version instead of below the links.
+
+### Changed
+- The update buttons, banner and card are smaller.
+
 ## 0.23.2 (2026-11-23)
 
 ### Changed
