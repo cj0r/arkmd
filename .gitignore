@@ -5,6 +5,5 @@ node_modules/
 *.keystore
 *.jks
 keystore.properties
-PLAN.md
 __pycache__/
 *.pyc

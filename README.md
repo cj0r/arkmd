@@ -102,7 +102,6 @@ app/                 the app: src/ (front end), src-tauri/ (Rust shell, Tauri co
 shared/web/          reader page, themes.json, fonts, welcome.md (the built-in welcome tour)
 tools/               gen_themes.py, build_fonts.py, gen_notices.py, version.py
 samples/             feature-tour.md (a document that uses every supported feature), custom-theme.css (an example theme)
-design/              logo sources and a sheet of every theme's colors
 ```
 
 ## Disclaimer

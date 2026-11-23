@@ -554,5 +554,7 @@ if __name__ == "__main__":
         json.dump(THEMES, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print(f"wrote {len(THEMES)} themes")
-    import runpy
-    runpy.run_path(os.path.join(HERE, "theme_sheet.py"), run_name="__main__")
+    sheet = os.path.join(HERE, "theme_sheet.py")      # a maintainer's aid; not part of every checkout
+    if os.path.exists(sheet):
+        import runpy
+        runpy.run_path(sheet, run_name="__main__")

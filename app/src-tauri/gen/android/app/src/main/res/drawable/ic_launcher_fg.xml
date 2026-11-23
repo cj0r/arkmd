@@ -1,4 +1,4 @@
-<!-- ArkMD mark: an open fjell (A-peak) over still water with a tapered reflection. design/logo/refine-3.svg -->
+<!-- ArkMD mark: an open fjell (A-peak) over still water with a tapered reflection. docs/logo/icon.svg -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <path android:pathData="M36.5,60.5 L54,29 L71.5,60.5" android:strokeColor="#eceff4" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
     <path android:pathData="M31.5,68.5 H76.5" android:strokeColor="#88c0d0" android:strokeWidth="2.5" android:strokeLineCap="round"/>

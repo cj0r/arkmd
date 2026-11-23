@@ -38,7 +38,8 @@ jobs:
       - name: Generated files are up to date
         run: |
           python3 tools/gen_themes.py
-          git diff --exit-code -- shared/web/themes.json design/theme-sheet.html
+          git diff --exit-code -- shared/web/themes.json
+          if [ -f design/theme-sheet.html ]; then git diff --exit-code -- design/theme-sheet.html; fi
 
   rust:
     runs-on: ubuntu-22.04

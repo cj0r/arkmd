@@ -23,7 +23,7 @@ The palette button in the top bar opens the theme list: dark themes first, then 
 - **Tokyo Night:** Night, Storm, Moon, Light
 - **VS Code:** Dark+, Light+
 
-A theme sets the colors of the reader, the editor, code blocks, callouts and the app itself. Headings use a different color for each level, in an order that follows the theme's own conventions. `design/theme-sheet.html` in the repository lists every color of every theme with its source and contrast ratio.
+A theme sets the colors of the reader, the editor, code blocks, callouts and the app itself. Headings use a different color for each level, in an order that follows the theme's own conventions.
 
 ## Your own theme
 
