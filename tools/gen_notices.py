@@ -60,6 +60,7 @@ PALETTES = [
     ("Panda", "PandaTheme/panda-syntax-vscode (no license file found; only color values are used)"),
     ("Material", "equinusocio/vsc-material-theme (license not confirmed; only color values are used)"),
     ("Vaporwave", "the common vaporwave color palette (not taken from a project)"),
+    ("Basic Light and Basic Dark", "ArkMD's own neutral palettes (not taken from a project)"),
 ]
 
 MIT = """Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated

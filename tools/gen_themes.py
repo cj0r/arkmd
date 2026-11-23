@@ -256,7 +256,8 @@ def light(key):
 # bold is the orange, italic the purple, code the green. Text colours that fall short of WCAG AA are adjusted by
 # with_aa() like every other theme, which matters most for the light ones.
 def simple(name, dark, source, *, bg, bgAlt, surface, selection, fg, comment, red, orange, yellow, green, cyan, blue,
-           purple, accent=None, link=None, headings=None, bold=None, italic=None, tag=None, hl_over=None):
+           purple, accent=None, link=None, headings=None, bold=None, italic=None, tag=None, hl_over=None, code_fg=None,
+           quote_border=None):
     h = dict(keyword=purple, string=green, number=orange, comment=comment, function=blue, title=blue, type=yellow,
              variable=fg, attr=yellow, builtin=cyan, literal=orange, meta=cyan, operator=cyan, punctuation=comment,
              regexp=cyan, deletion=red, addition=green)
@@ -264,7 +265,8 @@ def simple(name, dark, source, *, bg, bgAlt, surface, selection, fg, comment, re
     return theme(name, dark, bg=bg, bgAlt=bgAlt, surface=surface, fg=fg, fgMuted=comment, accent=accent or blue,
                  link=link or blue, selection=selection,
                  headings=headings or [red, yellow, green, cyan, blue, purple], bold=bold or orange,
-                 italic=italic or purple, codeFg=green, quoteBorder=accent or blue, checkbox=accent or blue,
+                 italic=italic or purple, codeFg=code_fg or green, quoteBorder=quote_border or accent or blue,
+                 checkbox=accent or blue,
                  tag=tag or cyan, red=red, orange=orange, yellow=yellow, green=green, cyan=cyan, purple=purple,
                  hljs=hl(h["keyword"], h["string"], h["number"], h["comment"], h["function"],
                          h["title"], h["type"], h["variable"], h["attr"], h["builtin"], h["literal"], h["meta"],
@@ -365,6 +367,27 @@ EXTRA = {
         bgAlt="#f4f4f4", surface="#e7eaec", selection="#d4ebe9", fg="#90a4ae", comment="#aabfc9", red="#e53935",
         orange="#f76d47", yellow="#ffb62c", green="#91b859", cyan="#39adb5", blue="#6182b8", purple="#7c4dff",
         accent="#00bcd4", headings=["#e53935", "#f76d47", "#91b859", "#39adb5", "#6182b8", "#7c4dff"]),
+    # Plain, low-saturation themes for people who want an ordinary document look (a word processor, a basic Markdown
+    # editor): near-white or near-black page, navy and slate headings, a single muted blue accent, bold and italic
+    # without color, and code colors in the VS Code Light+/Dark+ family toned down.
+    "basic-light": simple("Basic Light", False, "ArkMD's own neutral palette, modelled on word-processor and plain editor defaults",
+        bg="#ffffff", bgAlt="#f4f5f7", surface="#dfe2e6", selection="#cfe2f6", fg="#222222", comment="#5f6368",
+        red="#a4262c", orange="#8a4b08", yellow="#7a5d00", green="#2e6b34", cyan="#2b6f77", blue="#2b579a",
+        purple="#5c2d91", accent="#2b579a", link="#0563c1", bold="#222222", italic="#222222", tag="#2b6f77",
+        code_fg="#3d3d3d", quote_border="#c3c8ce",
+        headings=["#1f3864", "#2f5496", "#44546a", "#595959", "#595959", "#6b6b6b"],
+        hl_over=dict(keyword="#0451a5", string="#a31515", number="#098658", function="#795e26", title="#795e26",
+                     type="#267f99", attr="#0451a5", builtin="#267f99", literal="#0451a5", meta="#5c2d91",
+                     operator="#222222", regexp="#811f3f", comment="#5f6368", punctuation="#5f6368")),
+    "basic-dark": simple("Basic Dark", True, "ArkMD's own neutral palette, modelled on common dark editor defaults",
+        bg="#1f1f1f", bgAlt="#272727", surface="#3a3a3a", selection="#2f4a6b", fg="#d4d4d4", comment="#9a9a9a",
+        red="#d27b7b", orange="#c99a6b", yellow="#c4b27a", green="#8dba8d", cyan="#7fb5bd", blue="#6aa0d6",
+        purple="#b49bd0", accent="#6aa0d6", link="#7db3e6", bold="#ececec", italic="#d4d4d4", tag="#7fb5bd",
+        code_fg="#c8c8c8", quote_border="#555555",
+        headings=["#e3ebf6", "#a9c6e6", "#92a9c4", "#b0b6bd", "#b0b6bd", "#979da5"],
+        hl_over=dict(keyword="#7aa7d8", string="#c49a7c", number="#a6bf9a", function="#c9c19b", title="#c9c19b",
+                     type="#8fbfb7", attr="#7aa7d8", builtin="#8fbfb7", literal="#7aa7d8", meta="#b49bd0",
+                     operator="#d4d4d4", regexp="#b78d8d", comment="#9a9a9a", punctuation="#9a9a9a")),
     "nordic": simple("Nordic", True, "AlexvZyl/nordic.nvim palette", bg="#242933", bgAlt="#1e222a", surface="#2e3440",
         selection="#434c5e", fg="#d8dee9", comment="#60728a", red="#bf616a", orange="#d08770", yellow="#ebcb8b",
         green="#a3be8c", cyan="#8fbcbb", blue="#81a1c1", purple="#b48ead", accent="#88c0d0", link="#88c0d0",

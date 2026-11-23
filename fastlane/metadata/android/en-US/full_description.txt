@@ -11,7 +11,7 @@ ArkMD opens a Markdown file, shows it with Obsidian-style rendering, and switche
 • Earlier versions of a file are kept each time you save, and unsaved work is restored after a crash. Everything stays on the device.
 
 <b>Looks</b>
-• 44 dark and light themes, separate reading and editing fonts, and your own theme from a CSS file of color variables.
+• 46 dark and light themes, including plain Basic Light and Basic Dark, separate reading and editing fonts, and your own theme from a CSS file of color variables.
 • Text colors meet WCAG 2.2 AA contrast by default.
 
 <b>Private and small</b>

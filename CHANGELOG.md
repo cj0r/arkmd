@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.16.0 (2026-11-23)
+
+### Added
+- **Basic Light and Basic Dark**, two plain themes without bright colors, in the style of a word processor or a basic Markdown editor: a white or near-black page, navy and slate headings, one muted blue accent, and bold and italic without color. Both meet WCAG AA contrast.
+
 ## 0.15.3 (2026-11-23)
 
 ### Fixed

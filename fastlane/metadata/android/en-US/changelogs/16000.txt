@@ -1,0 +1,1 @@
+Adds two plain themes, Basic Light and Basic Dark. Android is otherwise unchanged.

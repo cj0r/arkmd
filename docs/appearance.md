@@ -4,6 +4,7 @@
 
 The palette button in the top bar opens the theme list: dark themes first, then light ones, each group in alphabetical order. A new install starts with One Dark Pro. Themes are built from each project's published palette, so they match what you know from those projects:
 
+- **Basic:** Basic Light and Basic Dark, plain low-saturation themes in the style of a word processor or a basic editor: a white or near-black page, navy and slate headings, a single muted blue accent, and bold and italic without color
 - **Atom:** One Dark Pro, One Dark Pro Night Flat, One Light
 - **Ayu:** Dark, Mirage, Light
 - **Catppuccin:** Mocha, Macchiato, Frappé, Latte

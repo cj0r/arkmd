@@ -1,6 +1,6 @@
 [package]
 name = "arkmd"
-version = "0.15.3"
+version = "0.16.0"
 description = "Lightweight Markdown viewer and editor"
 edition = "2021"
 
