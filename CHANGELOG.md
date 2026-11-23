@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.22.3 (2026-11-23)
+
+### Changed
+- **Support has its own entry in the More menu.** It gathers Copy diagnostic information, Open the log folder, the user guide, a link to report a bug or suggest a feature, the Ko-fi and Buy Me a Coffee links and the page on contributing on GitHub. The Troubleshooting rows are no longer in Settings, and About links to Support.
+
 ## 0.22.2 (2026-11-23)
 
 ### Fixed

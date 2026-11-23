@@ -1253,6 +1253,32 @@ async function openContribute() {
   }
 }
 
+const KOFI_URL = "https://ko-fi.com/cj000r";
+const COFFEE_URL = "https://www.buymeacoffee.com/cj0r";
+
+/** Support: help with a problem, and ways to support or contribute to the project. */
+function openSupport() {
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Support";
+  const heading = (text) => { const s = document.createElement("div"); s.className = "section"; s.textContent = text; return s; };
+  const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
+  const web = (url) => () => { platform.openUrl(url).catch((e) => toast(`Could not open the link: ${e.message || e}`)); };
+  d.replaceChildren(h,
+    heading("Troubleshooting"),
+    button("Copy diagnostic information", () => { closeDialog(); copyDiagnostics(); }),
+    ...(platform.openLogFolder ? [button("Open the log folder", () => platform.openLogFolder().catch((e) => toast(`Could not open the folder: ${e.message || e}`)))] : []),
+    button("User guide", web(`${REPO_URL}/tree/main/docs`)),
+    button("Report a bug or suggest a feature", web(`${REPO_URL}/issues/new/choose`)),
+    heading("Support the project"),
+    button("Support on Ko-fi", web(KOFI_URL)),
+    button("Buy Me a Coffee", web(COFFEE_URL)),
+    button("Contribute on GitHub", () => { closeDialog(); openContribute(); }),
+    button("Close", closeDialog));
+  $("dialog-backdrop").hidden = false;
+  d.querySelector(".opt")?.focus({ preventScroll: true });
+}
+
 async function about() {
   const d = $("dialog");
   dialogReturn = document.activeElement;
@@ -1263,7 +1289,7 @@ async function about() {
   shownVersion = v;
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
-    button("Contribute and support", () => { closeDialog(); openContribute(); }),
+    button("Support and contributing", () => { closeDialog(); openSupport(); }),
     button("Project page", () => { platform.openUrl(REPO_URL).catch(() => {}); }),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
     ...(platform.update ? [button("Check for updates", () => { closeDialog(); checkForUpdates(); })] : []),
@@ -1335,10 +1361,6 @@ function openSettings() {
   }
 
   if (!platform.mobile) { section("Keyboard"); row("Keyboard shortcuts", "F1", showShortcuts); }
-
-  section("Troubleshooting");
-  row("Copy diagnostic information", "", copyDiagnostics);
-  if (platform.openLogFolder) row("Open the log folder", "", () => platform.openLogFolder().catch((e) => toast(`Could not open the folder: ${e.message || e}`)));
 
   section("About");
   row("About ArkMD", "", about);
@@ -1434,7 +1456,7 @@ function moreMenu() {
   if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => { logError("Open file location", e); toast(`Could not open the location: ${e.message || e}`); })]);
   if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
-  entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);
+  entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["Support", openSupport], ["About", about]);
   menu($("btn-more"), entries);
 }
 

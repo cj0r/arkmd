@@ -13,7 +13,7 @@ Funding pays for the time spent on fixes, new features and testing on more devic
 
 The project lives at [github.com/cj0r/arkmd](https://github.com/cj0r/arkmd).
 
-- **Report a bug.** [Open an issue](https://github.com/cj0r/arkmd/issues/new/choose) and pick the bug form. Include the ArkMD version (**More** > **About**), your platform and its version, and the steps that trigger the problem. **Settings** > **Copy diagnostic information** puts the version, settings and the end of the error log on the clipboard, ready to paste. It contains no document text. A small Markdown file that shows the problem helps most.
+- **Report a bug.** [Open an issue](https://github.com/cj0r/arkmd/issues/new/choose) and pick the bug form. Include the ArkMD version (**More** > **About**), your platform and its version, and the steps that trigger the problem. **More** > **Support** > **Copy diagnostic information** puts the version, settings and the end of the error log on the clipboard, ready to paste. It contains no document text. A small Markdown file that shows the problem helps most.
 - **Suggest a feature.** [Open an issue](https://github.com/cj0r/arkmd/issues/new/choose) and pick the feature form. Say what you are trying to do, not only what you would like added.
 - **Send a pull request.** Fixes, tests, documentation and translations are welcome. [CONTRIBUTING.md](https://github.com/cj0r/arkmd/blob/main/CONTRIBUTING.md) explains how to build and test the app, and what a pull request should contain.
 - **Improve the documentation.** The user guide is in the [docs folder](https://github.com/cj0r/arkmd/tree/main/docs). Corrections are as welcome as code.

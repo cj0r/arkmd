@@ -1,0 +1,1 @@
+Adds a Support entry to the More menu with troubleshooting tools and the ways to support and contribute.
