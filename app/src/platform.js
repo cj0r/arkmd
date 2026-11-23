@@ -58,6 +58,9 @@ const androidImpl = {
   async logTail() { return ""; },
   openLogFolder: null,
   revealFile: null,                                                          // content:// documents have no folder to show
+  async renameFile(ref, name) { const r = await call("rename", ref, name); return r; },
+  async shareText(name, text) { await call("shareText", name, text); },
+  async printHtml(html, name) { await call("printHtml", name, html); },
   pickImage: null, importImage: null, savePastedImage: null, pasteClipboardImage: null,                  // inserting pictures is desktop only for now
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
@@ -171,8 +174,10 @@ const desktopImpl = {
       handler({ type: t === "drop" ? "drop" : t === "leave" ? "leave" : "enter", paths: e.payload.paths || [] });
     });
   },
+  /** Rename a file in its own folder; resolves { ref, name } of the renamed file. */
+  async renameFile(ref, name) { const path = await invoke("rename_file", { path: ref, name }); return { ref: path, name: baseName(path) }; },
   /** A Markdown file next to the open document: gives the app access to it and returns its path. */
-  async openLinked(base, rel) { return invoke("open_linked", { base, rel }); },
+  async openLinked(base, rel, outside = false) { return invoke("open_linked", { base, rel, outside }); },
   /** The bytes (an ArrayBuffer) of an image next to the open document. */
   async readLinkedImage(base, rel) { return invoke("read_linked_image", { base, rel }); },
   async setTitle(title) {
@@ -236,3 +241,10 @@ async function version() {
 
 export const baseName = (p) => p.split(/[\\/]/).pop();
 export const platform = { ...(android ? androidImpl : desktopImpl), version };
+
+/** macOS: shortcuts use Cmd, and the in-app updater isn't offered (macOS builds are experimental and unsigned; new
+ *  versions are downloaded from the releases page). */
+export const isMac = !android && /Mac/i.test(navigator.platform || navigator.userAgent);
+if (isMac) platform.update = null;
+/** A shortcut as the system names its keys: Cmd for Ctrl on macOS. */
+export const keyLabel = (text) => (isMac ? String(text).replace(/Ctrl/g, "Cmd") : text);

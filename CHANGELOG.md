@@ -2,6 +2,21 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.25.0 (2026-11-23)
+
+### Added
+- **Rename file** (More menu). The file is renamed in its own folder; an existing file is never replaced, and names that are invalid on Windows are refused on every platform. The tab, the Recent files entry with its pin, and the file history follow the file. On Android it uses the document provider's rename, where the provider supports it.
+- **Android: Share and Print or save as PDF** in the More menu. Share sends the document's text to another app; Print or save as PDF uses the system print dialog with the exported page.
+- **macOS build (experimental, untested).** Each release attaches `ArkMD-<version>-macos-universal-experimental.dmg`, an Intel and Apple Silicon app that is ad-hoc signed, not notarized, and has not been run on a Mac. It has no in-app updater, and shortcuts are shown with Cmd.
+- **UI smoke and accessibility test in CI.** The built app is loaded in headless Chrome under its own content security policy with a stand-in for the desktop backend. The test opens, edits, saves, renames, opens menus, dialogs and flyouts, checks the contrast of every built-in theme, and runs axe-core accessibility rules on the main screens at desktop and phone width. It runs on every push and before every release.
+
+### Changed
+- **A link to a Markdown file outside the document's folder asks first.** A relative link or wikilink that leaves the folder tree (`../`) shows the file's path and opens it only after confirmation. Files inside the folder tree open as before.
+- **The content security policy no longer allows inline scripts.** The reader's script moved from `viewer.html` to its own file, and the policy now also sets `object-src 'none'` and `base-uri 'self'`.
+
+### Fixed
+- **Tab stays inside an open dialog.** Tab and Shift+Tab used to move focus to the page behind a dialog; they now go round the dialog's controls.
+
 ## 0.24.2 (2026-11-23)
 
 ### Fixed

@@ -74,6 +74,9 @@ export const setPinned = (list, ref, pinned) => list.map((r) => (r.ref === ref ?
 /** Whether the file is pinned. */
 export const isPinned = (list, ref) => !!list.find((r) => r.ref === ref)?.pinned;
 export const pinned = (list) => list.filter((r) => r.pinned);
+/** The list with the entry for `ref` pointing at the renamed file; its place, pin and preview stay. */
+export const rename = (list, ref, newRef, newName) =>
+  list.filter((r) => r.ref !== newRef || r.ref === ref).map((r) => (r.ref === ref ? { ...r, ref: newRef, name: newName } : r));
 export const remove = (list, ref) => list.filter((r) => r.ref !== ref);
 
 /** The folder a file is in, as the last two folder names ("Documents/Notes"); "" when it can't be told. */

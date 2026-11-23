@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --test \"src/**/*.test.js\"",
+    "smoke": "node smoke/smoke.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -37,6 +38,8 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
+    "axe-core": "^4.14.1",
+    "playwright-core": "^1.65.1",
     "vite": "^8.3.8"
   }
 }

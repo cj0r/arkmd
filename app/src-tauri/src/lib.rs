@@ -101,6 +101,51 @@ fn reveal_in_folder(app: tauri::AppHandle, log: tauri::State<LogFile>, path: Str
     }
 }
 
+/// Whether `name` can be a single file name on every system ArkMD runs on.
+fn valid_file_name(name: &str) -> bool {
+    let bad = |c: char| c.is_control() || "<>:\"/\\|?*".contains(c);
+    let reserved = {
+        let stem = name.split('.').next().unwrap_or("").to_ascii_lowercase();
+        matches!(stem.as_str(), "con" | "prn" | "aux" | "nul")
+            || ((stem.starts_with("com") || stem.starts_with("lpt")) && stem.len() == 4 && stem.as_bytes()[3].is_ascii_digit() && stem.as_bytes()[3] != b'0')
+    };
+    !name.trim().is_empty()
+        && name.len() <= 255
+        && !name.chars().any(bad)
+        && !name.chars().all(|c| c == '.')
+        && !name.ends_with(['.', ' '])
+        && !reserved
+}
+
+/// Rename `file` inside its own folder. An existing file is never replaced; a name that differs only in case is
+/// allowed. Returns the new path.
+fn rename_in_place(file: &std::path::Path, name: &str) -> Result<PathBuf, String> {
+    if !valid_file_name(name) {
+        return Err("that is not a valid file name".into());
+    }
+    let dest = file.parent().ok_or("the file has no folder")?.join(name);
+    if dest != file && dest.exists() {
+        let same = matches!((file.canonicalize(), dest.canonicalize()), (Ok(a), Ok(b)) if a == b);
+        if !same {
+            return Err("a file with that name already exists".into());
+        }
+    }
+    std::fs::rename(file, &dest).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
+/// Rename a file ArkMD has access to and give the app access to the new path.
+#[tauri::command]
+fn rename_file(app: tauri::AppHandle, path: String, name: String) -> Result<String, String> {
+    let file = PathBuf::from(&path);
+    if !app.fs_scope().is_allowed(&file) {
+        return Err("the file was not chosen in ArkMD".into());
+    }
+    let dest = rename_in_place(&file, &name)?;
+    app.fs_scope().allow_file(&dest).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
 /// Show the log folder in the system file manager.
 #[tauri::command]
 fn open_log_folder(app: tauri::AppHandle, state: tauri::State<LogFile>) -> Result<(), String> {
@@ -370,10 +415,24 @@ fn save_text_file(app: tauri::AppHandle, path: String, text: String) -> Result<(
     save::write_atomic(&file, text.as_bytes()).map_err(|e| e.to_string())
 }
 
-/// Give the app access to the Markdown file `rel` next to `base` and return its path.
+/// Whether `target` lies inside the folder of the document `base` (or one below it).
+fn within_document_folder(base: &str, target: &std::path::Path) -> bool {
+    let Some(dir) = std::path::Path::new(base).parent() else { return false };
+    let dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+    let text = dir.to_string_lossy().into_owned();
+    let dir = PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text));
+    target.starts_with(dir)
+}
+
+/// Give the app access to the Markdown file `rel` next to `base` and return its path. A file outside the
+/// document's folder is refused with `outside:<path>` unless `outside` is set, which the frontend does only
+/// after the user confirmed it.
 #[tauri::command]
-fn open_linked(app: tauri::AppHandle, base: String, rel: String) -> Result<String, String> {
+fn open_linked(app: tauri::AppHandle, base: String, rel: String, outside: Option<bool>) -> Result<String, String> {
     let target = resolve_linked(&app, &base, &rel, &MARKDOWN_EXT)?;
+    if outside != Some(true) && !within_document_folder(&base, &target) {
+        return Err(format!("outside:{}", target.to_string_lossy()));
+    }
     app.fs_scope().allow_file(&target).map_err(|e| e.to_string())?;
     Ok(target.to_string_lossy().into_owned())
 }
@@ -444,7 +503,57 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_names_are_checked() {
+        for ok in ["a.md", "my notes (2).md", "日本語.md", ".hidden.md", "console.md"] {
+            assert!(valid_file_name(ok), "{ok}");
+        }
+        for bad in ["", " ", ".", "..", "a/b", "a\\b", "a:b", "a*", "end.", "end ", "CON.md", "nul", "lpt1.txt", "tab\t.md"] {
+            assert!(!valid_file_name(bad), "{bad}");
+        }
+        assert!(!valid_file_name(&"x".repeat(256)));
+    }
+
+    #[test]
+    fn renaming_stays_in_the_folder_and_never_replaces() {
+        let dir = std::env::temp_dir().join(format!("arkmd-rename-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.md");
+        std::fs::write(&a, "one").unwrap();
+        std::fs::write(dir.join("b.md"), "two").unwrap();
+        assert!(rename_in_place(&a, "b.md").unwrap_err().contains("already exists"));
+        assert!(rename_in_place(&a, "../c.md").is_err());
+        let c = rename_in_place(&a, "c.md").unwrap();
+        assert_eq!(c, dir.join("c.md"));
+        assert!(!a.exists());
+        assert_eq!(std::fs::read_to_string(&c).unwrap(), "one");
+        assert_eq!(std::fs::read_to_string(dir.join("b.md")).unwrap(), "two");
+        let up = rename_in_place(&c, "C.md").unwrap();
+        assert_eq!(std::fs::read_to_string(up).unwrap(), "one");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn links_stay_within_the_document_folder() {
+        let dir = std::env::temp_dir().join(format!("arkmd-scope-{}", std::process::id()));
+        let sub = dir.join("notes/sub");
+        std::fs::create_dir_all(&sub).unwrap();
+        let doc = dir.join("notes/a.md");
+        let doc = doc.to_string_lossy().into_owned();
+        let inside = sub.join("b.md").canonicalize().unwrap_or_else(|_| sub.join("b.md"));
+        assert!(within_document_folder(&doc, &inside));
+        assert!(within_document_folder(&doc, &dir.join("notes").canonicalize().unwrap().join("c.md")));
+        assert!(!within_document_folder(&doc, &dir.canonicalize().unwrap().join("other.md")));
+        assert!(!within_document_folder(&doc, &dir.canonicalize().unwrap().join("notes-x/d.md")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

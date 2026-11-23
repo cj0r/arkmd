@@ -9,10 +9,14 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +43,7 @@ class MainActivity : TauriActivity() {
     private var createId = 0
     private var createText = ""
     private var lastInsets = listOf(0, 0, 0, 0)
+    private var printView: WebView? = null
 
     private fun pushInsets() {
         val (l, t, r, b) = lastInsets
@@ -298,6 +303,50 @@ class MainActivity : TauriActivity() {
         @JavascriptInterface fun write(id: Int, ref: String, text: String) = io.execute {
             runCatching { writeText(documentUri(ref), text) }.onSuccess { reply(id, true) }.onFailure { fail(id, it) }
         }
+
+        /** Rename a document in place. The provider may give the renamed file a new address, which the page keeps using. */
+        @JavascriptInterface fun rename(id: Int, ref: String, name: String) = io.execute {
+            runCatching {
+                val renamed = DocumentsContract.renameDocument(contentResolver, documentUri(ref), name)
+                    ?: error("This location doesn't allow renaming")
+                persist(renamed)
+                fileInfo(renamed)
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        /** Hand the text to the system share sheet. A very large text is refused: intents are limited to about 1 MB. */
+        @JavascriptInterface fun shareText(id: Int, name: String, text: String) = main.post {
+            runCatching {
+                require(text.length <= 200_000) { "This document is too large to share as text" }
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, name).putExtra(Intent.EXTRA_TEXT, text)
+                startActivity(Intent.createChooser(send, null))
+                true
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }.let { }
+
+        /**
+         * Print a finished HTML page through the system print dialog (which also saves a PDF). The page is drawn by
+         * a separate WebView with scripts and file access off, so the document can't run anything.
+         */
+        @JavascriptInterface fun printHtml(id: Int, name: String, html: String) = main.post {
+            runCatching {
+                val view = WebView(this@MainActivity)
+                view.settings.javaScriptEnabled = false
+                view.settings.allowFileAccess = false
+                view.settings.allowContentAccess = false
+                view.webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(v: WebView, url: String?) {
+                        val job = name.replace(Regex("[^A-Za-z0-9._ -]"), "-")
+                        (getSystemService(Context.PRINT_SERVICE) as PrintManager)
+                            .print(job, v.createPrintDocumentAdapter(job), PrintAttributes.Builder().build())
+                        reply(id, true)
+                    }
+                }
+                printView = view          // kept until the next print, so the system can finish reading the page
+                view.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
+            }.onFailure { fail(id, it) }
+        }.let { }
 
         /** The document this activity was opened with (Open with / Share), consumed once. */
         @JavascriptInterface fun takeLaunch(id: Int) {

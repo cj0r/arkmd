@@ -1,7 +1,7 @@
 // ArkMD UI, shared by desktop and Android (and iOS later). The reader is the shared viewer.html in an
 // iframe; the editor is CodeMirror 6. Files, dialogs and the window go through platform.js.
 import { createEditor } from "./editor.js";
-import { platform, baseName } from "./platform.js";
+import { platform, baseName, isMac, keyLabel } from "./platform.js";
 import * as F from "./format.js";
 import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
@@ -17,6 +17,7 @@ import { NotTextError } from "./encoding.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
 import { extensionForType, isImagePath, pastedStem, altFromPath, pastesAsImage } from "./images.js";
 import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
+import { newFileName, fileNameProblem } from "./filename.js";
 import { fileKey, formatWhen, formatSize, lineDelta, draftsToOffer, pushClosed } from "./history.js";
 import * as hdb from "./historydb.js";
 
@@ -288,7 +289,16 @@ async function openLinkedFile(path, fragment = "") {
   const t = cur();
   if (!t?.ref || !platform.openLinked) { toast("Linked files open on desktop only, from a saved file."); return; }
   try {
-    const abs = await platform.openLinked(t.ref, path);
+    let abs;
+    try {
+      abs = await platform.openLinked(t.ref, path);
+    } catch (e) {
+      const outside = String(e?.message || e).match(/^outside:(.+)$/s)?.[1];
+      if (!outside) throw e;
+      const choice = await ask("Open a file outside this folder?", `This link points to a file outside the document's folder: ${outside}`, ["Open it", "Cancel"]);
+      if (choice !== 0) return;
+      abs = await platform.openLinked(t.ref, path, true);
+    }
     await openRef(abs, baseName(abs));
     if (fragment && cur()?.mode === "read" && readerReady) setTimeout(() => $("reader").contentWindow.scrollToAnchor(fragment), 150);
   } catch (e) {
@@ -928,7 +938,7 @@ function menu(anchor, entries) {
     if (keys && !platform.mobile) {            // the shortcut sits at the right, muted, the same way in every menu
       b.className = "has-keys" + (cls ? ` ${cls}` : "");
       const name = document.createElement("span"); name.textContent = label;
-      const hint = document.createElement("span"); hint.className = "menu-keys"; hint.textContent = keys;
+      const hint = document.createElement("span"); hint.className = "menu-keys"; hint.textContent = keyLabel(keys);
       b.append(name, hint);
     } else {
       b.textContent = label;
@@ -1035,6 +1045,35 @@ function ask(title, message, buttons) {
     d.replaceChildren(h, p, ...items);
     showDialog();
     items[0].focus({ preventScroll: true });
+  });
+}
+
+/** A question answered with a line of text; resolves with the text, or null for Cancel, Esc or a click outside. */
+function askText(title, message, initial, confirmLabel = "OK", check = () => null) {
+  const d = $("dialog");
+  dialogReturn = document.activeElement;
+  d.className = "";
+  const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = title;
+  const p = document.createElement("p"); p.className = "about"; p.textContent = message;
+  const input = document.createElement("input"); input.type = "text"; input.className = "dialog-input"; input.value = initial;
+  input.setAttribute("aria-label", title); input.autocomplete = "off"; input.spellcheck = false;
+  const problem = document.createElement("p"); problem.className = "about dialog-problem"; problem.setAttribute("role", "alert");
+  return new Promise((resolve) => {
+    pendingAsk = (v) => resolve(v === -1 ? null : v);
+    const finish = (value) => { pendingAsk = null; closeDialog(); resolve(value); };
+    const submit = () => {
+      const why = check(input.value);
+      if (why) { problem.textContent = why; input.focus(); return; }
+      finish(input.value);
+    };
+    const ok = document.createElement("button"); ok.className = "opt primary"; ok.textContent = confirmLabel; ok.onclick = submit;
+    const cancel = document.createElement("button"); cancel.className = "opt"; cancel.textContent = "Cancel"; cancel.onclick = () => finish(null);
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } };
+    d.replaceChildren(h, p, input, problem, ok, cancel);
+    showDialog();
+    input.focus({ preventScroll: true });
+    const dot = initial.lastIndexOf(".");
+    input.setSelectionRange(0, dot > 0 ? dot : initial.length);       // select the name, not the extension
   });
 }
 
@@ -1474,7 +1513,7 @@ function showShortcuts() {
       const r = document.createElement("div"); r.className = "keyrow";
       r.innerHTML = `<span class="what"></span><span class="keys"></span>`;
       r.querySelector(".what").textContent = what;
-      r.querySelector(".keys").textContent = keys;
+      r.querySelector(".keys").textContent = keyLabel(keys);
       nodes.push(r);
     }
   }
@@ -1500,7 +1539,11 @@ const readerScrollFraction = () => ($("reader").contentWindow.scrollFraction?.()
 async function printDoc() {
   const w = await readerForOutput();
   if (!w) return;
-  try { w.focus(); w.print(); } catch (e) { logError("Print", e); toast(`Could not print: ${e.message || e}`); }
+  try {
+    // Android has no print call in the page: the finished HTML goes to the system print dialog instead
+    if (platform.printHtml) await platform.printHtml(await w.exportHtml(cur().name), cur().name);
+    else { w.focus(); w.print(); }
+  } catch (e) { logError("Print", e); toast(`Could not print: ${e.message || e}`); }
 }
 
 async function exportHtml() {
@@ -1512,6 +1555,33 @@ async function exportHtml() {
     const r = await platform.saveAs(name, await w.exportHtml(t.name), [{ name: "HTML page", extensions: ["html"] }]);
     if (r) toast(`Exported ${r.name}`);
   } catch (e) { logError("Export", e); toast(`Could not export: ${e.message || e}`); }
+}
+
+/** Send the document's text to another app through the system share sheet. */
+async function shareDoc() {
+  const t = cur();
+  if (!t) return;
+  try { await platform.shareText(t.name, editor.getText()); } catch (e) { failed("share the document", e); }
+}
+
+/** Give the open file a new name in its own folder. Its history, recent-list entry and tab follow it. */
+async function renameFile() {
+  const t = cur();
+  if (!t?.ref || !platform.renameFile) return;
+  const typed = await askText("Rename file", "The file keeps its folder. Its extension stays unless you type another.", t.name, "Rename",
+    (v) => { const n = newFileName(v, t.name); return fileNameProblem(n) || (n === t.name ? "That is the current name." : null); });
+  if (typed === null) return;
+  const name = newFileName(typed, t.name);
+  const old = t.ref;
+  try {
+    const r = await platform.renameFile(old, name);
+    await withTimeout(hdb.moveVersions(fileKey(old), fileKey(r.ref), r.name)).catch(() => {});
+    t.ref = r.ref; t.name = r.name;
+    store.set("recent", R.rename(recents(), old, r.ref, r.name));
+    if (!$("files").hidden) renderFilesList();
+    updateChrome();
+    toast(`Renamed to ${r.name}`);
+  } catch (e) { failed("rename the file", e); }
 }
 
 /** "Show in File Explorer", "Reveal in Finder" or "Open file location" depending on the system. */
@@ -1544,7 +1614,10 @@ function moreMenu() {
   if (open) entries.push(["File history…", showHistory]);
   if (open && cur().ref && recentOn()) entries.push([R.isPinned(recents(), cur().ref) ? "Unpin from recent files" : "Pin to recent files", togglePinCurrent, "", KEY.pin]);
   if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => failed("open the file location", e))]);
-  if (open && !platform.mobile) entries.push(["Print…", printDoc, "", KEY.print], ["Export as HTML…", exportHtml]);
+  if (open && cur().ref && platform.renameFile) entries.push(["Rename file…", renameFile]);
+  if (open && platform.shareText) entries.push(["Share…", shareDoc]);
+  if (open && (!platform.mobile || platform.printHtml)) entries.push([platform.mobile ? "Print or save as PDF…" : "Print…", printDoc, "", platform.mobile ? undefined : KEY.print]);
+  if (open && !platform.mobile) entries.push(["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate, "accent"]);
   entries.push(["Welcome tour", openWelcome], ["Settings", openSettings, "", KEY.settings], ["Support", openSupport], ["About", about]);
   menu($("btn-more"), entries);
@@ -1697,6 +1770,15 @@ function onKey(e) {
     const i = items.indexOf(document.activeElement);
     items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
     e.preventDefault();
+  }
+  // A modal dialog keeps keyboard focus: Tab and Shift+Tab go round its controls and never reach the page behind it.
+  if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey && !$("dialog-backdrop").hidden) {
+    const items = [...$("dialog").querySelectorAll("button, input, select, textarea, summary, a[href]")].filter((n) => !n.disabled && n.offsetParent !== null);
+    const first = items[0], last = items[items.length - 1], now = document.activeElement;
+    if (!first) e.preventDefault();
+    else if (!$("dialog").contains(now)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && now === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && now === last) { e.preventDefault(); first.focus(); }
   }
   if (e.key === "F1") { e.preventDefault(); showShortcuts(); return; }
   if (e.key === "F3" && find.open) { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); return; }
@@ -2005,6 +2087,16 @@ async function init() {
   store.set("welcomed", true);
   shownVersion = await platform.version();
   offerRecovery();
+  if (isMac) {                       // tooltips are written with Ctrl; show Cmd, including tooltips set later
+    const fix = (n) => { const t = n.getAttribute?.("title"); if (t?.includes("Ctrl")) n.setAttribute("title", keyLabel(t)); };
+    document.querySelectorAll("[title]").forEach(fix);
+    new MutationObserver((list) => {
+      for (const m of list) {
+        if (m.type === "attributes") fix(m.target);
+        else m.addedNodes.forEach((n) => { if (n.nodeType === 1) { fix(n); n.querySelectorAll?.("[title]").forEach(fix); } });
+      }
+    }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["title"] });
+  }
   // An update found earlier is shown again at once, without a network request; it is dropped once the app is that version.
   if (platform.update) {
     pendingUpdate = restorePending(store.get("pendingUpdate", null), await platform.version());

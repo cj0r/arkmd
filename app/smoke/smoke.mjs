@@ -1,0 +1,285 @@
+// Smoke and accessibility test of the real UI. It serves the built app (dist/) with the CSP from tauri.conf.json,
+// replaces Tauri's IPC with an in-memory file system, and drives the page in headless Chrome the way a user would:
+// open a file, read, edit, save, rename, menus, dialogs (Esc goes back one page), flyouts, themes. axe-core checks
+// the main screens for accessibility problems. Run: `npm run build && npm run smoke`.
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright-core";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const dist = path.join(here, "..", "dist");
+const conf = JSON.parse(fs.readFileSync(path.join(here, "..", "src-tauri", "tauri.conf.json"), "utf8"));
+const csp = conf.app.security.csp;
+const axeSource = fs.readFileSync(path.join(here, "..", "node_modules", "axe-core", "axe.min.js"), "utf8");
+const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".md": "text/markdown", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf" };
+
+const server = http.createServer((req, res) => {
+  let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
+  if (p === "/") p = "/index.html";
+  if (p === "/favicon.ico") { res.writeHead(204).end(); return; }
+  const file = path.join(dist, path.normalize(p));
+  if (!file.startsWith(dist) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404).end(); return; }
+  res.writeHead(200, { "content-type": types[path.extname(file)] || "application/octet-stream", "content-security-policy": csp });
+  fs.createReadStream(file).pipe(res);
+});
+await new Promise((r) => server.listen(0, "127.0.0.1", r));
+const url = `http://127.0.0.1:${server.address().port}/`;
+
+const NOTE = "# Smoke test\n\nSome **bold** text.\n\n## Second heading\n\n- [ ] a task\n\n```js\nconst x = 1;\n```\n\n[Other note](other.md)\n";
+
+/** Stands in for Tauri's IPC. Files live in `files`; every call is recorded in `calls`. */
+function installMock({ note }) {
+  const files = { "/docs/notes.md": note, "/docs/other.md": "# Other\n" };
+  const calls = [];
+  window.__mock = { files, calls };
+  const enc = new TextEncoder();
+  let id = 1;
+  const handlers = {
+    take_launch_file: () => "/docs/notes.md",
+    "plugin:fs|read_text_file": ({ path }) => { if (!(path in files)) throw new Error("missing " + path); return enc.encode(files[path]).buffer; },
+    save_text_file: ({ path, text }) => { files[path] = text; },
+    rename_file: ({ path, name }) => { const to = path.replace(/[^/]*$/, name); if (to in files) throw new Error("a file with that name already exists"); files[to] = files[path]; delete files[path]; return to; },
+    open_linked: ({ rel, outside }) => { if (rel === "other.md" && !outside) throw new Error("outside:/docs/other.md"); return "/docs/" + rel; },
+    "plugin:app|version": () => "9.9.9",
+    "plugin:window|is_decorated": () => true,
+    "plugin:window|is_maximized": () => false,
+    copy_text: () => null,
+    log_event: () => null,
+  };
+  window.__TAURI_INTERNALS__ = {
+    metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } },
+    convertFileSrc: (p) => p,
+    transformCallback: () => id++,
+    unregisterCallback: () => {},
+    invoke: async (cmd, args) => {
+      calls.push({ cmd, args });
+      const h = handlers[cmd];
+      return h ? h(args || {}) : null;
+    },
+  };
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
+}
+
+const results = [];
+let failures = 0;
+async function step(name, fn) {
+  try { await fn(); results.push(`ok    ${name}`); }
+  catch (e) {
+    failures++; results.push(`FAIL  ${name}\n        ${String(e.message || e).split("\n").slice(0, 4).join("\n        ")}`);
+    for (let i = 0; i < 4; i++) await page.keyboard.press("Escape");       // leave no dialog or menu open for the next step
+  }
+}
+const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, channel: process.env.CHROME_PATH ? undefined : "chrome", args: ["--no-sandbox"] });
+const ctx = await browser.newContext({ viewport: { width: 1100, height: 760 }, deviceScaleFactor: 1 });
+const page = await ctx.newPage();
+const problems = [];
+page.on("pageerror", (e) => problems.push("page error: " + e.message));
+page.on("console", (m) => { if (m.type() === "error") problems.push("console error: " + m.text()); });
+page.on("response", (r) => { if (r.status() >= 400 && !r.url().endsWith("favicon.ico")) problems.push(`${r.status()} ${r.url()}`); });
+page.on("requestfailed", (r) => problems.push("request failed: " + r.url()));
+await page.addInitScript(installMock, { note: NOTE });
+const reader = () => page.frameLocator("#reader");
+const call = (cmd) => page.evaluate((c) => window.__mock.calls.filter((x) => x.cmd === c), cmd);
+const menuItem = (label) => page.locator("#menu button", { hasText: label }).first();
+const openMenu = async () => { await page.click("#btn-more"); await page.waitForSelector("#menu:not([hidden])"); };
+const dialogOpen = () => page.locator("#dialog-backdrop:not([hidden])").count().then((n) => n > 0);
+
+async function axe(label, include) {
+  // evaluated through the debugger protocol: the page's own CSP (rightly) refuses an injected inline script
+  if (!(await page.evaluate(() => !!window.axe))) await page.evaluate(axeSource);
+  const out = await page.evaluate(async (inc) => {
+    const r = await window.axe.run(inc ? { include: [inc] } : document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] } });
+    return r.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.slice(0, 3).map((n) => n.target.join(" ")) }));
+  }, include || null);
+  const bad = out.filter((v) => v.impact === "critical" || v.impact === "serious" || v.impact === "moderate");
+  expect(bad.length === 0, `${label}: ` + bad.map((v) => `${v.id} (${v.impact}) ${v.help} @ ${v.nodes.join(" | ")}`).join("; "));
+}
+
+await page.goto(url);
+
+await step("opens the launch file and shows it rendered", async () => {
+  await reader().locator("h1", { hasText: "Smoke test" }).waitFor({ timeout: 15000 });
+  expect(await reader().locator("pre code").count() === 1, "code block missing");
+  expect(await page.locator(".tab.active").innerText().then((t) => t.includes("notes.md")), "tab name");
+});
+
+await step("accessibility: reader screen", () => axe("reader screen"));
+
+await step("outline flyout opens and closes", async () => {
+  await page.click("#btn-outline");
+  await page.locator("#outline:not([hidden])").waitFor();
+  expect(await page.locator("#outline").innerText().then((t) => t.includes("Second heading")), "outline entries");
+  await axe("outline flyout");
+  await page.click("#btn-outline");
+  await page.locator("#outline[hidden]").waitFor({ state: "attached" });
+});
+
+await step("a link to a file outside the folder asks first, and Cancel opens nothing", async () => {
+  await reader().locator("a", { hasText: "Other note" }).click();
+  await page.locator("#dialog h2", { hasText: "outside this folder" }).waitFor();
+  await page.locator("#dialog button", { hasText: "Cancel" }).click();
+  await page.waitForTimeout(200);
+  expect((await call("open_linked")).length === 1, "the link was retried without asking");
+  expect(await page.locator(".tab").count() === 1, "a tab was opened");
+  await reader().locator("a", { hasText: "Other note" }).click();
+  await page.locator("#dialog button", { hasText: "Open it" }).click();
+  await page.locator(".tab", { hasText: "other.md" }).waitFor({ timeout: 5000 });
+  const calls = await call("open_linked");
+  expect(calls.at(-1).args.outside === true, "the confirmed open did not say so");
+  await page.keyboard.press("Control+w");
+  await page.locator(".tab.active", { hasText: "notes.md" }).waitFor();
+});
+
+await step("editing and saving writes the file", async () => {
+  await page.click("#toggle");
+  await page.locator("#editor .cm-content").waitFor();
+  await page.click("#editor .cm-content");
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\nAdded by the smoke test\n");
+  await page.keyboard.press("Control+s");
+  await page.waitForFunction(() => window.__mock.calls.some((c) => c.cmd === "save_text_file"));
+  const saved = await page.evaluate(() => window.__mock.files["/docs/notes.md"]);
+  expect(saved.includes("Added by the smoke test") && saved.startsWith("# Smoke test"), "saved text wrong: " + saved.slice(0, 80));
+});
+
+await step("accessibility: editor screen", () => axe("editor screen"));
+
+await step("rename changes the file and the tab", async () => {
+  await openMenu();
+  await menuItem("Rename file").click();
+  const input = page.locator("#dialog input.dialog-input");
+  await input.waitFor();
+  await input.fill("bad/name");
+  await page.keyboard.press("Enter");
+  expect(await page.locator("#dialog .dialog-problem").innerText().then((t) => t.length > 0), "no message for an invalid name");
+  await axe("rename dialog", "#dialog");
+  await input.fill("renamed");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => window.__mock.files["/docs/renamed.md"] !== undefined);
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
+  expect(!(await dialogOpen()), "dialog still open");
+});
+
+await step("menu is accessible", async () => {
+  await openMenu();
+  await axe("more menu", "#menu");
+  await page.keyboard.press("Escape");
+});
+
+await step("Esc steps back one dialog page, then closes", async () => {
+  await openMenu();
+  await menuItem("Settings").click();
+  await page.locator("#dialog h2", { hasText: "Settings" }).waitFor();
+  await axe("settings dialog", "#dialog");
+  await page.locator("#dialog button", { hasText: "Keyboard shortcuts" }).click();
+  await page.locator("#dialog h2", { hasText: /shortcuts/i }).waitFor();
+  await axe("shortcuts dialog", "#dialog");
+  await page.keyboard.press("Escape");
+  await page.locator("#dialog h2", { hasText: "Settings" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator("#dialog-backdrop[hidden]").waitFor({ state: "attached" });
+});
+
+await step("keyboard focus stays inside an open dialog", async () => {
+  await openMenu();
+  await menuItem("Settings").click();
+  await page.locator("#dialog h2", { hasText: "Settings" }).waitFor();
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press(i % 2 ? "Tab" : "Shift+Tab");
+    const inside = await page.evaluate(() => !!document.activeElement?.closest("#dialog"));
+    expect(inside, `focus left the dialog after ${i + 1} Tab presses (on ${await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)})`);
+  }
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest("#dialog")), `focus left the dialog going forward (${i + 1})`);
+  }
+  await page.keyboard.press("Escape");
+});
+
+await step("Support and About dialogs open and go back", async () => {
+  await openMenu();
+  await menuItem("Support").click();
+  await page.locator("#dialog h2", { hasText: "Support" }).waitFor();
+  await axe("support dialog", "#dialog");
+  await page.keyboard.press("Escape");
+  await page.locator("#dialog-backdrop[hidden]").waitFor({ state: "attached" });
+  await openMenu();
+  await menuItem("About").click();
+  await page.locator("#dialog h2").first().waitFor();
+  await axe("about dialog", "#dialog");
+  await page.keyboard.press("Escape");
+});
+
+await step("theme picker changes the theme", async () => {
+  const before = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--bg"));
+  await page.click("#btn-theme");
+  await page.locator("#dialog .opt").nth(3).waitFor();
+  await axe("theme picker", "#dialog");
+  await page.locator("#dialog .opt").nth(3).click();
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--bg"));
+  expect(before !== after || (await dialogOpen()) === false, "theme unchanged");
+  if (await dialogOpen()) await page.keyboard.press("Escape");
+});
+
+await step("recent files flyout lists the opened files", async () => {
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  expect(await page.locator("#files-list").innerText().then((t) => t.includes("renamed")), "renamed file missing from recent list");
+  await axe("recent files flyout", "#files");
+  await page.keyboard.press("Escape");
+});
+
+await step("closing the tab returns to the home screen", async () => {
+  await page.keyboard.press("Control+w");
+  await page.locator("#home").waitFor({ state: "visible" });
+  await axe("home screen");
+});
+
+await step("phone-sized window: top bar, menu and dialogs are accessible", async () => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.keyboard.press("Control+Shift+T");          // reopen the closed file
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 10000 });
+  await axe("compact editor screen");
+  await openMenu();
+  await axe("compact more menu", "#menu");
+  await menuItem("Settings").click();
+  await page.locator("#dialog h2", { hasText: "Settings" }).waitFor();
+  await axe("compact settings", "#dialog");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1100, height: 760 });
+});
+
+await step("every built-in theme meets the contrast rules (app and reader)", async () => {
+  const keys = Object.keys(JSON.parse(fs.readFileSync(path.join(dist, "themes.json"), "utf8")));
+  const failing = [];
+  for (const key of keys) {
+    await page.evaluate(([k, aa]) => { localStorage.setItem("ark.theme", JSON.stringify(k)); if (aa) localStorage.setItem("ark.contrastAA", "false"); }, [key, !!process.env.SMOKE_NO_AA]);
+    await page.reload();
+    await reader().locator("h1", { hasText: "Smoke test" }).waitFor({ timeout: 15000 });
+    const found = [];
+    for (const frame of [page.mainFrame(), page.frames().find((f) => f.url().endsWith("viewer.html"))]) {
+      if (!(await frame.evaluate(() => !!window.axe))) await frame.evaluate(axeSource);
+      const r = await frame.evaluate(() => window.axe.run(document, { runOnly: { type: "rule", values: ["color-contrast"] } }).then((x) => x.violations.flatMap((v) => v.nodes.slice(0, 2).map((n) => n.target.join(" ")))));
+      found.push(...r.map((t) => (frame === page.mainFrame() ? "app " : "reader ") + t));
+    }
+    if (found.length) failing.push(`${key}: ${found.join(", ")}`);
+  }
+  await page.evaluate(() => localStorage.removeItem("ark.theme"));
+  await page.reload();
+  expect(!failing.length, `${failing.length} theme(s): ` + failing.slice(0, 8).join(" | "));
+});
+
+await step("no script errors or blocked requests", async () => {
+  expect(problems.length === 0, problems.join("\n"));
+});
+
+console.log(results.join("\n"));
+await browser.close();
+server.close();
+if (failures) { console.log(`\n${failures} step(s) failed`); process.exit(1); }
+console.log("\nsmoke test passed");

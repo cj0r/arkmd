@@ -30,8 +30,8 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Welcome tour:** a document built into the app that shows every kind of formatting ArkMD draws, including twelve Mermaid diagrams. It opens on a fresh install and any time from More > Welcome tour or the home screen.
 - **Updates:** Check for updates (More > Support, Settings or About) installs a new release in place on Windows and Linux (the packages ask for an administrator password). On Android it shows the new version and opens the download in your browser, and Android's own installer takes it from there. An optional daily check is off by default.
 - **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page. Insert a picture from the formatting panel, by pasting (Windows) or by dropping a file: it is copied into an `images` folder next to the document.
-- **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
-- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; a Recent files flyout with previews, search and pinned favorites (Ctrl+Shift+R); Save as; Open file location (desktop) shows a file in your file manager. A second launch adds its file as a tab in the running window.
+- **Print, share and export:** Print (Ctrl+P) and Export as HTML from the More menu on desktop. On Android, Print or save as PDF uses the system print dialog, and Share sends the text to another app.
+- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; a Recent files flyout with previews, search and pinned favorites (Ctrl+Shift+R); Save as; Rename file; Open file location (desktop) shows a file in your file manager. A second launch adds its file as a tab in the running window.
 - **Small and private:** about 8 MB for Android and 4.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
 ## Install
@@ -45,6 +45,7 @@ Download the file for your platform from the [latest release](https://github.com
 | Debian, Ubuntu and derivatives | `ArkMD_<version>_amd64.deb` |
 | Fedora, openSUSE and derivatives | `ArkMD-<version>-1.x86_64.rpm` |
 | Any Linux (x86_64) | `ArkMD_<version>_amd64.AppImage` |
+| macOS 10.15 or newer (Intel and Apple Silicon), **experimental and untested** | `ArkMD-<version>-macos-universal-experimental.dmg` |
 
 **Android:** open the downloaded file. Android asks once to allow installing from your browser or file manager (Settings > Install unknown apps). Every release is signed with the same key, so a new version installs over the old one and keeps your settings.
 
@@ -53,6 +54,8 @@ Download the file for your platform from the [latest release](https://github.com
 **F-Droid repository:** ArkMD also has its own repository for F-Droid, Droid-ify and Neo Store, with the same signed APKs as the releases. Add `https://cj0r.github.io/arkmd/fdroid/repo` to your client (or open the link on the [repository page](https://cj0r.github.io/arkmd/)). Check that the client shows this signing fingerprint before you accept it: `6B:BB:C5:DB:95:A4:2C:2B:E7:5D:58:28:42:03:23:64:AB:E7:D0:11:F3:7B:64:09:3B:2C:B6:DC:7A:0A:2C:72`. The client then keeps ArkMD up to date in the background.
 
 **Windows:** run the installer. The installers aren't code-signed, so Windows SmartScreen may show a warning; choose **More info**, then **Run anyway**.
+
+**macOS (experimental):** the macOS build has not been run on a Mac by the maintainer, and it is not signed or notarized by Apple, so macOS blocks it at first. Open the `.dmg`, drag ArkMD to Applications, then open it with right-click > **Open** (on newer macOS versions: **System Settings** > **Privacy & Security** > **Open Anyway**). It has no in-app updater: download new versions from the releases page. Features that rely on desktop integration (file associations, the clipboard picture paste, Open file location) may not work. Problems are welcome as [issues](https://github.com/cj0r/arkmd/issues).
 
 **Linux:** install the package with your package manager, for example `sudo apt install ./ArkMD_<version>_amd64.deb` or `sudo dnf install ./ArkMD-<version>-1.x86_64.rpm`. The packages need WebKitGTK 4.1, which the package manager installs. For the AppImage, make it executable (`chmod +x ArkMD_*.AppImage`) and run it; if FUSE 2 isn't installed, start it with `--appimage-extract-and-run`. On Arch-based distributions, use the AppImage or build from source.
 

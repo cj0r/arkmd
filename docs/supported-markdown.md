@@ -43,4 +43,4 @@ On Windows and Linux, images next to the document are shown too: `![](picture.pn
 
 ## Links
 
-Web and mail links open in your system browser. `[text](#heading)` jumps to a heading in the same document, using the heading's GitHub-style name (lower case, spaces as hyphens). On Windows and Linux a link to a Markdown file next to the document, such as `[notes](notes/other.md)` or `[part](other.md#second-part)`, opens that file in a new tab and jumps to the heading. Other kinds of link are ignored.
+Web and mail links open in your system browser. `[text](#heading)` jumps to a heading in the same document, using the heading's GitHub-style name (lower case, spaces as hyphens). On Windows and Linux a link to a Markdown file next to the document, such as `[notes](notes/other.md)` or `[part](other.md#second-part)`, opens that file in a new tab and jumps to the heading. A link to a file outside the document's folder (for example `../other/notes.md`) asks before it opens. Other kinds of link are ignored.

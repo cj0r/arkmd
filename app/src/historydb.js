@@ -74,6 +74,14 @@ export async function versionsFor(key) {
   return rows.map(({ id, t, size, name }) => ({ id, t, size, name })).sort((a, b) => b.t - a.t);
 }
 
+/** A renamed file keeps its versions: they move to the new key. */
+export async function moveVersions(oldKey, newKey, newName) {
+  if (!oldKey || !newKey || oldKey === newKey) return;
+  const rows = await run("versions", "readonly", (s) => collect(s, IDBKeyRange.only(oldKey)), []);
+  if (!rows.length) return;
+  await run("versions", "readwrite", (s) => { for (const v of rows) s.put({ ...v, key: newKey, name: newName }); });
+}
+
 export async function getVersion(id) {
   return run("versions", "readonly", (s) => s.get(id), null);
 }

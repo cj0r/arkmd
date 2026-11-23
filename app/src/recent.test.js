@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarize, normalize, touch, setPinned, remove, folderOf, search, group, ago } from "./recent.js";
+import { summarize, normalize, touch, setPinned, rename, remove, folderOf, search, group, ago } from "./recent.js";
 
 test("summarize takes the first heading as the title and the opening text as the preview", () => {
   const s = summarize("---\ntags: x\n---\n# Trip plan\n\nBook the **ferry** and [hotel](https://x.y).\n\n## Day one\n\n- [ ] Pack\n- Passports\n");
@@ -117,4 +117,18 @@ test("displayName prefers the title and drops a Markdown extension", () => {
   assert.equal(displayName({ name: "groceries.md" }), "groceries");
   assert.equal(displayName({ name: "notes.txt" }), "notes");
   assert.equal(displayName({ name: "archive.tar" }), "archive.tar");
+});
+
+test("rename keeps the place, pin and preview of the entry", () => {
+  const list = [{ ref: "/a/one.md", name: "one.md", pinned: true, preview: "x" }, { ref: "/a/two.md", name: "two.md" }];
+  const out = rename(list, "/a/one.md", "/a/uno.md", "uno.md");
+  assert.deepEqual(out.map((r) => r.ref), ["/a/uno.md", "/a/two.md"]);
+  assert.equal(out[0].pinned, true);
+  assert.equal(out[0].preview, "x");
+  assert.equal(out[0].name, "uno.md");
+});
+
+test("rename onto an existing entry leaves one entry", () => {
+  const list = [{ ref: "/a/one.md", name: "one.md" }, { ref: "/a/two.md", name: "two.md" }];
+  assert.deepEqual(rename(list, "/a/one.md", "/a/two.md", "two.md").map((r) => r.ref), ["/a/two.md"]);
 });

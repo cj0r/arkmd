@@ -126,4 +126,4 @@ Each list and style shortcut works on the selected lines or text, and pressing i
 - **Tables:** **Tab** and **Shift+Tab** move between cells, and Tab in the last cell adds a row.
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 
-Menus and dialogs work with the arrow keys and Esc, and the focus ring always shows where you are. In a dialog, Esc (and Back on Android) goes back one page when you got there from another one, and closes the dialog only from its first page. To close everything at once, use Close or Done, or tap outside the dialog.
+Menus and dialogs work with the arrow keys and Esc, and Tab stays inside an open dialog, and the focus ring always shows where you are. In a dialog, Esc (and Back on Android) goes back one page when you got there from another one, and closes the dialog only from its first page. To close everything at once, use Close or Done, or tap outside the dialog.

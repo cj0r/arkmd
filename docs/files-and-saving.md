@@ -39,9 +39,16 @@ Pictures you insert are copied into an `images` folder next to the document. The
 
 ArkMD checks when you return to its window or to a tab. If the file was changed by another program and you have no unsaved changes in it, ArkMD reloads it and says so. If you do have unsaved changes, it leaves your text alone and warns you; **Save** then asks whether to replace the changed file, save a copy instead, or cancel, and autosave holds off until you decide. The check compares the file's text with what ArkMD last read or wrote, so a program that saves the same text again goes unnoticed.
 
-## Printing and exporting (desktop)
+## Renaming a file
 
+**More** > **Rename file…** gives the open file a new name in its own folder. The extension stays unless you type another. ArkMD does not replace a file that already exists under the new name, and a name that Windows would refuse (for example one with `:` or `*`) is refused everywhere. The tab, the Recent files entry (and its pin) and the file history follow the file. On Android, renaming works only where the document provider allows it; otherwise ArkMD says so.
+
+## Printing and exporting
+
+On desktop, 
 **More** > **Print…** (Ctrl+P) prints the rendered document in a light, ink-friendly style, and the print dialog can write a PDF. **More** > **Export as HTML…** saves a single page with your theme's colors, its text, tables and any local images embedded; links stay links, and it contains no scripts.
+
+On Android, **More** > **Print or save as PDF…** opens the system print dialog, which can also write a PDF, and **More** > **Share…** sends the document's text to another app (a very large document is too big to share this way; use Save as instead).
 
 ## What ArkMD changes in a file
 

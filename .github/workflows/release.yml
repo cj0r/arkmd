@@ -99,6 +99,48 @@ jobs:
             app/src-tauri/target/release/bundle/msi/*.msi
             app/src-tauri/target/release/bundle/*/*.sig
 
+  # Experimental: an unsigned, untested macOS build (Intel and Apple Silicon in one app). The release does not wait for
+  # it and does not fail if it fails; it is attached to the release only when it succeeded.
+  macos:
+    needs: test
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: "app/src-tauri -> target"
+      - name: Build
+        working-directory: app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # "-" signs the app ad hoc, which Apple Silicon requires to run it at all; it is not an Apple Developer ID signature
+          APPLE_SIGNING_IDENTITY: "-"
+        run: |
+          npm ci
+          npx tauri build --target universal-apple-darwin --bundles dmg
+      - name: Name the file
+        run: |
+          version="$(python3 tools/version.py)"
+          dmg="$(ls app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)"
+          mkdir -p out && cp "$dmg" "out/ArkMD-$version-macos-universal-experimental.dmg"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos
+          retention-days: 3
+          if-no-files-found: error
+          path: out/*.dmg
+
   android:
     needs: test
     runs-on: ubuntu-22.04
@@ -158,7 +200,9 @@ jobs:
           path: out/*.apk
 
   release:
-    needs: [test, desktop, android]
+    needs: [test, desktop, android, macos]
+    # the experimental macOS build may fail without stopping the release
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.desktop.result == 'success' && needs.android.result == 'success' }}
     runs-on: ubuntu-22.04
     permissions:
       contents: write     # create the GitHub release
