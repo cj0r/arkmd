@@ -923,9 +923,10 @@ function buildFormatBar() {
 function menu(anchor, entries) {
   const m = $("menu");
   menuReturn = anchor;
-  m.replaceChildren(...entries.map(([label, fn]) => {
+  m.replaceChildren(...entries.map(([label, fn, cls]) => {
     if (fn === null) { const h = document.createElement("div"); h.className = "menu-head"; h.setAttribute("role", "presentation"); h.textContent = label; return h; }
     const b = document.createElement("button"); b.textContent = label; b.setAttribute("role", "menuitem");
+    if (cls) b.className = cls;
     b.onmousedown = (e) => e.preventDefault();
     b.onclick = () => { m.hidden = true; fn(); };
     return b;
@@ -1114,6 +1115,35 @@ function updateBadge() {
   const more = $("btn-more");
   more.classList.toggle("badge", !!pendingUpdate);
   more.setAttribute("aria-label", pendingUpdate ? `More (update ${pendingUpdate.version} available)` : "More");
+  // The home screen carries a banner, so an update can't be missed by someone who never opens the menu.
+  const banner = $("update-banner");
+  banner.replaceChildren();
+  banner.hidden = !(platform.update && pendingUpdate);
+  if (!banner.hidden) {
+    const text = document.createElement("span"); text.textContent = `ArkMD ${pendingUpdate.version} is available`;
+    const b = document.createElement("button"); b.className = "primary"; b.textContent = "Update"; b.onclick = showUpdate;
+    banner.append(text, b);
+  }
+}
+
+/**
+ * The update control shown in Settings, Support and About, built from one place so they all behave alike: a highlighted
+ * card with an Update button when a newer version has been found, otherwise a Check for updates button.
+ * `close` runs first, to close the dialog the control sits in.
+ */
+function updateNodes(close = closeDialog) {
+  if (!platform.update) return [];
+  if (pendingUpdate) {
+    const card = document.createElement("div"); card.className = "update-callout";
+    const title = document.createElement("strong"); title.textContent = `ArkMD ${pendingUpdate.version} is available`;
+    const b = document.createElement("button"); b.className = "opt primary"; b.textContent = "Update";
+    b.onclick = () => { close(); showUpdate(); };
+    card.append(title, b);
+    return [card];
+  }
+  const b = document.createElement("button"); b.className = "opt"; b.textContent = "Check for updates";
+  b.onclick = () => { close(); checkForUpdates(); };
+  return [b];
 }
 
 /** Ask the platform for a newer release. A quiet check (the automatic one) only marks the More button. */
@@ -1155,6 +1185,7 @@ async function showUpdate() {
 
   if (platform.update.install) {                      // Windows and Linux: ArkMD installs the update and restarts
     const now = button("Update now", () => installUpdate(status, [now, later, notesBtn]));
+    now.classList.add("primary");
     d.replaceChildren(h, intro, notes, status, now, later, notesBtn);
     $("dialog-backdrop").hidden = false;
     now.focus({ preventScroll: true });
@@ -1203,12 +1234,18 @@ async function showUpdate() {
         status.textContent = `${e.message || e}. Use the download below instead.`;
       }
     });
+    primary.classList.add("primary");
     nodes.push(para(`ArkMD was installed from ${store.name}, which can install the update for you.`), status, primary, download);
   } else {
+    download.classList.add("primary");
     nodes.push(status, download);
   }
-  if (pendingUpdate.sha256) nodes.push(para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes"));
-  nodes.push(openDownloads, button("Open the download in the browser", () => { platform.openUrl(pendingUpdate.downloadUrl).catch(() => {}); }), later, notesBtn);
+  // Less common choices sit behind one line, so the one action that matters stands out.
+  const other = document.createElement("details"); other.className = "other-ways";
+  const summary = document.createElement("summary"); summary.textContent = "Other ways to update";
+  other.append(summary, openDownloads, button("Open the download in the browser", () => { platform.openUrl(pendingUpdate.downloadUrl).catch(() => {}); }));
+  if (pendingUpdate.sha256) other.append(para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes"));
+  nodes.push(other, later, notesBtn);
   d.replaceChildren(...nodes);
   $("dialog-backdrop").hidden = false;
   (nodes.find((n) => n.tagName === "BUTTON"))?.focus({ preventScroll: true });
@@ -1278,7 +1315,9 @@ function openSupport() {
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
   const web = (url) => () => { platform.openUrl(url).catch((e) => toast(`Could not open the link: ${e.message || e}`)); };
   d.replaceChildren(h,
+    ...(pendingUpdate ? updateNodes() : []),
     heading("Troubleshooting"),
+    ...(pendingUpdate ? [] : updateNodes()),
     button("Copy diagnostic information", () => { closeDialog(); copyDiagnostics(); }),
     ...(platform.openLogFolder ? [button("Open the log folder", () => platform.openLogFolder().catch((e) => toast(`Could not open the folder: ${e.message || e}`)))] : []),
     button("User guide", web(`${REPO_URL}/tree/main/docs`)),
@@ -1305,7 +1344,7 @@ async function about() {
     button("Support and contributing", () => { closeDialog(); openSupport(); }),
     button("Project page", () => { platform.openUrl(REPO_URL).catch(() => {}); }),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
-    ...(platform.update ? [button("Check for updates", () => { closeDialog(); checkForUpdates(); })] : []),
+    ...updateNodes(),
     button("Close", closeDialog));
   $("dialog-backdrop").hidden = false;
   d.querySelector(".opt")?.focus({ preventScroll: true });
@@ -1318,7 +1357,7 @@ function openSettings() {
   dialogReturn = dialogReturn && !$("dialog-backdrop").hidden ? dialogReturn : document.activeElement;
   d.className = "settings";
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Settings";
-  const nodes = [h];
+  const nodes = [h, ...(pendingUpdate ? updateNodes() : [])];
   const section = (t) => { const s = document.createElement("div"); s.className = "section"; s.textContent = t; nodes.push(s); };
   const row = (label, value, fn) => {
     const b = document.createElement("button"); b.className = "opt row";
@@ -1368,7 +1407,6 @@ function openSettings() {
 
   if (platform.update) {
     section("Updates");
-    if (pendingUpdate) row(`Update to ${pendingUpdate.version}`, "", showUpdate);
     toggle("Check for updates automatically", "Once a day, a few seconds after ArkMD starts. Off by default.", "autoUpdate", false);
     row("Check for updates now", shownVersion ? `Version ${shownVersion}` : "", () => checkForUpdates());
   }
@@ -1468,7 +1506,7 @@ function moreMenu() {
   if (open && cur().ref && recentOn()) entries.push([`${R.isPinned(recents(), cur().ref) ? "Unpin from recent files" : "Pin to recent files"}${platform.mobile ? "" : "  (Ctrl+D)"}`, togglePinCurrent]);
   if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => { logError("Open file location", e); toast(`Could not open the location: ${e.message || e}`); })]);
   if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
-  if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
+  if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate, "accent"]);
   entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["Support", openSupport], ["About", about]);
   menu($("btn-more"), entries);
 }

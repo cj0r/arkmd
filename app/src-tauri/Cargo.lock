@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "arkmd"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "arboard",
  "png",

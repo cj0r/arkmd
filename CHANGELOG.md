@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.23.1 (2026-11-23)
+
+### Changed
+- **An available update is now hard to miss.** The home screen shows a banner with an Update button, the More menu shows a highlighted "Update to X" entry, and Settings, Support and About show a card with an Update button. In the update dialog the main action is a filled button, and the less common choices on Android (Open Downloads, the browser download, the file's checksum) sit under "Other ways to update".
+- Support has Check for updates, and the control is the same in Settings, Support and About.
+
 ## 0.23.0 (2026-11-23)
 
 ### Fixed

@@ -263,3 +263,20 @@ body.compact #bar .icon { width: 44px; }
 body.compact .tab { min-width: 96px; max-width: 200px; }
 body.compact .tab-x { width: 32px; height: 32px; }
 body.compact #formatbar #fb-redo { margin-right: 4px; border-right: 1px solid var(--surface); border-radius: 9px 0 0 9px; width: 44px; }
+
+/* Updates: the one action that matters is a filled button, in a card where it is offered. */
+#dialog .opt.primary { justify-content: center; width: auto; margin: 8px 22px 4px; padding: 12px 18px; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; text-align: center; }
+#dialog .opt.primary:hover { background: var(--accent); filter: brightness(1.1); }
+#dialog .opt.primary:disabled { opacity: .55; filter: none; }
+.update-callout { margin: 6px 22px 12px; padding: 12px 14px 10px; border: 1px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.update-callout strong { display: block; }
+.update-callout .opt.primary { width: 100%; box-sizing: border-box; margin: 10px 0 2px; }
+.other-ways { margin: 4px 22px 4px; }
+.other-ways summary { padding: 8px 0; cursor: pointer; font-size: 14px; color: var(--fg-muted); }
+.other-ways .opt { padding-left: 0; padding-right: 0; }
+.other-ways p { margin-left: 0; margin-right: 0; }
+#update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+#update-banner[hidden] { display: none; }
+#update-banner button { flex: none; padding: 8px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
+#menu button.accent { color: var(--bg); background: var(--accent); font-weight: 600; margin-bottom: 4px; }
+#menu button.accent:hover { background: var(--accent); filter: brightness(1.1); }
