@@ -31,7 +31,7 @@ const NOTE = "# Smoke test\n\nSome **bold** text.\n\n## Second heading\n\n- [ ] 
 
 /** Stands in for Tauri's IPC. Files live in `files`; every call is recorded in `calls`. */
 function installMock({ note }) {
-  const files = { "/docs/notes.md": note, "/docs/other.md": "# Other\n" };
+  const files = { "/docs/notes.md": note, "/docs/other.md": "# Other\n", "/docs/hostile.md": "# Hostile\n\n<script>window.__pwned = 1</script>\n\n<img src=x onerror=\"window.__pwned = 2\">\n\n[js link](javascript:window.__pwned=3)\n\n[data link](data:text/html,<script>parent.__pwned=4</script>)\n\n```\nunclosed fence\n\n> > > > > > > > > > nested\n\n![remote](http://127.0.0.1:1/track.png)\n\n```mermaid\ngraph TD; A-->\n```\n\n\u202e bidi text\n", "/docs/big.md": "# Big\n\n" + "A line of text in a very large file.\n\n".repeat(250000) };
   const calls = [];
   window.__mock = { files, calls };
   const enc = new TextEncoder();
@@ -42,6 +42,7 @@ function installMock({ note }) {
     save_text_file: ({ path, text }) => { files[path] = text; },
     rename_file: ({ path, name }) => { const to = path.replace(/[^/]*$/, name); if (to in files) throw new Error("a file with that name already exists"); files[to] = files[path]; delete files[path]; return to; },
     open_linked: ({ rel, outside }) => { if (rel === "other.md" && !outside) throw new Error("outside:/docs/other.md"); return "/docs/" + rel; },
+    "plugin:dialog|open": () => window.__mock.next || "/docs/big.md",
     "plugin:app|version": () => "9.9.9",
     "plugin:window|is_decorated": () => true,
     "plugin:window|is_maximized": () => false,
@@ -232,6 +233,33 @@ await step("recent files flyout lists the opened files", async () => {
   expect(await page.locator("#files-list").innerText().then((t) => t.includes("renamed")), "renamed file missing from recent list");
   await axe("recent files flyout", "#files");
   await page.keyboard.press("Escape");
+});
+
+await step("a hostile document renders as text and runs nothing", async () => {
+  await page.evaluate(() => { window.__mock.next = "/docs/hostile.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "hostile.md" }).waitFor({ timeout: 10000 });
+  await reader().locator("h1", { hasText: "Hostile" }).waitFor({ timeout: 10000 });
+  await reader().locator("a", { hasText: "js link" }).click({ force: true }).catch(() => {});
+  await reader().locator("a", { hasText: "data link" }).click({ force: true }).catch(() => {});
+  await page.waitForTimeout(500);
+  const flags = await page.evaluate(() => [window.__pwned, document.getElementById("reader").contentWindow.__pwned]);
+  expect(flags.every((f) => f === undefined), "script ran: " + JSON.stringify(flags));
+  expect(await reader().locator("#doc script, #doc img[onerror]").count() === 0, "raw HTML was kept");
+  expect(await page.evaluate(() => window.__mock.calls.every((c) => c.cmd !== "open_external")), "a link was opened");
+  await page.evaluate(() => { window.__mock.next = null; });
+  await page.keyboard.press("Control+w");
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
+});
+
+await step("a very large file opens in the editor within seconds", async () => {
+  const started = Date.now();
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "big.md" }).waitFor({ timeout: 20000 });
+  await page.locator("#editor .cm-content").waitFor({ timeout: 20000 });
+  expect(Date.now() - started < 15000, `took ${Date.now() - started} ms`);
+  await page.keyboard.press("Control+w");
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
 });
 
 await step("closing the tab returns to the home screen", async () => {

@@ -1,0 +1,1 @@
+Large files open faster: over 8 MB they open in the editor, and big documents draw only what is on screen.

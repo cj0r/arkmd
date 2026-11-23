@@ -291,6 +291,8 @@
     var lineOffset = 0;
     if (fm) { front = '<div class="frontmatter">' + esc(fm[1]) + "</div>"; lineOffset = fm[0].split("\n").length - 1; src = src.slice(fm[0].length); }
     if (!src.trim() && !front) { doc.innerHTML = '<p class="empty">Empty file</p>'; return; }
+    // A very large document: the browser skips layout of the blocks that are off screen until they are scrolled to
+    doc.classList.toggle("big", src.length > 1000000);
     doc.innerHTML = front + md.render(src, { lineOffset: lineOffset });
     callouts(doc);
     doc.querySelectorAll("li.task-list-item input:checked").forEach(function (i) { i.parentNode.classList.add("task-done"); });

@@ -511,6 +511,8 @@ async function offerConvertedCopy(name, decoded) {
   openTab({ ref: null, name: `${stem} (copy).md`, text: decoded.text.replace(/^\uFEFF/, ""), mode: "read" });
 }
 
+/** Characters above which a file opens in the editor instead of the reading view. */
+const LARGE_FILE = 8_000_000;
 const opening = new Set();
 async function openRef(ref, name) {
   const existing = tabs.findByRef(ref);
@@ -521,7 +523,10 @@ async function openRef(ref, name) {
     const text = (await platform.readFile(ref)).replace(/^\uFEFF/, "");
     const same = tabs.findSame(name, text);
     if (same) { activateTab(same.id); addRecent(ref, name); return; }   // same file via another reference
-    openTab({ ref, name, text, mode: "read" });
+    // Drawing a very large document in the reader takes many seconds, while the editor opens it at once
+    const large = text.length > LARGE_FILE;
+    openTab({ ref, name, text, mode: large ? "edit" : "read" });
+    if (large) toast("Large file: opened in the editor. The reading view can take a while to draw.");
     addRecent(ref, name, text);
   } catch (e) {
     if (e.notUtf8) { await offerConvertedCopy(name, e.notUtf8); return; }
