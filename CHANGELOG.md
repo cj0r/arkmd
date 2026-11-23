@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.24.2 (2026-11-23)
+
+### Fixed
+- **Going back to Settings with Esc now returns to the row you came from.** The 0.24.1 change that does this was applied to the File history dialog instead of Settings, so Settings still focused its first row (Theme), and About did not scroll back to its own row. Settings now scrolls to and focuses Keyboard shortcuts or About after Esc, and File history is as it was.
+
 ## 0.24.1 (2026-11-23)
 
 ### Fixed

@@ -1,0 +1,1 @@
+Fixes going back to Settings with Esc: focus and scroll now return to the row you opened.

@@ -449,10 +449,7 @@ async function showHistory() {
   nodes.push(close);
   d.replaceChildren(...nodes);
   showDialog();
-  const target = settingsComeback && nodes.find((n) => n.dataset?.label === settingsComeback);
-  settingsComeback = null;
-  (target || d.querySelector(".opt"))?.focus({ preventScroll: true });
-  target?.scrollIntoView({ block: "center" });
+  d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
 async function showVersion(t, v) {
@@ -1459,7 +1456,10 @@ function openSettings() {
   nodes.push(done);
   d.replaceChildren(...nodes);
   showDialog();
-  d.querySelector(".opt")?.focus({ preventScroll: true });
+  const target = settingsComeback && nodes.find((n) => n.dataset?.label === settingsComeback);
+  settingsComeback = null;
+  (target || d.querySelector(".opt"))?.focus({ preventScroll: true });
+  target?.scrollIntoView({ block: "center" });
 }
 
 function showShortcuts() {
