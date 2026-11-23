@@ -1,0 +1,1 @@
+Adds swipe gestures: swipe right for Recent files, left for the Outline.

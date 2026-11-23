@@ -12,6 +12,7 @@ import { SHORTCUTS } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
 import * as R from "./recent.js";
+import { swipeDirection } from "./swipe.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
 import { extensionForType, isImagePath, pastedStem, altFromPath, pastesAsImage } from "./images.js";
 import { findMatches, buildPattern, expandReplacement, nextIndex } from "./find.js";
@@ -1443,6 +1444,7 @@ function wire() {
   $("btn-outline").onclick = toggleOutline;
   wireFind();
   wireFiles();
+  if (platform.mobile) attachSwipe(document);
   applyCompact(); compactQuery.addEventListener?.("change", applyCompact);
   // Pasting a picture (and no text) saves it next to the document and links it. Some web views (WebKitGTK on Linux)
   // send a paste event with no data for a picture, so when the event is empty the clipboard is asked directly.
@@ -1765,11 +1767,45 @@ function outlineKey(e) {
   list[(to + list.length) % list.length].focus();
 }
 
+// ---- Swipes (phone): right opens Recent files, left opens the Outline; the opposite swipe closes the open one -----
+/** Whether the touch began inside something that scrolls sideways (a wide table, code, the tab strip), where a swipe means scroll. */
+function scrollsSideways(el) {
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    if (n.scrollWidth > n.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true;
+  }
+  return false;
+}
+
+function onSwipe(direction) {
+  if (!$("dialog-backdrop").hidden || !$("menu").hidden) return;
+  if (direction === "right") {
+    if (!$("outline").hidden) closeOutline();
+    else if ($("files").hidden) openFiles();
+  } else if (!$("files").hidden) closeFiles();
+  else if (cur() && $("outline").hidden) openOutline();
+}
+
+function attachSwipe(doc) {
+  let start = null;
+  doc.addEventListener("touchstart", (e) => {
+    start = e.touches.length === 1 && !scrollsSideways(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+  }, { passive: true });
+  doc.addEventListener("touchcancel", () => { start = null; }, { passive: true });
+  doc.addEventListener("touchend", (e) => {
+    if (!start || e.changedTouches.length !== 1) { start = null; return; }
+    const end = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY, t: Date.now() };
+    const direction = swipeDirection(start, end);
+    start = null;
+    if (direction) onSwipe(direction);
+  }, { passive: true });
+}
+
 function onReaderLoad() {
   if (readerReady) return;
   readerReady = true;
   // Shortcuts keep working after clicking into the reader (its keys go to the iframe document).
   $("reader").contentDocument.addEventListener("keydown", onKey);
+  if (platform.mobile) attachSwipe($("reader").contentDocument);
   // Taps inside the reader land in the iframe document, so close the menu from there too.
   $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; closeOutline(); closeFiles(); });
   applyLook();

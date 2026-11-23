@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.21.0 (2026-11-23)
+
+### Added
+- **Swipe gestures on phones.** Swipe right to open the Recent files list and left to open the Outline; the opposite swipe closes whichever is open. Swipes that start on something that scrolls sideways (the tab strip, the formatting bar, wide tables and code) scroll as usual.
+
 ## 0.20.0 (2026-11-23)
 
 ### Changed
