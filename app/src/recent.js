@@ -127,3 +127,8 @@ export function ago(t, now = Date.now()) {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[d.getMonth()]} ${d.getDate()}${d.getFullYear() === n.getFullYear() ? "" : ", " + d.getFullYear()}`;
 }
+
+/** The name shown for a recent file: its title (first heading) when it has one, otherwise the file name without its extension. */
+export function displayName(entry) {
+  return entry.title || String(entry.name ?? "").replace(/\.(md|markdown|mdown|mkd|txt)$/i, "");
+}

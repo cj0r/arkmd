@@ -110,3 +110,11 @@ test("isPinned and pinned look at the pin flag", () => {
   assert.equal(isPinned(list, "zzz"), false);
   assert.deepEqual(pinned(list).map((r) => r.ref), ["b"]);
 });
+
+import { displayName } from "./recent.js";
+test("displayName prefers the title and drops a Markdown extension", () => {
+  assert.equal(displayName({ title: "Trip to Bergen", name: "bergen-trip.md" }), "Trip to Bergen");
+  assert.equal(displayName({ name: "groceries.md" }), "groceries");
+  assert.equal(displayName({ name: "notes.txt" }), "notes");
+  assert.equal(displayName({ name: "archive.tar" }), "archive.tar");
+});

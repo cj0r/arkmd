@@ -8,7 +8,7 @@ import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes, describeDownload } from "./updates.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
-import { SHORTCUTS } from "./shortcuts.js";
+import { SHORTCUTS, KEY } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
 import * as R from "./recent.js";
@@ -672,7 +672,7 @@ function renderRecents() {
     for (const r of files) {
       const li = document.createElement("li");
       const b = document.createElement("button"); b.className = "recent-item";
-      const name = document.createElement("span"); name.className = "name"; name.textContent = r.title || r.name;
+      const name = document.createElement("span"); name.className = "name"; name.textContent = R.displayName(r);
       const where = document.createElement("span"); where.className = "path";
       where.textContent = [r.title ? r.name : "", platform.mobile ? "" : R.folderOf(r.ref), R.ago(r.t)].filter(Boolean).join(" · ");
       b.append(name, where);
@@ -710,13 +710,11 @@ let filesQuery = "";
 let filesPinnedOnly = store.get("filesPinnedOnly", false);
 const filesFailed = new Set();       // files that couldn't be read for a preview this session
 
-function stripExt(name) { return String(name).replace(/\.(md|markdown|mdown|mkd|txt)$/i, ""); }
-
 function fileRow(r, isOpen) {
   const row = document.createElement("div");
   row.className = "file-row"; row.setAttribute("role", "listitem");
   const main = document.createElement("button"); main.className = "file-main";
-  const title = document.createElement("span"); title.className = "file-title"; title.textContent = r.title || stripExt(r.name);
+  const title = document.createElement("span"); title.className = "file-title"; title.textContent = R.displayName(r);
   main.append(title);
   const where = [r.name, platform.mobile ? "" : R.folderOf(r.ref)].filter(Boolean).join(" · ");
   if (where && where !== title.textContent) { const w = document.createElement("span"); w.className = "file-name"; w.textContent = where; main.append(w); }
@@ -923,10 +921,18 @@ function buildFormatBar() {
 function menu(anchor, entries) {
   const m = $("menu");
   menuReturn = anchor;
-  m.replaceChildren(...entries.map(([label, fn, cls]) => {
+  m.replaceChildren(...entries.map(([label, fn, cls, keys]) => {
     if (fn === null) { const h = document.createElement("div"); h.className = "menu-head"; h.setAttribute("role", "presentation"); h.textContent = label; return h; }
-    const b = document.createElement("button"); b.textContent = label; b.setAttribute("role", "menuitem");
-    if (cls) b.className = cls;
+    const b = document.createElement("button"); b.setAttribute("role", "menuitem");
+    if (keys && !platform.mobile) {            // the shortcut sits at the right, muted, the same way in every menu
+      b.className = "has-keys" + (cls ? ` ${cls}` : "");
+      const name = document.createElement("span"); name.textContent = label;
+      const hint = document.createElement("span"); hint.className = "menu-keys"; hint.textContent = keys;
+      b.append(name, hint);
+    } else {
+      b.textContent = label;
+      if (cls) b.className = cls;
+    }
     b.onmousedown = (e) => e.preventDefault();
     b.onclick = () => { m.hidden = true; fn(); };
     return b;
@@ -1094,14 +1100,13 @@ function pickSize(after) {
 }
 
 function addMenu() {
-  const hint = (label, keys) => (platform.mobile ? label : `${label}    ${keys}`);
-  const entries = [[hint("New file", "Ctrl+N"), newFile], [hint("Open file…", "Ctrl+O"), openFile]];
+  const entries = [["New file", newFile, "", KEY.new], ["Open file…", openFile, "", KEY.open]];
   const all = recentOn() ? recents() : [];
   const pins = R.pinned(all).slice(0, 5), rec = all.filter((r) => !r.pinned).slice(0, 5);
-  if (pins.length) { entries.push(["Pinned", null]); for (const r of pins) entries.push([r.title || r.name, () => openRef(r.ref, r.name)]); }
-  if (rec.length) { entries.push(["Recent", null]); for (const r of rec) entries.push([r.title || r.name, () => openRef(r.ref, r.name)]); }
-  if (all.length) entries.push([hint("All recent files…", "Ctrl+Shift+R"), openFiles]);
-  if (closed.length) entries.push([hint("Reopen closed tab", "Ctrl+Shift+T"), reopenClosed]);
+  if (pins.length) { entries.push(["Pinned", null]); for (const r of pins) entries.push([R.displayName(r), () => openRef(r.ref, r.name)]); }
+  if (rec.length) { entries.push(["Recent", null]); for (const r of rec) entries.push([R.displayName(r), () => openRef(r.ref, r.name)]); }
+  if (all.length) entries.push(["All recent files…", openFiles, "", KEY.recent]);
+  if (closed.length) entries.push(["Reopen closed tab", reopenClosed, "", KEY.reopen]);
   menu($("btn-add"), entries);
 }
 
@@ -1180,7 +1185,7 @@ async function showUpdate() {
   const status = para("", "about"); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
   const later = button("Later", closeDialog);
-  const notesBtn = button("Release notes", () => { platform.openUrl(`${REPO_URL}/releases/tag/v${pendingUpdate.version}`).catch(() => {}); });
+  const notesBtn = button("Release notes", () => openWeb(`${REPO_URL}/releases/tag/v${pendingUpdate.version}`));
   const intro = para(`You have ${shownVersion}.`);
 
   if (platform.update.install) {                      // Windows and Linux: ArkMD installs the update and restarts
@@ -1243,7 +1248,7 @@ async function showUpdate() {
   // Less common choices sit behind one line, so the one action that matters stands out.
   const other = document.createElement("details"); other.className = "other-ways";
   const summary = document.createElement("summary"); summary.textContent = "Other ways to update";
-  other.append(summary, openDownloads, button("Open the download in the browser", () => { platform.openUrl(pendingUpdate.downloadUrl).catch(() => {}); }));
+  other.append(summary, openDownloads, button("Open the download in the browser", () => openWeb(pendingUpdate.downloadUrl)));
   if (pendingUpdate.sha256) other.append(para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes"));
   nodes.push(other, later, notesBtn);
   d.replaceChildren(...nodes);
@@ -1313,13 +1318,13 @@ function openSupport() {
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Support";
   const heading = (text) => { const s = document.createElement("div"); s.className = "section"; s.textContent = text; return s; };
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
-  const web = (url) => () => { platform.openUrl(url).catch((e) => toast(`Could not open the link: ${e.message || e}`)); };
+  const web = (url) => () => openWeb(url);
   d.replaceChildren(h,
     ...(pendingUpdate ? updateNodes() : []),
     heading("Troubleshooting"),
     ...(pendingUpdate ? [] : updateNodes()),
     button("Copy diagnostic information", () => { closeDialog(); copyDiagnostics(); }),
-    ...(platform.openLogFolder ? [button("Open the log folder", () => platform.openLogFolder().catch((e) => toast(`Could not open the folder: ${e.message || e}`)))] : []),
+    ...(platform.openLogFolder ? [button("Open the log folder", () => platform.openLogFolder().catch((e) => failed("open the log folder", e)))] : []),
     button("User guide", web(`${REPO_URL}/tree/main/docs`)),
     button("Report a bug or suggest a feature", web(`${REPO_URL}/issues/new/choose`)),
     heading("Support the project"),
@@ -1342,7 +1347,7 @@ async function about() {
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
     button("Support and contributing", () => { closeDialog(); openSupport(); }),
-    button("Project page", () => { platform.openUrl(REPO_URL).catch(() => {}); }),
+    button("Project page", () => openWeb(REPO_URL)),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
     ...updateNodes(),
     button("Close", closeDialog));
@@ -1496,20 +1501,32 @@ function moreMenu() {
       entries.push([`Open tabs (${tabs.all.length})`, null]);
       for (const t of tabs.all) entries.push([`${t === cur() ? "▸ " : ""}${t.dirty ? "• " : ""}${t.name}`, () => activateTab(t.id)]);
     }
-    if (open) entries.push(["Find and replace", () => (find.open ? closeFind(true) : openFind())], ["Outline", toggleOutline]);
-    if (mode() === "edit") entries.push([store.get("formatBar", true) ? "Hide formatting bar" : "Show formatting bar", () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); }]);
+    if (open) entries.push(["Find and replace", toggleFind, "", KEY.find], ["Outline", toggleOutline, "", KEY.outline]);
+    if (mode() === "edit") entries.push([store.get("formatBar", true) ? "Hide formatting bar" : "Show formatting bar", toggleFormatBar]);
     entries.push(["Theme…", () => pickTheme()]);
   }
-  if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
-  if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
+  if (open) entries.push(["Save as…", () => save(true), "", KEY.saveAs]);
+  if (open) entries.push(["Close file", () => closeTab(), "", KEY.close]);
   if (open) entries.push(["File history…", showHistory]);
-  if (open && cur().ref && recentOn()) entries.push([`${R.isPinned(recents(), cur().ref) ? "Unpin from recent files" : "Pin to recent files"}${platform.mobile ? "" : "  (Ctrl+D)"}`, togglePinCurrent]);
-  if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => { logError("Open file location", e); toast(`Could not open the location: ${e.message || e}`); })]);
-  if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
+  if (open && cur().ref && recentOn()) entries.push([R.isPinned(recents(), cur().ref) ? "Unpin from recent files" : "Pin to recent files", togglePinCurrent, "", KEY.pin]);
+  if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => failed("open the file location", e))]);
+  if (open && !platform.mobile) entries.push(["Print…", printDoc, "", KEY.print], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate, "accent"]);
-  entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["Support", openSupport], ["About", about]);
+  entries.push(["Welcome tour", openWelcome], ["Settings", openSettings, "", KEY.settings], ["Support", openSupport], ["About", about]);
   menu($("btn-more"), entries);
 }
+
+/** Report something that failed, the same way everywhere: into the log, and as a message saying what could not be done. */
+function failed(what, error) {
+  logError(what, error);
+  toast(`Could not ${what}: ${error?.message || error}`);
+}
+
+/** Open a web or mail address in the system's browser or mail program. */
+function openWeb(url) { platform.openUrl(url).catch((e) => failed("open the link", e)); }
+
+function toggleFind() { if (find.open) closeFind(true); else openFind(); }
+function toggleFormatBar() { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); }
 
 /** Record a failure in the troubleshooting log: what was being done and the error, never document text. */
 function logError(context, error, where = "") {
@@ -1576,7 +1593,7 @@ function wire() {
   }, true);
   platform.onFileDrop(handleDrop);
   $("outline").addEventListener("keydown", outlineKey);
-  $("btn-format").onclick = () => { store.set("formatBar", !store.get("formatBar", true)); updateChrome(); };
+  $("btn-format").onclick = toggleFormatBar;
   $("toggle").onclick = toggleMode;
   $("clear-recent").onclick = () => { store.set("recent", []); renderRecents(); };
   $("dialog-backdrop").onclick = (e) => { if (e.target.id === "dialog-backdrop") closeDialog(); };
@@ -1592,7 +1609,7 @@ function wire() {
   window.arkToggleTask = (line, checked) => editor.setTask(line, checked);
   window.arkOpenLink = (href) => {
     const link = parseLink(href);
-    if (link?.kind === "external") platform.openUrl(link.url).catch(() => {});
+    if (link?.kind === "external") openWeb(link.url);
     else if (link?.kind === "file") openLinkedFile(link.path, link.fragment);
   };
   window.arkOpenWikilink = (text) => { const w = wikilinkTarget(text); if (w) openLinkedFile(w.path, w.fragment); };
@@ -1776,7 +1793,7 @@ function replaceAllMatches() {
 
 function wireFind() {
   $("btn-find").innerHTML = svg("search");
-  $("btn-find").onclick = () => (find.open ? closeFind(true) : openFind());
+  $("btn-find").onclick = toggleFind;
   $("find-q").value = find.q;
   $("find-q").oninput = () => { find.q = $("find-q").value; runFind(); };
   $("find-r").oninput = () => { find.r = $("find-r").value; };

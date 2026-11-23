@@ -2,6 +2,13 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.23.2 (2026-11-23)
+
+### Changed
+- **Menus show shortcuts the same way.** The + and More menus used two different formats; both now show the shortcut at the right, muted. The shortcuts come from one table that a test checks against the keyboard shortcut list.
+- Opening a link, reporting a failure, and the find and formatting-bar switches each use one function everywhere, so a failed link now always says so instead of doing nothing in some places.
+- Recent files read the same in the home list, the + menu and the Recent files list: the title, or the file name without its extension.
+
 ## 0.23.1 (2026-11-23)
 
 ### Changed

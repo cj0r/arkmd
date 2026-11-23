@@ -1,0 +1,1 @@
+Makes the menus show keyboard shortcuts consistently and unifies how links and errors are handled.

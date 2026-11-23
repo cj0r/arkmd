@@ -1,5 +1,11 @@
 // The keyboard shortcuts shown in Settings > Keyboard shortcuts. The bindings themselves are in main.js (global keys)
 // and in the editor's keymap; keep this list in step with them and with docs/reading-and-editing.md.
+/** The shortcuts that menus show beside a command. Menus read them from here; the list below is checked against them by a test. */
+export const KEY = {
+  new: "Ctrl+N", open: "Ctrl+O", save: "Ctrl+S", saveAs: "Ctrl+Shift+S", close: "Ctrl+W", reopen: "Ctrl+Shift+T",
+  recent: "Ctrl+Shift+R", outline: "Ctrl+Shift+O", find: "Ctrl+F", pin: "Ctrl+D", print: "Ctrl+P", settings: "Ctrl+,",
+};
+
 export const SHORTCUTS = [
   ["Files and tabs", [
     ["Ctrl+O", "Open a file"], ["Ctrl+N, Ctrl+T", "New file"], ["Ctrl+S", "Save"], ["Ctrl+Shift+S", "Save as"],
