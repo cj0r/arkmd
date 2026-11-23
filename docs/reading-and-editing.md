@@ -95,7 +95,7 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+Shift+PageUp, Ctrl+Shift+PageDown | Move the current tab left, right |
 | Ctrl+, | Settings |
 | F1 | Keyboard shortcuts |
-| Esc | Close a menu or dialog |
+| Esc | Close a menu; in a dialog, go back one page (for example from Keyboard shortcuts to Settings), or close it from its first page |
 | Ctrl + and Ctrl − | Make the whole window larger or smaller (desktop) |
 
 **Formatting, while editing**
@@ -126,4 +126,4 @@ Each list and style shortcut works on the selected lines or text, and pressing i
 - **Tables:** **Tab** and **Shift+Tab** move between cells, and Tab in the last cell adds a row.
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 
-Menus and dialogs work with the arrow keys and Esc, and the focus ring always shows where you are.
+Menus and dialogs work with the arrow keys and Esc, and the focus ring always shows where you are. In a dialog, Esc (and Back on Android) goes back one page when you got there from another one, and closes the dialog only from its first page. To close everything at once, use Close or Done, or tap outside the dialog.

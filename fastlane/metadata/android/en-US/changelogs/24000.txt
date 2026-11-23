@@ -1,0 +1,1 @@
+Esc and Back now go back one page in a dialog instead of closing everything.

@@ -14,7 +14,7 @@ export const SHORTCUTS = [
   ["View", [
     ["Ctrl+E", "Switch between reading and editing"], ["Ctrl+Shift+O", "Outline of the document"], ["Ctrl+Shift+R", "Recent files"], ["Ctrl+D", "Pin or unpin the file in this tab"], ["Ctrl+F", "Find"], ["Ctrl+H", "Find and replace (in the editor)"],
     ["Enter, Shift+Enter, F3", "Next, previous match while the find bar is open"], ["Ctrl+P", "Print"], ["Ctrl+,", "Settings"], ["F1", "This list"],
-    ["Ctrl + and Ctrl −", "Larger, smaller window content"], ["Esc", "Close a menu or dialog"],
+    ["Ctrl + and Ctrl −", "Larger, smaller window content"], ["Esc", "Close a menu; in a dialog, go back one page, or close it from its first page"],
   ]],
   ["Headings (while editing)", [
     ["Ctrl+1 … Ctrl+6", "Heading 1 to 6; again to turn it back into text"], ["Ctrl+0", "Normal text"],

@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.24.0 (2026-11-23)
+
+### Changed
+- **Esc and Back go back one page in a dialog.** From Keyboard shortcuts, About, a theme, font or other picker opened from Settings, or a version's text opened from File history, Esc (and Back on Android) returns to the page you came from, and only a dialog's first page closes. About and Support gain a Back button when they were opened from another page. Close, Done and a tap outside still close everything. Questions still treat Esc as No.
+
 ## 0.23.3 (2026-11-23)
 
 ### Fixed

@@ -415,7 +415,7 @@ async function offerRecovery() {
   const discard = button("Discard", async () => { closeDialog(); await hdb.clearDrafts(); });
   d.className = "settings";
   d.replaceChildren(h, p, ...rows, restore, discard);
-  $("dialog-backdrop").hidden = false;
+  showDialog();
   restore.focus({ preventScroll: true });
 }
 
@@ -448,7 +448,7 @@ async function showHistory() {
   }
   nodes.push(close);
   d.replaceChildren(...nodes);
-  $("dialog-backdrop").hidden = false;
+  showDialog();
   d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
@@ -476,6 +476,7 @@ async function showVersion(t, v) {
   });
   const back = button("Back to the list", showHistory);
   d.replaceChildren(h, p, pre, restore, asTab, back);
+  dialogBack = showHistory;
   restore.focus({ preventScroll: true });
 }
 
@@ -980,14 +981,36 @@ function choose(title, sections, selected, onPick, after) {
     }
   }
   d.replaceChildren(...nodes);
-  $("dialog-backdrop").hidden = false;
+  showDialog(after);
   const sel = d.querySelector(".sel") || d.querySelector(".opt");
   sel?.scrollIntoView({ block: "center" });
   sel?.focus({ preventScroll: true });
 }
 let dialogReturn = null;
 let pendingAsk = null;
+/**
+ * Where Esc (and Android's Back) goes from the dialog on screen: a page reached from another one (Keyboard shortcuts from
+ * Settings, a picker, a version's text from the history list) returns to where it came from, and only a top-level dialog
+ * closes. Closing everything is the Close or Done button, or a tap outside.
+ */
+let dialogBack = null;
+
+/** Show the dialog that has just been filled. `back` is the page Esc returns to, if there is one. */
+function showDialog(back = null) {
+  dialogBack = typeof back === "function" ? back : null;
+  $("dialog-backdrop").hidden = false;
+}
+
+/** Esc or Back: one step back if the dialog was reached from another page, otherwise close it. */
+function dismissDialog() {
+  if ($("dialog-backdrop").hidden) return;
+  const back = pendingAsk ? null : dialogBack;       // a question is answered "no", never skipped
+  closeDialog();
+  if (back) back();
+}
+
 function closeDialog() {
+  dialogBack = null;
   if (pendingAsk) { const r = pendingAsk; pendingAsk = null; r(-1); }
   if ($("dialog-backdrop").hidden) return;
   $("dialog-backdrop").hidden = true;
@@ -1010,7 +1033,7 @@ function ask(title, message, buttons) {
       return b;
     });
     d.replaceChildren(h, p, ...items);
-    $("dialog-backdrop").hidden = false;
+    showDialog();
     items[0].focus({ preventScroll: true });
   });
 }
@@ -1193,7 +1216,7 @@ async function showUpdate() {
     const now = button("Update now", () => installUpdate(status, [now, later, notesBtn]));
     now.classList.add("primary");
     d.replaceChildren(h, intro, notes, status, now, later, notesBtn);
-    $("dialog-backdrop").hidden = false;
+    showDialog();
     now.focus({ preventScroll: true });
     return;
   }
@@ -1253,7 +1276,7 @@ async function showUpdate() {
   if (pendingUpdate.sha256) other.append(para(`SHA-256 of the file: ${pendingUpdate.sha256}`, "about notes"));
   nodes.push(other, later, notesBtn);
   d.replaceChildren(...nodes);
-  $("dialog-backdrop").hidden = false;
+  showDialog();
   (nodes.find((n) => n.tagName === "BUTTON"))?.focus({ preventScroll: true });
 }
 
@@ -1313,7 +1336,7 @@ const KOFI_URL = "https://ko-fi.com/cj000r";
 const COFFEE_URL = "https://www.buymeacoffee.com/cj0r";
 
 /** Support: help with a problem, and ways to support or contribute to the project. */
-function openSupport() {
+function openSupport(back = null) {
   const d = $("dialog");
   dialogReturn = document.activeElement;
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = "Support";
@@ -1332,12 +1355,13 @@ function openSupport() {
     button("Support on Ko-fi", web(KOFI_URL)),
     button("Buy Me a Coffee", web(COFFEE_URL)),
     button("Contribute on GitHub", () => { closeDialog(); openContribute(); }),
+    ...(back ? [button("Back", () => { closeDialog(); back(); })] : []),
     button("Close", closeDialog));
-  $("dialog-backdrop").hidden = false;
+  showDialog(back);
   d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
-async function about() {
+async function about(back = null) {
   const d = $("dialog");
   dialogReturn = document.activeElement;
   const v = await platform.version();
@@ -1349,12 +1373,13 @@ async function about() {
   d.replaceChildren(h, line(v ? `Version ${v}` : "Version unknown"), line("A lightweight Markdown viewer and editor."),
     line("Released under the GNU General Public License v3.0."),
     ...(pendingUpdate ? update : []),            // a waiting update comes first; the quiet Check for updates button stays with the links
-    button("Support and contributing", () => { closeDialog(); openSupport(); }),
+    button("Support and contributing", () => { closeDialog(); openSupport(() => about(back)); }),
     button("Project page", () => openWeb(REPO_URL)),
     button("Third-party notices", () => { closeDialog(); openNotices(); }),
     ...(pendingUpdate ? [] : update),
+    ...(back ? [button("Back", () => { closeDialog(); back(); })] : []),
     button("Close", closeDialog));
-  $("dialog-backdrop").hidden = false;
+  showDialog(back);
   d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
@@ -1422,12 +1447,12 @@ function openSettings() {
   if (!platform.mobile) { section("Keyboard"); row("Keyboard shortcuts", "F1", showShortcuts); }
 
   section("About");
-  row("About ArkMD", "", about);
+  row("About ArkMD", "", () => about(openSettings));
 
   const done = document.createElement("button"); done.className = "opt done"; done.textContent = "Done"; done.onclick = closeDialog;
   nodes.push(done);
   d.replaceChildren(...nodes);
-  $("dialog-backdrop").hidden = false;
+  showDialog();
   d.querySelector(".opt")?.focus({ preventScroll: true });
 }
 
@@ -1451,7 +1476,7 @@ function showShortcuts() {
   const close = document.createElement("button"); close.className = "opt done"; close.textContent = "Close"; close.onclick = closeDialog;
   nodes.push(back, close);
   d.replaceChildren(...nodes);
-  $("dialog-backdrop").hidden = false;
+  showDialog(openSettings);
   back.focus({ preventScroll: true });
 }
 
@@ -1649,7 +1674,7 @@ function wire() {
   // Android back button: close menus/dialogs, then the current tab; with no tabs, let the system handle it.
   platform.onBack(() => {
     if (!$("menu").hidden) { $("menu").hidden = true; return true; }
-    if (!$("dialog-backdrop").hidden) { closeDialog(); return true; }
+    if (!$("dialog-backdrop").hidden) { dismissDialog(); return true; }
     if (tabs.count) { closeTab(); return true; }
     return false;
   });
@@ -1659,7 +1684,7 @@ function wire() {
 
 function onKey(e) {
   const mod = e.ctrlKey || e.metaKey;
-  if (e.key === "Escape") { closeMenu(); closeDialog(); closeOutline(); closeFiles(); }
+  if (e.key === "Escape") { closeMenu(); dismissDialog(); closeOutline(); closeFiles(); }
   // Arrow keys move between menu items / dialog options.
   if ((e.key === "ArrowDown" || e.key === "ArrowUp") && (!$("menu").hidden || !$("dialog-backdrop").hidden)) {
     const items = [...(!$("menu").hidden ? $("menu") : $("dialog")).querySelectorAll("button")];
