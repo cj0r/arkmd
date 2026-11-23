@@ -1,0 +1,1 @@
+Adds spell check in the editor, a match-system light/dark option, and hides web pictures until you load them.

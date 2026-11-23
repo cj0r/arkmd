@@ -2,6 +2,17 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.22.0 (2026-11-23)
+
+### Added
+- **Spell check, autocorrect and sentence capitals** in the editor, on by default; Settings > Spell check and suggestions turns them off.
+- **Match system light/dark.** Settings > Match system light/dark follows the device setting, using the dark and light themes you pick.
+- **Remote images setting.** Pictures from the web are hidden until you tap Load images, so opening a file no longer tells the picture's host your address. Settings > Remote images offers Ask first (default), Always load and Never load.
+- Privacy page in the documentation.
+
+### Changed
+- The Tests workflow checks the Rust and npm dependencies against public advisory databases, and a failed release run removes the tag it created so the version can be released again.
+
 ## 0.21.0 (2026-11-23)
 
 ### Added

@@ -137,6 +137,12 @@ const extras = ViewPlugin.fromClass(class {
  * Create the editor. onChange(doc) fires on every edit; extraKeys are extra keymap bindings.
  * Returns { view, setText, getText, setLook(theme, font, size), scrollFraction(), scrollToFraction(f) }.
  */
+const typing = new Compartment();
+/** Spell check, autocorrect and sentence capitals. CodeMirror turns all three off; writing prose wants them on. */
+const typingAttrs = (on) => EditorView.contentAttributes.of(on
+  ? { spellcheck: "true", autocorrect: "on", autocapitalize: "sentences" }
+  : { spellcheck: "false", autocorrect: "off", autocapitalize: "off" });
+
 export function createEditor(parent, { onChange, extraKeys = [] }) {
   const extensions = [
         history(),
@@ -151,6 +157,7 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         Prec.highest(keymap.of(extraKeys)),     // ahead of the Markdown language's own Enter handling
         keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         look.of([]),
+        typing.of(typingAttrs(true)),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); }),
   ];
   /** A fresh state for a document, keeping its line endings (see eol.js). */
@@ -160,13 +167,14 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
   };
   const view = new EditorView({ parent, state: stateFor("") });
   let currentLook = [];
+  let currentTyping = true;
   return {
     view,
     getText: () => docText(view.state),
     /** Load a document: fresh state, so undo history starts here. */
     setText(text) {
       view.setState(stateFor(text));
-      view.dispatch({ effects: look.reconfigure(currentLook) });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping))] });
     },
     /** Fresh editor state for a document (own undo history); used per tab. */
     newState(text) { return stateFor(text); },
@@ -179,10 +187,15 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {
       view.setState(state);
-      view.dispatch({ effects: look.reconfigure(currentLook) });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping))] });
     },
     replaceAll(text) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+    },
+    /** Turn spell check, autocorrect and sentence capitals on or off. */
+    setTyping(on) {
+      currentTyping = !!on;
+      view.dispatch({ effects: typing.reconfigure(typingAttrs(currentTyping)) });
     },
     setLook(theme, font, size) {
       currentLook = themeExtensions(theme, font, size);

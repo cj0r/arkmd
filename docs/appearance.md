@@ -25,6 +25,10 @@ The palette button in the top bar opens the theme list: dark themes first, then 
 
 A theme sets the colors of the reader, the editor, code blocks, callouts and the app itself. Headings use a different color for each level, in an order that follows the theme's own conventions.
 
+### Match the system light/dark setting
+
+**Settings** > **Match system light/dark** switches between a dark and a light theme with the device's own setting. With it on, choose each theme from **Theme**: a dark theme you pick becomes the dark one, a light theme the light one. Until you choose, ArkMD uses Basic Dark and Basic Light (or your current theme, for whichever side it belongs to).
+
 ## Your own theme
 
 Write a CSS file that sets colors, then add it: **Theme** > **Add a theme from a CSS file…**. The theme appears under **Custom** in the theme list and is selected right away. **Remove a custom theme…** in the same list deletes it. [`samples/custom-theme.css`](../samples/custom-theme.css) is a complete example with every variable.

@@ -72,7 +72,7 @@ More in [Getting started](docs/getting-started.md).
 
 ## User guide
 
-[Getting started](docs/getting-started.md) · [Reading and editing](docs/reading-and-editing.md) · [Supported Markdown](docs/supported-markdown.md) · [Files and saving](docs/files-and-saving.md) · [Themes and fonts](docs/appearance.md) · [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md)
+[Getting started](docs/getting-started.md) · [Reading and editing](docs/reading-and-editing.md) · [Supported Markdown](docs/supported-markdown.md) · [Files and saving](docs/files-and-saving.md) · [Themes and fonts](docs/appearance.md) · [Security](docs/security.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
 
 ## Build from source
 

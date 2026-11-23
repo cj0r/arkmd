@@ -102,6 +102,15 @@ function effective(t) {
   return { ...t, ...rest, hljs: { ...t.hljs, ...(hljs || {}) } };
 }
 
+/** The theme to show now. With "Match system light/dark" on, the OS decides between the chosen dark and light themes. */
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+function activeThemeKey() {
+  const fixed = store.get("theme", DEFAULT_THEME);
+  if (!store.get("autoTheme", false)) return fixed;
+  return systemDark.matches ? store.get("themeDark", themes[fixed]?.dark ? fixed : "basic-dark") : store.get("themeLight", !themes[fixed]?.dark ? fixed : "basic-light");
+}
+function useActiveTheme() { theme = themes[activeThemeKey()] || themes[DEFAULT_THEME]; }
+
 const DEFAULT_THEME = "one-dark-pro";       // the most widely installed editor theme; only new installs use it
 const WIDTHS = [
   { key: "narrow", label: "Narrow", sub: "A narrow column, about 760 px", px: 760 },
@@ -116,6 +125,7 @@ const SIZES = [14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28];
 const textSize = () => store.get("fontSize", platform.mobile ? 18 : 16);
 
 function applyLook() {
+  editor.setTyping(store.get("spellcheck", true));
   const t = effective(theme);
   const size = textSize();
   const root = document.documentElement.style;
@@ -137,6 +147,7 @@ function applyLook() {
     w.applyTheme(cssVars(t, size));
     const rf = fontById(store.get("readFont", "system"));
     w.setFont(rf.dir, rf.kind || "static");
+    w.setImagePolicy?.(store.get("remoteImages", "ask"));
   }
 }
 
@@ -1017,7 +1028,9 @@ function removeTheme(after) {
     if (!(await platform.confirm(`Remove the theme "${themes[key].name}"?`, "Remove theme"))) return;
     store.set("userThemes", store.get("userThemes", []).filter((s) => s.id !== key));
     delete themes[key];
-    if (store.get("theme", DEFAULT_THEME) === key) { store.set("theme", DEFAULT_THEME); theme = themes[DEFAULT_THEME]; applyLook(); }
+    if (store.get("theme", DEFAULT_THEME) === key) store.set("theme", DEFAULT_THEME);
+    for (const slot of ["themeDark", "themeLight"]) if (store.get(slot, null) === key) store.set(slot, null);
+    useActiveTheme(); applyLook();
     toast("Theme removed");
   }, after);
 }
@@ -1031,10 +1044,12 @@ function pickTheme(after) {
   const sections = [["Dark", builtin(true)], ["Light", builtin(false)]];
   if (custom.length) sections.push(["Custom", custom]);
   sections.push([null, actions]);
-  choose("Theme", sections, store.get("theme", DEFAULT_THEME), (key) => {
+  choose("Theme", sections, activeThemeKey(), (key) => {
     if (key === "__import") return importTheme();
     if (key === "__remove") { removeTheme(after); return HOLD; }
-    store.set("theme", key); theme = themes[key]; applyLook();
+    if (store.get("autoTheme", false)) store.set(themes[key]?.dark ? "themeDark" : "themeLight", key);
+    else store.set("theme", key);
+    useActiveTheme(); applyLook();
   }, after);
 }
 
@@ -1047,6 +1062,13 @@ function pickFont(title, setting, after) {
 function pickWidth(after) {
   choose("Content width", [[null, WIDTHS.map((w) => ({ key: w.key, label: w.key === "wide" ? "Wide (default)" : w.label, sub: w.sub }))]], contentWidth().key, (key) => {
     store.set("contentWidth", key); applyLook();
+  }, after);
+}
+
+const IMAGE_POLICIES = [["ask", "Ask first (default)", "Hidden until you tap Load images"], ["always", "Always load", "Shows web pictures at once"], ["never", "Never load", "Web pictures stay hidden"]];
+function pickImages(after) {
+  choose("Remote images", [[null, IMAGE_POLICIES.map(([key, label, sub]) => ({ key, label, sub }))]], store.get("remoteImages", "ask"), (key) => {
+    store.set("remoteImages", key); applyLook(); if (readerReady && cur()) render(cur().scroll);
   }, after);
 }
 
@@ -1266,8 +1288,11 @@ function openSettings() {
   row("Theme", effective(theme).name, () => pickTheme(back));
   row("Text size", String(textSize()), () => pickSize(back));
   row("Content width", contentWidth().label, () => pickWidth(back));
+  row("Remote images", (IMAGE_POLICIES.find((p) => p[0] === store.get("remoteImages", "ask")) || IMAGE_POLICIES[0])[1].replace(" (default)", ""), () => pickImages(back));
   row("Reading font", fontById(store.get("readFont", "system")).name, () => pickFont("Reading font", "readFont", back));
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
+  toggle("Match system light/dark", "Switches between a dark and a light theme with the device setting. Choose each one with Theme; the one you pick sets the dark or the light slot.", "autoTheme", false, () => { useActiveTheme(); applyLook(); });
+  toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
 
   section("Saving");
@@ -1824,6 +1849,8 @@ async function init() {
   const saved = store.get("theme", DEFAULT_THEME);
   if (renamed[saved]) store.set("theme", renamed[saved]);
   theme = themes[renamed[saved] || saved] || themes[DEFAULT_THEME];
+  useActiveTheme();
+  systemDark.addEventListener?.("change", () => { if (store.get("autoTheme", false)) { useActiveTheme(); applyLook(); } });
   platform.ready();
   buildFormatBar();
   wire();
