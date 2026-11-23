@@ -74,6 +74,29 @@ fn log_tail(state: tauri::State<LogFile>) -> String {
     lines[lines.len().saturating_sub(60)..].join("\n")
 }
 
+/// Show a file in the system file manager (selected in its folder where the platform can, otherwise just its folder).
+/// Only files ArkMD already has access to, so a page can't use it to probe other paths.
+#[tauri::command]
+fn reveal_in_folder(app: tauri::AppHandle, log: tauri::State<LogFile>, path: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let file = PathBuf::from(&path);
+    if !app.fs_scope().is_allowed(&file) {
+        return Err("the file is not open in ArkMD".into());
+    }
+    if !file.exists() {
+        return Err("the file no longer exists".into());
+    }
+    match app.opener().reveal_item_in_dir(&file) {
+        Ok(()) => Ok(()),
+        Err(first) => {
+            // No file manager that can select the file (or no D-Bus service for it): open its folder instead.
+            append_log(&log.0, "info", &format!("reveal failed ({first}); opening the folder"));
+            let folder = file.parent().ok_or("the file has no folder")?.to_string_lossy().into_owned();
+            app.opener().open_path(folder, None::<&str>).map_err(|e| e.to_string())
+        }
+    }
+}
+
 /// Show the log folder in the system file manager.
 #[tauri::command]
 fn open_log_folder(app: tauri::AppHandle, state: tauri::State<LogFile>) -> Result<(), String> {
@@ -343,7 +366,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

@@ -8,7 +8,7 @@
 
 A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Open a file, read it with Obsidian-style rendering, and switch to an editor with one tap. No vault, no plugins, no account. *Ark* is Danish and Norwegian for "a sheet of paper".
 
-![ArkMD showing a Markdown document](docs/screenshots/reader-dark.png)
+![ArkMD showing its welcome document in the Nordic theme](docs/screenshots/reader-nordic.png)
 
 > [!WARNING]
 > ArkMD **opens, edits and saves your Markdown files in place.** Saving overwrites the original: autosave is off unless you turn it on, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose, and read the [disclaimer](#disclaimer) before you rely on it.
@@ -31,7 +31,7 @@ A lightweight Markdown viewer and editor for **Android, Linux and Windows**. Ope
 - **Updates:** Settings > Check for updates now installs a new release in place on Windows and Linux (the packages ask for an administrator password). On Android it shows the new version and opens the download in your browser, and Android's own installer takes it from there. An optional daily check is off by default.
 - **Links and images (Windows and Linux):** images and Markdown files next to the document open from relative paths and `[[wikilinks]]`; `[text](#heading)` jumps within a page. Insert a picture from the formatting panel, by pasting (Windows) or by dropping a file: it is copied into an `images` folder next to the document.
 - **Print and export (Windows and Linux):** Print (Ctrl+P) and Export as HTML from the More menu.
-- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as. A second launch adds its file as a tab in the running window.
+- **Files:** Open with and Share on Android (saved in place, no storage permission); `.md`, `.markdown`, `.mdown` and `.mkd` file associations on Linux and Windows; recent files; Save as; Open file location (desktop) shows a file in your file manager. A second launch adds its file as a tab in the running window.
 - **Small and private:** about 8 MB for Android and 4.5 MB for the Linux packages. It works offline, has no account and collects no data; it contacts GitHub only when you check for updates.
 
 ## Install
@@ -62,13 +62,13 @@ More in [Getting started](docs/getting-started.md).
 
 | Editing, with the formatting panel | A light theme |
 |---|---|
-| ![Editor with the formatting panel](docs/screenshots/editor-dark.png) | ![A light theme](docs/screenshots/reader-light.png) |
-| **Editing**: the floating panel formats the selection. | **Themes**: 46 themes, dark and light. |
+| ![Editor with the formatting panel, in Gruvbox Dark](docs/screenshots/editor-gruvbox.png) | ![Tables and code in the Basic Light theme](docs/screenshots/reader-basic-light.png) |
+| **Editing** (Gruvbox Dark): the floating panel formats the selection. | **Basic Light**: one of 46 themes, dark and light. |
 
 | Outline of the headings | Settings |
 |---|---|
-| ![The outline flyout](docs/screenshots/outline-dark.png) | ![The settings dialog](docs/screenshots/settings-dark.png) |
-| **Outline**: jump to any heading, while reading or editing. | **Settings**: theme, fonts, history and updates in one place. |
+| ![The outline flyout, in Catppuccin Mocha](docs/screenshots/outline-catppuccin-mocha.png) | ![The settings dialog, in Everforest Dark](docs/screenshots/settings-everforest.png) |
+| **Outline** (Catppuccin Mocha): jump to any heading, while reading or editing. | **Settings** (Everforest Dark): theme, fonts, history and updates in one place. |
 
 ## User guide
 

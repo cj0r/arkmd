@@ -10,6 +10,7 @@
 ## Saving
 
 - **Save** (the button in the top bar, or Ctrl+S) writes the document over the file it came from. Nothing is saved automatically unless you turn on Autosave (below). ArkMD keeps the text being replaced as an earlier version (see [History and recovery](#history-and-recovery)), but that is not a backup, so keep your own.
+- **Open file location** (**More** menu, Windows and Linux; **Show in File Explorer** on Windows, **Reveal in Finder** on macOS) shows the saved file in your file manager, selected in its folder where the system supports it, and otherwise opens the folder. It's hidden for a document with no file behind it yet, such as a new one or the welcome tour, and on Android, where documents have no folder to show.
 - **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time.
 - A dot on a tab means it has changes that aren't saved. Closing a tab, or the window, with unsaved changes asks first.
 - **Autosave** is off by default. **Settings** > **Autosave** saves a file a few seconds after you stop typing. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.

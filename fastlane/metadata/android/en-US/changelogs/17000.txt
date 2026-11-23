@@ -1,0 +1,1 @@
+Adds Open file location to the More menu on desktop. Android is otherwise unchanged.

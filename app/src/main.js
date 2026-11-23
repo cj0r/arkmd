@@ -1192,12 +1192,21 @@ async function exportHtml() {
   } catch (e) { logError("Export", e); toast(`Could not export: ${e.message || e}`); }
 }
 
+/** "Show in File Explorer", "Reveal in Finder" or "Open file location" depending on the system. */
+function revealLabel() {
+  const p = `${navigator.userAgent} ${navigator.platform}`;
+  if (/Win/i.test(p)) return "Show in File Explorer";
+  if (/Mac/i.test(p)) return "Reveal in Finder";
+  return "Open file location";
+}
+
 function moreMenu() {
   const open = !!cur();
   const entries = [];
   if (open) entries.push([platform.mobile ? "Save as…" : "Save as…  (Ctrl+Shift+S)", () => save(true)]);
   if (open) entries.push([platform.mobile ? "Close file" : "Close file  (Ctrl+W)", () => closeTab()]);
   if (open) entries.push(["File history…", showHistory]);
+  if (open && cur().ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(cur().ref).catch((e) => { logError("Open file location", e); toast(`Could not open the location: ${e.message || e}`); })]);
   if (open && !platform.mobile) entries.push(["Print…  (Ctrl+P)", printDoc], ["Export as HTML…", exportHtml]);
   if (platform.update && pendingUpdate) entries.push([`Update to ${pendingUpdate.version}…`, showUpdate]);
   entries.push(["Welcome tour", openWelcome], [platform.mobile ? "Settings" : "Settings  (Ctrl+,)", openSettings], ["About", about]);

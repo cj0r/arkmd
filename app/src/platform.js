@@ -47,6 +47,7 @@ const androidImpl = {
   logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
   async logTail() { return ""; },
   openLogFolder: null,
+  revealFile: null,                                                          // content:// documents have no folder to show
   pickImage: null, importImage: null, savePastedImage: null, pasteClipboardImage: null,                  // inserting pictures is desktop only for now
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
@@ -122,6 +123,8 @@ const desktopImpl = {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
   },
+  /** Show a saved file in the system file manager (its location). */
+  async revealFile(ref) { return invoke("reveal_in_folder", { path: ref }); },
   /** Troubleshooting log (a file in the app's log folder). Failures to log are ignored. */
   logEvent(level, message) { invoke("log_event", { level, message: String(message) }).catch(() => {}); },
   async logTail() { try { return await invoke("log_tail"); } catch { return ""; } },

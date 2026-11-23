@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.17.0 (2026-11-23)
+
+### Added
+- **Open file location** in the More menu (Windows and Linux; Show in File Explorer on Windows, Reveal in Finder on macOS): shows the open file in the system file manager, selected where the system supports it and otherwise by opening its folder. It's available for saved files only and isn't offered on Android.
+
+### Changed
+- The README screenshots show five different themes (Nordic, Gruvbox Dark, Basic Light, Catppuccin Mocha, Everforest Dark) and the welcome tour.
+
 ## 0.16.0 (2026-11-23)
 
 ### Added

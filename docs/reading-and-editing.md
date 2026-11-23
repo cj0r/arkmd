@@ -30,7 +30,7 @@ In reading mode, tap or click a task's checkbox to tick or untick it. The change
 
 The list button in the top bar (Ctrl+Shift+O) opens a flyout with the headings of the document, indented by level. Choose one to jump to it: the reader scrolls to the heading, and the editor puts the cursor at the start of its line. The section you are in is marked. Headings inside code blocks and front matter are not listed. Esc or a click outside closes the flyout. At the bottom it shows the word and character count of the document and an estimated reading time.
 
-![The outline flyout](screenshots/outline-dark.png)
+![The outline flyout, in Catppuccin Mocha](screenshots/outline-catppuccin-mocha.png)
 
 ## Code in the editor
 
