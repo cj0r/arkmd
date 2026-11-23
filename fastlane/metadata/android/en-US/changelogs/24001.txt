@@ -1,0 +1,1 @@
+Fixes a stray line shown in Settings after going back with Esc.

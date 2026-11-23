@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.24.1 (2026-11-23)
+
+### Fixed
+- **Stray lines around the first Settings row after pressing Esc.** Going back with Esc left the keyboard focus ring on the first row, drawn outside the row where the dialog clipped it into two lines. Going back now puts focus on the row you came from, and the focus ring in dialogs is drawn inside the row.
+
 ## 0.24.0 (2026-11-23)
 
 ### Changed

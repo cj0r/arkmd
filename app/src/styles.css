@@ -288,3 +288,6 @@ body.compact #formatbar #fb-redo { margin-right: 4px; border-right: 1px solid va
 
 /* The card's button fills the card (the dialog rule above is more specific than .update-callout alone). */
 #dialog .update-callout .opt.primary { width: 100%; box-sizing: border-box; margin: 8px 0 2px; padding: 7px 14px; }
+
+/* Inside a dialog the focus ring is drawn inside the row: the dialog clips an outside one into two stray lines. */
+#dialog .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }

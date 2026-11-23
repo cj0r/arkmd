@@ -449,7 +449,10 @@ async function showHistory() {
   nodes.push(close);
   d.replaceChildren(...nodes);
   showDialog();
-  d.querySelector(".opt")?.focus({ preventScroll: true });
+  const target = settingsComeback && nodes.find((n) => n.dataset?.label === settingsComeback);
+  settingsComeback = null;
+  (target || d.querySelector(".opt"))?.focus({ preventScroll: true });
+  target?.scrollIntoView({ block: "center" });
 }
 
 async function showVersion(t, v) {
@@ -1384,6 +1387,8 @@ async function about(back = null) {
 }
 
 // ------------------------------------------------------------------ settings
+let settingsComeback = null;   // the row that opened a page, so coming back puts focus on it rather than on the first row
+
 /** The Settings dialog: appearance, updates and About in one place. Rows that pick from a list come back here. */
 function openSettings() {
   const d = $("dialog");
@@ -1397,7 +1402,8 @@ function openSettings() {
     b.innerHTML = `<span class="label"></span><span class="value"></span>`;
     b.querySelector(".label").textContent = label;
     b.querySelector(".value").textContent = value ? value + "  ›" : "›";
-    b.onclick = () => { closeDialog(); fn(); };
+    b.dataset.label = label;
+    b.onclick = () => { settingsComeback = label; closeDialog(); fn(); };
     nodes.push(b);
   };
   const toggle = (label, sub, key, dflt, apply) => {
