@@ -4,8 +4,8 @@
 Advisories that only say a crate is unmaintained or unsound (which the Linux GTK stack under Tauri has some of)
 are listed as warnings. Any other advisory fails the run. An unreachable database is a warning, not a failure."""
 import json
+import re
 import sys
-import tomllib
 import urllib.request
 
 LOCK = "app/src-tauri/Cargo.lock"
@@ -18,8 +18,15 @@ def post(path, body):
 
 
 def main():
-    with open(LOCK, "rb") as f:
-        packages = [(p["name"], p["version"]) for p in tomllib.load(f)["package"] if str(p.get("source", "")).startswith("registry")]
+    # Cargo.lock is plain TOML; the three fields needed are read with a pattern so this runs on any Python 3 (the CI
+    # runner's is older than tomllib).
+    with open(LOCK, encoding="utf-8") as f:
+        blocks = f.read().split("[[package]]")[1:]
+    packages = []
+    for block in blocks:
+        fields = dict(re.findall(r'^(name|version|source) = "([^"]*)"', block, re.M))
+        if fields.get("source", "").startswith("registry"):
+            packages.append((fields["name"], fields["version"]))
     found = {}
     try:
         for i in range(0, len(packages), 500):

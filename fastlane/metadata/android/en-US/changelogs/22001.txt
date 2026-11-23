@@ -1,0 +1,1 @@
+The outline now opens from the right edge, matching the swipe gesture.

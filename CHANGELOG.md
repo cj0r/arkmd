@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.22.1 (2026-11-23)
+
+### Changed
+- The Outline opens from the right edge, matching the swipe-left gesture that opens it, while Recent files stays on the left. On a wide window the find bar moves aside while the outline is open.
+
 ## 0.22.0 (2026-11-23)
 
 ### Added

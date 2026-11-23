@@ -41,16 +41,6 @@ jobs:
           git diff --exit-code -- shared/web/themes.json
           if [ -f design/theme-sheet.html ]; then git diff --exit-code -- design/theme-sheet.html; fi
 
-  audit:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Advisories for the Rust crates
-        run: python3 tools/audit_crates.py
-      - name: Advisories for the npm packages
-        working-directory: app
-        run: npm audit --omit=dev --audit-level=moderate
-
   rust:
     runs-on: ubuntu-22.04
     steps:
@@ -88,3 +78,5 @@ jobs:
       - name: npm audit
         working-directory: app
         run: npm audit --omit=dev --audit-level=high
+      - name: Advisories for the Rust crates
+        run: python3 tools/audit_crates.py

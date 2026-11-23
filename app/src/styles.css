@@ -158,8 +158,8 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
 .icon:disabled:hover { background: none; }
 
 #outline {
-  position: absolute; top: 0; bottom: 0; left: 0; z-index: 12; width: min(320px, 86vw); overflow-y: auto; padding: 6px 0 12px;
-  background: var(--bg-alt); border-right: 1px solid var(--surface); box-shadow: 6px 0 18px rgba(0,0,0,.3);
+  position: absolute; top: 0; bottom: 0; right: 0; z-index: 12; width: min(320px, 86vw); overflow-y: auto; padding: 6px 0 12px;
+  background: var(--bg-alt); border-left: 1px solid var(--surface); box-shadow: -6px 0 18px rgba(0,0,0,.3);
 }
 #outline[hidden] { display: none; }
 .outline-head { padding: 10px 14px 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
@@ -178,6 +178,8 @@ body.frameless:not(.maximized) { box-shadow: inset 0 0 0 1px var(--surface); }
   background: var(--bg-alt); border: 1px solid var(--surface); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35);
 }
 #findbar[hidden] { display: none; }
+/* The outline opens on the right, so the find bar steps aside on a wide window. */
+@media (min-width: 521px) { #content:has(#outline:not([hidden])) #findbar { right: calc(min(320px, 86vw) + 14px); width: min(620px, calc(100% - min(320px, 86vw) - 28px)); } }
 .find-row { display: flex; align-items: center; gap: 4px; }
 .find-row + .find-row { margin-top: 6px; }
 #findbar input {
