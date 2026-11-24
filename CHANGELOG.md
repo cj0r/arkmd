@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.27.1 (2026-11-24)
+
+### Changed
+- The editor's right-click menu has every command of the formatting panel, including Image, and adds Save (when there are changes), Find and replace, Outline and Switch to reading. A menu taller than the window scrolls.
+
 ## 0.27.0 (2026-11-24)
 
 ### Added

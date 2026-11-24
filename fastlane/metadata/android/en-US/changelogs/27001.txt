@@ -1,0 +1,1 @@
+The editor's right-click menu has all formatting commands.

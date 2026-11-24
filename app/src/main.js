@@ -1697,6 +1697,11 @@ function editorEntries(at) {
     ["Task list", f((t, s, e) => F.list(t, s, e, "task")), "", "Ctrl+Shift+9"], ["Quote", f(F.quote), "", "Ctrl+Shift+Q"],
     ["Callout…", sub("Callout", F.CALLOUTS.map((c) => [c[0].toUpperCase() + c.slice(1), f((t, s, e) => F.callout(t, s, e, c))]))],
     ["Code block", f(F.codeBlock), "", "Ctrl+Shift+K"], ["Table", f((t, s, e) => F.block(t, s, e, F.TABLE))], ["Divider", f((t, s, e) => F.block(t, s, e, F.RULE))],
+    ...(platform.importImage ? [["Image…", insertImageFromPicker, "", "Ctrl+Shift+I"]] : []),
+    ["Document", null],
+    ...(cur()?.dirty ? [["Save", () => save(), "", KEY.save]] : []),
+    ["Find and replace…", () => openFind(true), "", "Ctrl+H"], ["Outline", toggleOutline, "", KEY.outline],
+    ["Switch to reading", toggleMode, "", "Ctrl+E"],
   ];
 }
 

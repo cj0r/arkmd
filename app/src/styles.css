@@ -278,6 +278,7 @@ body.compact #formatbar #fb-redo { margin-right: 4px; border-right: 1px solid va
 #update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 10px; font-size: 14px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 #update-banner[hidden] { display: none; }
 #update-banner button { flex: none; padding: 6px 14px; border: 0; border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+#menu { max-height: calc(100vh - 16px); overflow-y: auto; }
 #menu button.accent { color: var(--bg); background: var(--accent); font-weight: 600; margin-bottom: 2px; }
 #menu button.accent:hover { background: var(--accent); filter: brightness(1.1); }
 

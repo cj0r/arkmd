@@ -40,7 +40,7 @@ Fenced code blocks are colored in the editor with the same colors as in the read
 
 Right-click replaces the web engine's own menu with ArkMD's:
 
-- **In the editor:** Undo, Redo, Cut, Copy, Paste and Select all, then the formatting commands of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider). Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
+- **In the editor:** Undo, Redo, Cut, Copy, Paste and Select all, then every command of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider and, where supported, Image), then Save (when there are changes), Find and replace, Outline and Switch to reading. A tall menu scrolls in a short window. Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
 - **In the reader:** Copy (with text selected), Select all, Edit this document, Find, Outline, Print and Export as HTML.
 - **On a tab:** Close, Close other tabs, Close tabs to the right, Save as, Pin to recent files, Copy file path, Show the file in your file manager and Rename file. A tab with unsaved changes still asks before it closes.
 - **On the title bar and the home screen:** New file, Open file, Recent files, Reopen closed tab, Settings, Keyboard shortcuts and About.

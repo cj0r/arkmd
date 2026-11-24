@@ -205,7 +205,7 @@ await step("right-click menus: tab, editor, reader and title bar", async () => {
   if (!inEdit) { await page.click("#toggle"); await page.locator("#editor .cm-content").waitFor(); }
   await page.click("#editor .cm-content", { button: "right" });
   m = await items();
-  expect(["Cut", "Copy", "Paste", "Bold", "Callout…"].every((n) => m.some((x) => x.startsWith(n))), "editor menu: " + m);
+  expect(["Cut", "Copy", "Paste", "Bold", "Callout…", "Find and replace", "Outline", "Switch to reading"].every((n) => m.some((x) => x.startsWith(n))), "editor menu: " + m);
   await page.getByRole("menuitem", { name: /^Callout/ }).click();
   m = await items();
   expect(m.includes("Warning") && m.includes("Back"), "callout submenu: " + m);
