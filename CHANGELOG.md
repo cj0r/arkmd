@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.27.0 (2026-11-24)
+
+### Added
+- **Right-click menus (Windows and Linux).** The editor menu has Undo, Redo, Cut, Copy, Paste, Select all and the formatting commands; the reader menu has Copy, Select all, Edit this document, Find, Outline, Print and Export as HTML; a tab menu has Close, Close other tabs, Close tabs to the right, Save as, Pin, Copy file path, Show in file manager and Rename; the title bar and home screen show the application commands. They replace the web engine's own menu (Reload, Inspect). Text fields keep the system menu.
+
 ## 0.26.0 (2026-11-24)
 
 ### Added

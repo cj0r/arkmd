@@ -934,7 +934,7 @@ function buildFormatBar() {
 }
 
 // ------------------------------------------------------------------ menus and dialogs
-function menu(anchor, entries) {
+function menu(anchor, entries, at = null) {
   const m = $("menu");
   menuReturn = anchor;
   m.replaceChildren(...entries.map(([label, fn, cls, keys]) => {
@@ -956,8 +956,13 @@ function menu(anchor, entries) {
   m.hidden = false;
   const r = anchor.getBoundingClientRect();
   const w = m.offsetWidth, h = m.offsetHeight;
-  m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
-  m.style.top = (r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+  if (at) {                                   // a right-click menu opens at the pointer
+    m.style.left = Math.max(8, Math.min(at.x, innerWidth - w - 8)) + "px";
+    m.style.top = Math.max(8, Math.min(at.y, innerHeight - h - 8)) + "px";
+  } else {
+    m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+    m.style.top = (r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+  }
   m.querySelector("button")?.focus({ preventScroll: true });
 }
 let menuReturn = null;
@@ -1627,6 +1632,117 @@ const compactQuery = window.matchMedia("(max-width: 560px)");
 const compact = () => platform.mobile || compactQuery.matches;
 function applyCompact() { document.body.classList.toggle("compact", compact()); }
 
+// ------------------------------------------------------------------ right-click menus (desktop)
+/** Close every tab except `keep` (or only those to its right), stopping if one of them is kept open at an unsaved-changes prompt. */
+async function closeTabsExcept(keep, rightOnly = false) {
+  const list = tabs.all, at = list.findIndex((t) => t.id === keep);
+  for (const t of [...list]) {
+    if (t.id === keep || (rightOnly && list.indexOf(t) < at)) continue;
+    await closeTab(t.id);
+    if (tabs.find(t.id)) return;
+  }
+}
+
+async function editorCopy(cut) {
+  const [s, e] = editor.selection();
+  if (s === e) return;
+  try { await platform.copyText(editor.docString().slice(s, e)); } catch (err) { failed("copy", err); return; }
+  if (cut) editor.view.dispatch({ changes: { from: s, to: e, insert: "" }, userEvent: "delete.cut" });
+  editor.view.focus();
+}
+async function editorPaste() {
+  try {
+    const text = await navigator.clipboard.readText();
+    editor.view.dispatch(editor.view.state.replaceSelection(text), { userEvent: "input.paste", scrollIntoView: true });
+    editor.view.focus();
+  } catch { toast("Paste with Ctrl+V"); }
+}
+
+/** The app-level entries, shared by the title bar menu and the empty parts of the window. */
+function appEntries() {
+  const entries = [["New file", newFile, "", KEY.new], ["Open file…", openFile, "", KEY.open], ["Recent files…", openFiles, "", KEY.recent]];
+  if (closed.length) entries.push(["Reopen closed tab", reopenClosed, "", KEY.reopen]);
+  entries.push(["Settings", openSettings, "", KEY.settings], ["Keyboard shortcuts", showShortcuts], ["About", about]);
+  return entries;
+}
+
+function tabEntries(t) {
+  const i = tabs.all.indexOf(t);
+  const entries = [["Close", () => closeTab(t.id), "", KEY.close]];
+  if (tabs.count > 1) entries.push(["Close other tabs", () => closeTabsExcept(t.id)]);
+  if (i < tabs.count - 1) entries.push(["Close tabs to the right", () => closeTabsExcept(t.id, true)]);
+  entries.push(["Save as…", () => { activateTab(t.id); save(true); }, "", KEY.saveAs]);
+  if (t.ref && recentOn()) entries.push([R.isPinned(recents(), t.ref) ? "Unpin from recent files" : "Pin to recent files", () => { activateTab(t.id); togglePinCurrent(); }, "", KEY.pin]);
+  if (t.ref) entries.push(["Copy file path", () => platform.copyText(t.ref).then(() => toast("Path copied"), (e) => failed("copy the path", e))]);
+  if (t.ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(t.ref).catch((e) => failed("open the file location", e))]);
+  if (t.ref && platform.renameFile) entries.push(["Rename file…", () => { activateTab(t.id); renameFile(); }]);
+  if (closed.length) entries.push(["Reopen closed tab", reopenClosed, "", KEY.reopen]);
+  return entries;
+}
+
+function editorEntries(at) {
+  const f = (op) => () => format(op);
+  const sub = (title, items) => () => menu($("btn-more"), [[title, null], ...items, ["Back", () => contextMenuAt(at)]], at);
+  return [
+    ["Undo", () => editor.undo(), "", "Ctrl+Z"], ["Redo", () => editor.redo(), "", "Ctrl+Y"],
+    ["Cut", () => editorCopy(true), "", "Ctrl+X"], ["Copy", () => editorCopy(false), "", "Ctrl+C"], ["Paste", editorPaste, "", "Ctrl+V"],
+    ["Select all", () => { editor.view.dispatch({ selection: { anchor: 0, head: editor.view.state.doc.length } }); editor.view.focus(); }, "", "Ctrl+A"],
+    ["Format", null],
+    ["Bold", f((t, s, e) => F.wrap(t, s, e, "**")), "", "Ctrl+B"], ["Italic", f((t, s, e) => F.wrap(t, s, e, "*")), "", "Ctrl+I"],
+    ["Strikethrough", f((t, s, e) => F.wrap(t, s, e, "~~")), "", "Ctrl+Shift+X"], ["Highlight", f((t, s, e) => F.wrap(t, s, e, "==")), "", "Ctrl+Shift+H"],
+    ["Inline code", f((t, s, e) => F.wrap(t, s, e, "`")), "", "Ctrl+`"], ["Link", f(F.link), "", "Ctrl+K"],
+    ["Paragraph", null],
+    ["Heading…", sub("Heading", [1, 2, 3, 4, 5, 6].map((n) => [`Heading ${n}`, f((t, s, e) => F.heading(t, s, e, n))]).concat([["Normal text", f((t, s, e) => F.heading(t, s, e, 0))]]))],
+    ["Bulleted list", f((t, s, e) => F.list(t, s, e, "bullet")), "", "Ctrl+Shift+8"], ["Numbered list", f((t, s, e) => F.list(t, s, e, "numbered")), "", "Ctrl+Shift+7"],
+    ["Task list", f((t, s, e) => F.list(t, s, e, "task")), "", "Ctrl+Shift+9"], ["Quote", f(F.quote), "", "Ctrl+Shift+Q"],
+    ["Callout…", sub("Callout", F.CALLOUTS.map((c) => [c[0].toUpperCase() + c.slice(1), f((t, s, e) => F.callout(t, s, e, c))]))],
+    ["Code block", f(F.codeBlock), "", "Ctrl+Shift+K"], ["Table", f((t, s, e) => F.block(t, s, e, F.TABLE))], ["Divider", f((t, s, e) => F.block(t, s, e, F.RULE))],
+  ];
+}
+
+function readerEntries(selected) {
+  const entries = [];
+  if (selected) entries.push(["Copy", () => platform.copyText(selected).catch((e) => failed("copy", e)), "", "Ctrl+C"]);
+  entries.push(["Select all", () => $("reader").contentWindow.getSelection().selectAllChildren($("reader").contentDocument.body), "", "Ctrl+A"],
+    ["Edit this document", toggleMode, "", "Ctrl+E"], ["Find…", () => openFind(), "", KEY.find], ["Outline", toggleOutline, "", KEY.outline]);
+  if (platform.mobile ? platform.printHtml : true) entries.push(["Print…", printDoc, "", KEY.print]);
+  entries.push(["Export as HTML…", exportHtml]);
+  return entries;
+}
+
+let lastContext = null;
+function contextMenuAt(at) {
+  const c = lastContext;
+  if (!c) return;
+  menu(c.anchor, c.entries(at), at);
+}
+
+/** Replace the web engine's own right-click menu (Reload, Inspect …) with ArkMD's: tabs, the title bar, the editor and the reader. */
+function onContextMenu(e, fromReader = false) {
+  if (platform.mobile) return;
+  const target = e.target;
+  if (target.closest?.("input, textarea, select, #dialog, #findbar")) return;     // text fields keep the native menu
+  e.preventDefault();
+  closeMenu();
+  const frame = fromReader ? $("reader").getBoundingClientRect() : { left: 0, top: 0 };
+  let at = { x: e.clientX + frame.left, y: e.clientY + frame.top };
+  const anchor = fromReader ? $("reader") : (target.closest?.("button, .tab, #bar, #editor") || document.body);
+  if (e.clientX === 0 && e.clientY === 0 && !fromReader) { const r = anchor.getBoundingClientRect(); at = { x: r.left + 12, y: r.bottom - 4 }; }
+  const tabEl = target.closest?.(".tab");
+  let entries;
+  if (tabEl) {
+    const tabId = tabEl.querySelector(".tab-main")?.dataset.tab, t = tabs.all.find((x) => String(x.id) === tabId);
+    if (!t) return;
+    entries = () => tabEntries(t);
+  } else if (cur() && !fromReader && $("editor").contains(target) && mode() === "edit") entries = (pos) => editorEntries(pos);
+  else if (cur() && fromReader && mode() === "read") {
+    const sel = $("reader").contentWindow.getSelection().toString();
+    entries = () => readerEntries(sel);
+  } else entries = () => appEntries();
+  lastContext = { anchor: anchor === document.body ? $("bar") : anchor, entries };
+  menu(lastContext.anchor, entries(at), at);
+}
+
 function moreMenu() {
   const open = !!cur();
   const entries = [];
@@ -1741,6 +1857,7 @@ function wire() {
   document.addEventListener("pointerdown", (e) => { if (!$("files").contains(e.target) && !$("btn-files").contains(e.target)) closeFiles(); });
 
   document.addEventListener("keydown", onKey);
+  document.addEventListener("contextmenu", (e) => onContextMenu(e));
 
   // Links in the reader open in the system browser (viewer.html calls this when embedded).
   window.arkToggleTask = (line, checked) => editor.setTask(line, checked);
@@ -2085,6 +2202,7 @@ function onReaderLoad() {
   readerReady = true;
   // Shortcuts keep working after clicking into the reader (its keys go to the iframe document).
   $("reader").contentDocument.addEventListener("keydown", onKey);
+  $("reader").contentDocument.addEventListener("contextmenu", (e) => onContextMenu(e, true));
   if (platform.mobile) attachSwipe($("reader").contentDocument);
   // Taps inside the reader land in the iframe document, so close the menu from there too.
   $("reader").contentDocument.addEventListener("pointerdown", () => { $("menu").hidden = true; closeOutline(); closeFiles(); });

@@ -192,6 +192,41 @@ await step("deleting a numbered item renumbers the list", async () => {
   await page.keyboard.press("Control+s");
 });
 
+await step("right-click menus: tab, editor, reader and title bar", async () => {
+  const items = async () => page.evaluate(() => [...document.querySelectorAll("#menu button")].map((b) => b.textContent));
+  const menuOpen = async () => !(await page.evaluate(() => document.querySelector("#menu").hidden));
+  // tab
+  await page.click(".tab .tab-main", { button: "right" });
+  let m = await items();
+  expect(m.some((x) => x.startsWith("Close")) && m.some((x) => x.startsWith("Save as")) && m.some((x) => x.startsWith("Copy file path")), "tab menu: " + m);
+  await page.keyboard.press("Escape");
+  // editor (the tab is in edit mode here)
+  const inEdit = await page.locator("#editor .cm-content").isVisible();
+  if (!inEdit) { await page.click("#toggle"); await page.locator("#editor .cm-content").waitFor(); }
+  await page.click("#editor .cm-content", { button: "right" });
+  m = await items();
+  expect(["Cut", "Copy", "Paste", "Bold", "Callout…"].every((n) => m.some((x) => x.startsWith(n))), "editor menu: " + m);
+  await page.getByRole("menuitem", { name: /^Callout/ }).click();
+  m = await items();
+  expect(m.includes("Warning") && m.includes("Back"), "callout submenu: " + m);
+  await page.getByRole("menuitem", { name: "Back" }).click();
+  expect((await items()).some((x) => x.startsWith("Bold")), "Back did not return to the editor menu");
+  await page.keyboard.press("Escape");
+  // reader
+  await page.click("#toggle");
+  await page.waitForTimeout(400);
+  await page.frameLocator("#reader").locator("body").click({ button: "right", position: { x: 200, y: 200 } });
+  m = await items();
+  expect(m.some((x) => x.startsWith("Edit this document")) && m.some((x) => x.startsWith("Find")), "reader menu: " + m);
+  await page.keyboard.press("Escape");
+  // title bar
+  await page.click("#bar .spacer", { button: "right" });
+  m = await items();
+  expect(m.some((x) => x.startsWith("New file")) && m.some((x) => x.startsWith("Settings")), "title bar menu: " + m);
+  await page.keyboard.press("Escape");
+  expect(!(await menuOpen()), "menu stayed open");
+});
+
 await step("rename changes the file and the tab", async () => {
   await openMenu();
   await menuItem("Rename file").click();

@@ -36,6 +36,17 @@ The list button in the top bar (Ctrl+Shift+O) opens a flyout on the right with t
 
 Fenced code blocks are colored in the editor with the same colors as in the reader. The editor knows these languages: JavaScript, TypeScript, Python, Rust, Java, Kotlin, C and C++, C#, Go, JSON, YAML, TOML, HTML and XML, CSS, SQL, shell, PowerShell, Lua, Ruby, diff and Dockerfile. Put the language after the opening fence (` ```python `); other languages are shown as plain code.
 
+## Right-click menus (Windows and Linux)
+
+Right-click replaces the web engine's own menu with ArkMD's:
+
+- **In the editor:** Undo, Redo, Cut, Copy, Paste and Select all, then the formatting commands of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider). Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
+- **In the reader:** Copy (with text selected), Select all, Edit this document, Find, Outline, Print and Export as HTML.
+- **On a tab:** Close, Close other tabs, Close tabs to the right, Save as, Pin to recent files, Copy file path, Show the file in your file manager and Rename file. A tab with unsaved changes still asks before it closes.
+- **On the title bar and the home screen:** New file, Open file, Recent files, Reopen closed tab, Settings, Keyboard shortcuts and About.
+
+Text fields (the find bar, dialogs) keep the system menu. On Android, press and hold works as before.
+
 ## Tabs
 
 - Every open file is a tab in the top bar. Tap or click a tab to switch to it.
