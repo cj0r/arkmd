@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.28.0 (2026-11-24)
+
+### Changed
+- **Nested numbered lists.** Tab nests a list item one level and Shift+Tab moves it one level out, by the width of the marker of the item above it (a bullet under a numbered item nests correctly too). A nested numbered list starts at 1 and an item moved out continues the outer list; the numbers after it are corrected. Nested numbered lists show 1. 2. 3., then a. b. c., then i. ii. iii., and the pattern repeats, in the editor and in the reader. The file keeps ordinary numbers; editor labels are not drawn in documents over 300 KB.
+- The editor's right-click menu starts with a Document section (Save when there are changes, Find and replace, Outline, Switch to reading, Undo, Redo, Cut, Copy, Paste, Select all), followed by Format, Paragraph and Insert.
+
 ## 0.27.1 (2026-11-24)
 
 ### Changed

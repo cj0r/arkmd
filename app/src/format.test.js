@@ -14,6 +14,7 @@ import {
   codeBlock,
   callout,
   renumber,
+  markerLabels,
   RULE,
 } from "./format.js";
 
@@ -301,4 +302,47 @@ test("renumberLeavesListsNumberedTheSameWayAndOtherListsAlone", () => {
   const ed = renumber("1. a\n   1. x\n   3. y\n2. b", [2]);
   assert.equal(ed.length, 1);
   assert.equal(ed[0].text, "2");
+});
+
+test("tabNestsNumberedItemsAndRestartsTheNumbering", () => {
+  const go = (src, s, e, dir) => apply(src, indentList(src, s, e, dir));
+  const doc = "1. a\n2. b\n3. b-1\n4. b-2\n5. b-3\n6. c";
+  const from = doc.indexOf("3. b-1"), to = doc.indexOf("5. b-3") + 6;
+  assert.equal(go(doc, from, to, 1), "1. a\n2. b\n   1. b-1\n   2. b-2\n   3. b-3\n3. c");
+  // a single item moved out continues the outer list and renumbers what follows
+  const nested = "1. a\n2. b\n   1. b-1\n   2. b-2\n3. c";
+  const at = nested.indexOf("2. b-2");
+  assert.equal(go(nested, at, at, -1), "1. a\n2. b\n   1. b-1\n3. b-2\n4. c");
+  // a bullet under a numbered item nests by the numbered marker's width
+  assert.equal(go("1. a\n- x", 6, 6, 1), "1. a\n   - x");
+  // and a bullet moves back out to its parent's level
+  assert.equal(go("1. a\n   - x", 8, 8, -1), "1. a\n- x");
+});
+
+test("nestedNumberedListsStartAtOneAfterAnInsertion", () => {
+  const fix = (src, idx) => { let out = src; for (const x of [...renumber(src, idx)].reverse()) out = out.slice(0, x.from) + x.text + out.slice(x.to); return out; };
+  assert.equal(fix("1. a\n2. b\n   3. b-1\n   4. b-2\n   5. b-3\n3. c", [3]), "1. a\n2. b\n   1. b-1\n   2. b-2\n   3. b-3\n3. c");
+});
+
+test("nestedNumberedListsAreLabelledLikeTheReader", () => {
+  const labels = (t) => markerLabels(t).map((x) => t.slice(x.from, x.to) + "->" + x.label);
+  assert.deepEqual(labels("1. a\n2. b\n   1. x\n   2. y\n      1. p\n      2. q\n3. c"), ["1->a", "2->b", "1->i", "2->ii"]);
+  // four levels: the fourth is numbers again, the fifth letters
+  assert.deepEqual(labels("1. a\n   1. b\n      1. c\n         1. d\n            1. e"), ["1->a", "1->i", "1->a"]);
+  // a bullet between does not count as a level; code blocks and unnumbered lines are skipped
+  assert.deepEqual(labels("1. a\n   - b\n     1. c"), ["1->a"]);
+  assert.deepEqual(labels("1. a\n```\n   1. no\n```\n   1. yes"), ["1->a"]);
+  assert.deepEqual(labels("- a\n  1. b"), []);
+});
+
+test("aSingleNestedItemStartsAtOne", () => {
+  const go = (src, s, e, dir) => apply(src, indentList(src, s, e, dir));
+  assert.equal(go("1. a\n2. b\n5. c", 12, 12, 1), "1. a\n2. b\n   1. c");
+  assert.equal(go("1. a\n2. b\n   1. c\n   2. d\n3. e", 20, 20, -1), "1. a\n2. b\n   1. c\n3. d\n4. e");
+});
+
+test("movingAnItemOutCountsUpEvenInAListNumberedTheSameWay", () => {
+  const src = "1. a\n   1. b\n   1. c";
+  const at = src.indexOf("1. c");
+  assert.equal(apply(src, indentList(src, at, at, -1)), "1. a\n   1. b\n2. c");
 });

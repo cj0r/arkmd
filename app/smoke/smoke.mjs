@@ -227,6 +227,35 @@ await step("right-click menus: tab, editor, reader and title bar", async () => {
   expect(!(await menuOpen()), "menu stayed open");
 });
 
+await step("Tab nests a numbered item (shown a., i. like the reader) and Shift+Tab moves it back", async () => {
+  if (!(await page.locator("#editor .cm-content").isVisible())) { await page.click("#toggle"); await page.locator("#editor .cm-content").waitFor(); }
+  await page.click("#editor .cm-content");
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\n\n1. top\nsub\nsub2\nthird");
+  await page.keyboard.press("ArrowUp"); await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("Tab");                       // sub -> level 2
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");                       // sub2 -> level 2
+  await page.keyboard.press("Tab");                       // sub2 -> level 3
+  const text = () => page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  let t = await text();
+  expect(/a\. sub\s+i\. sub2/.test(t), "nested markers wrong: " + JSON.stringify(t.slice(-60)));
+  const raw = await page.evaluate(() => window.__mock && 0);
+  await page.keyboard.press("Shift+Tab");                 // sub2 back to level 2
+  t = await text();
+  expect(/a\. sub\s+b\. sub2/.test(t), "Shift+Tab did not move sub2 back: " + JSON.stringify(t.slice(-60)));
+  await page.click("#toggle");
+  await page.waitForTimeout(400);
+  const style = await page.frameLocator("#reader").locator("ol ol").first().evaluate((el) => getComputedStyle(el).listStyleType);
+  expect(style === "lower-alpha", "reader nested list style: " + style);
+  await page.click("#toggle");
+  await page.locator("#editor .cm-content").waitFor();
+  await page.keyboard.press("Control+z"); await page.keyboard.press("Control+z"); await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+s");
+  await page.click("#toggle");                            // leave the tab in reading mode, as the next step expects
+  void raw;
+});
+
 await step("rename changes the file and the tab", async () => {
   await openMenu();
   await menuItem("Rename file").click();

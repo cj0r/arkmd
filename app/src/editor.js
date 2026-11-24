@@ -1,12 +1,12 @@
 // CodeMirror 6 Markdown editor, themed from shared/web/themes.json (same roles as the Android editor).
 import { EditorState, Compartment, RangeSetBuilder, Prec, StateField, StateEffect } from "@codemirror/state";
-import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, highlightActiveLine } from "@codemirror/view";
+import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, WidgetType, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
-import { renumber } from "./format.js";
+import { renumber, markerLabels } from "./format.js";
 import { lineSeparatorFor, docText, withLineBreak } from "./eol.js";
 
 const look = new Compartment();
@@ -134,6 +134,23 @@ const extras = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations });
 
+class MarkerLabel extends WidgetType {
+  constructor(label) { super(); this.label = label; }
+  eq(o) { return o.label === this.label; }
+  toDOM() { const el = document.createElement("span"); el.textContent = this.label; return el; }
+}
+/** Nested numbered lists show a. b. c. and i. ii. iii. like the reader does; the file keeps its numbers (see markerLabels). */
+const nestedMarkers = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(u) { if (u.docChanged) this.decorations = this.build(u.view); }
+  build(view) {
+    if (view.state.doc.length > 300000) return Decoration.none;
+    const b = new RangeSetBuilder();
+    for (const m of markerLabels(view.state.doc.toString())) b.add(m.from, m.to, Decoration.replace({ widget: new MarkerLabel(m.label) }));
+    return b.finish();
+  }
+}, { decorations: (v) => v.decorations, provide: (p) => EditorView.atomicRanges.of((v) => v.plugin(p)?.decorations || Decoration.none) });
+
 /**
  * Create the editor. onChange(doc) fires on every edit; extraKeys are extra keymap bindings.
  * Returns { view, setText, getText, setLook(theme, font, size), scrollFraction(), scrollToFraction(f) }.
@@ -171,6 +188,7 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
   const extensions = [
         history(),
         renumberLists,
+        nestedMarkers,
         drawSelection(),
         highlightActiveLine(),
         findField,

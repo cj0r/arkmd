@@ -40,7 +40,7 @@ Fenced code blocks are colored in the editor with the same colors as in the read
 
 Right-click replaces the web engine's own menu with ArkMD's:
 
-- **In the editor:** Undo, Redo, Cut, Copy, Paste and Select all, then every command of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider and, where supported, Image), then Save (when there are changes), Find and replace, Outline and Switch to reading. A tall menu scrolls in a short window. Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
+- **In the editor:** a Document section (Save when there are changes, Find and replace, Outline, Switch to reading, Undo, Redo, Cut, Copy, Paste, Select all), then every command of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider and, where supported, Image). A tall menu scrolls in a short window. Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
 - **In the reader:** Copy (with text selected), Select all, Edit this document, Find, Outline, Print and Export as HTML.
 - **On a tab:** Close, Close other tabs, Close tabs to the right, Save as, Pin to recent files, Copy file path, Show the file in your file manager and Rename file. A tab with unsaved changes still asks before it closes.
 - **On the title bar and the home screen:** New file, Open file, Recent files, Reopen closed tab, Settings, Keyboard shortcuts and About.
@@ -133,7 +133,7 @@ Each list and style shortcut works on the selected lines or text, and pressing i
 **Writing flow**
 
 - **Heading:** press Ctrl+2 on a line, or type `## `. With the cursor on a heading line, **Tab** makes it one level deeper (`##` becomes `###`) and **Shift+Tab** one level shallower, so you can step through the outline without retyping the marks.
-- **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item (a numbered item moves in by three spaces so the nesting stays valid) and **Shift+Tab** moves it back out. This works on several selected items too. When you insert or delete a numbered item, the numbers of the list are corrected (1, 2, 3 …); a list that uses the same number on every line (all `1.`) is left as it is.
+- **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item one level (by the width of the marker of the item above it, so the nesting stays valid) and **Shift+Tab** moves it one level out. A nested numbered list starts again at 1, and an item moved out continues the outer list. This works on several selected items too. When you insert or delete a numbered item, the numbers of the list are corrected (1, 2, 3 …); a list that uses the same number on every line (all `1.`) is left as it is. Nested numbered lists are shown as 1. 2. 3., then a. b. c., then i. ii. iii., and the pattern repeats; the file itself keeps ordinary numbers, and the reader shows the same markers.
 - **Tables:** **Tab** and **Shift+Tab** move between cells, and Tab in the last cell adds a row.
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 

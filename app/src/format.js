@@ -130,9 +130,19 @@ export function shiftHeading(src, s, e, delta) {
   return { start: ls, end: after, text: next, selStart: move(s), selEnd: move(e) };
 }
 
+const indentOf = (line) => line.length - line.trimStart().length;
+/** Width of a list item's marker as nesting needs it: "1. " is 3, "10. " is 4, "- " and "- [ ] " are 2. */
+function markerWidth(line) {
+  const m = LIST_MARK.exec(line);
+  if (!m) return 2;
+  return /\d/.test(m[0].trim()[0]) ? m[0].length - m[1].length : 2;
+}
+
 /**
- * Tab / Shift+Tab on list items: nest or un-nest by the width of the item's marker ("- " is 2, "1. " is 3), so the
- * result is a valid nested list. Returns null unless every non-empty selected line is a list item.
+ * Tab / Shift+Tab on list items: move the item one level in or out. Nesting indents by the width of the marker of the
+ * item above it at the same level ("1. " is 3, "- " is 2), so the result is a valid nested list; moving out lines the
+ * item up with its parent's siblings. Numbered lists are then renumbered: a nested list starts at 1 and an item moved
+ * out continues the outer list. Returns null unless every non-empty selected line is a list item.
  */
 export function indentList(src, s, e, dir) {
   const str = String(src);
@@ -140,18 +150,53 @@ export function indentList(src, s, e, dir) {
   const lines = str.substring(start, end).split("\n");
   const content = lines.filter((it) => it.trim().length > 0);
   if (!content.length || !content.every((it) => LIST_MARK.test(it))) return null;
+  const above = str.substring(0, start).split("\n");
+  above.pop();                                                    // the text before the first selected line, line by line
+  const firstIndent = indentOf(content[0]);
+  let width = markerWidth(content[0]);
+  if (dir > 0) {
+    for (let i = above.length - 1; i >= 0; i--) {
+      const l = above[i];
+      if (!l.trim()) continue;
+      const ind = indentOf(l);
+      if (ind > firstIndent) continue;
+      if (ind === firstIndent && LIST_MARK.test(l)) width = markerWidth(l);
+      break;
+    }
+  } else {
+    let target = 0;
+    for (let i = above.length - 1; i >= 0; i--) {
+      const l = above[i];
+      if (l.trim() && indentOf(l) < firstIndent && LIST_MARK.test(l)) { target = indentOf(l); break; }
+    }
+    width = firstIndent - target;
+  }
   const out = lines.map((line) => {
     if (!line.trim()) return line;
-    const m = LIST_MARK.exec(line);
-    const width = /\d/.test(m[0].trim()[0]) ? m[0].length - m[1].length : 2;
-    if (dir > 0) return " ".repeat(width) + line;
-    return line.substring(Math.min(width, line.length - line.trimStart().length));
+    return dir > 0 ? " ".repeat(width) + line : line.substring(Math.min(width, indentOf(line)));
   });
   const text = out.join("\n");
   const delta = text.length - (end - start);
-  return s === e
-    ? { start, end, text, selStart: Math.max(start, s + (out[0].length - lines[0].length)), selEnd: Math.max(start, e + (out[0].length - lines[0].length)) }
+  const first = out[0].length - lines[0].length;
+  let edit = s === e
+    ? { start, end, text, selStart: Math.max(start, s + first), selEnd: Math.max(start, e + first) }
     : { start, end, text, selStart: start, selEnd: end + delta };
+  // Renumber the numbered lists touched by the move.
+  const full = str.slice(0, start) + text + str.slice(end);
+  const firstLine = str.slice(0, start).split("\n").length - 1;
+  const idx = [];
+  for (let i = firstLine - 1; i <= firstLine + lines.length; i++) idx.push(i);
+  const fixes = renumber(full, idx, true);        // after a move, also a list numbered 1. 1. is put in order
+  if (!fixes.length) return edit;
+  let fixed = full;
+  for (const x of [...fixes].reverse()) fixed = fixed.slice(0, x.from) + x.text + fixed.slice(x.to);
+  const shift = (p) => p + fixes.reduce((n, x) => (x.from < p ? n + x.text.length - (x.to - x.from) : n), 0);
+  const selStart = shift(edit.selStart), selEnd = shift(edit.selEnd);
+  let from = 0;
+  while (from < str.length && from < fixed.length && str[from] === fixed[from]) from++;
+  let tail = 0;
+  while (tail < str.length - from && tail < fixed.length - from && str[str.length - 1 - tail] === fixed[fixed.length - 1 - tail]) tail++;
+  return { start: from, end: str.length - tail, text: fixed.slice(from, fixed.length - tail), selStart, selEnd };
 }
 
 /**
@@ -240,9 +285,9 @@ const NUMBERED_ITEM = /^(\s*)(\d+)([.)])( .*|)$/;
  * Renumber numbered lists after an edit. `lines` are indexes of lines that were just edited or joined (the new text
  * `src`). For each, the list around it (items at the same indent, nested lines and single blank lines between them)
  * is renumbered 1, 2, 3 … from its first number. Lists whose items all carry the same number ("1." everywhere) are left
- * alone. Returns edits [{ from, to, text }] over `src`, in ascending order, or [].
+ * alone unless `force`. Returns edits [{ from, to, text }] over `src`, in ascending order, or [].
  */
-export function renumber(src, lineIdx) {
+export function renumber(src, lineIdx, force = false) {
   const lines = String(src).split("\n");
   const starts = [];
   let pos = 0;
@@ -269,11 +314,18 @@ export function renumber(src, lineIdx) {
     };
     items.push(idx); walk(-1); walk(1);
     items.sort((a, b) => a - b);
-    if (items.length < 2 || done.has(items[0])) continue;
+    if (done.has(items[0])) continue;
+    let nested = false;                                       // a list inside a list item starts at 1
+    for (let i = items[0] - 1; i >= 0; i--) {
+      if (!lines[i].trim()) continue;
+      nested = /^\s*(?:[-*+] |\d+[.)] )/.test(lines[i]) && lines[i].length - lines[i].trimStart().length < indent;
+      break;
+    }
+    if (items.length < 2 && !nested) continue;
     done.add(items[0]);
     const nums = items.map((i) => Number(NUMBERED_ITEM.exec(lines[i])[2]));
-    if (nums.every((n) => n === nums[0])) continue;
-    const first = nums[0];
+    if (!force && nums.every((n) => n === nums[0]) && !(nested && nums[0] !== 1)) continue;
+    const first = nested ? 1 : nums[0];
     items.forEach((i, k) => {
       const m = NUMBERED_ITEM.exec(lines[i]);
       if (Number(m[2]) === first + k) return;
@@ -396,3 +448,42 @@ export const MarkdownFormat = {
 };
 
 export default MarkdownFormat;
+
+const alpha = (n) => { let out = ""; for (; n > 0; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(97 + ((n - 1) % 26)) + out; return out; };
+const roman = (n) => {
+  if (n < 1 || n > 3999) return String(n);
+  let out = "";
+  for (const [v, r] of [[1000, "m"], [900, "cm"], [500, "d"], [400, "cd"], [100, "c"], [90, "xc"], [50, "l"], [40, "xl"], [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"]]) while (n >= v) { out += r; n -= v; }
+  return out;
+};
+
+/**
+ * How the numbers of nested numbered lists are shown, matching the reader: the first level 1. 2. 3., the second a. b. c.,
+ * the third i. ii. iii., then the pattern repeats. Levels count numbered ancestors only (a bullet in between does not
+ * add one), as the reader's CSS does. Returns [{ from, to, label }] for the digits to display differently; the text of
+ * the file is not changed. Code blocks are skipped.
+ */
+export function markerLabels(src) {
+  const out = [];
+  const stack = [];
+  let pos = 0, fence = null;
+  for (const line of String(src).split("\n")) {
+    const start = pos;
+    pos += line.length + 1;
+    const f = /^\s*(```|~~~)/.exec(line);
+    if (f) { fence = fence === null ? f[1] : fence === f[1] ? null : fence; continue; }
+    if (fence !== null || !line.trim()) continue;
+    const m = /^(\s*)(?:([-*+]) |(\d+)([.)]) )/.exec(line);
+    const indent = line.length - line.trimStart().length;
+    if (!m) { if (indent === 0) stack.length = 0; continue; }
+    while (stack.length && stack[stack.length - 1].indent >= m[1].length) stack.pop();
+    const ordered = m[3] !== undefined;
+    if (ordered) {
+      const depth = stack.filter((x) => x.ordered).length;
+      const kind = depth % 3;
+      if (kind !== 0) out.push({ from: start + m[1].length, to: start + m[1].length + m[3].length, label: (kind === 1 ? alpha : roman)(Number(m[3])) });
+    }
+    stack.push({ indent: m[1].length, ordered });
+  }
+  return out;
+}

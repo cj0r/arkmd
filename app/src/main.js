@@ -1684,6 +1684,10 @@ function editorEntries(at) {
   const f = (op) => () => format(op);
   const sub = (title, items) => () => menu($("btn-more"), [[title, null], ...items, ["Back", () => contextMenuAt(at)]], at);
   return [
+    ["Document", null],
+    ...(cur()?.dirty ? [["Save", () => save(), "", KEY.save]] : []),
+    ["Find and replace…", () => openFind(true), "", "Ctrl+H"], ["Outline", toggleOutline, "", KEY.outline],
+    ["Switch to reading", toggleMode, "", "Ctrl+E"],
     ["Undo", () => editor.undo(), "", "Ctrl+Z"], ["Redo", () => editor.redo(), "", "Ctrl+Y"],
     ["Cut", () => editorCopy(true), "", "Ctrl+X"], ["Copy", () => editorCopy(false), "", "Ctrl+C"], ["Paste", editorPaste, "", "Ctrl+V"],
     ["Select all", () => { editor.view.dispatch({ selection: { anchor: 0, head: editor.view.state.doc.length } }); editor.view.focus(); }, "", "Ctrl+A"],
@@ -1696,12 +1700,9 @@ function editorEntries(at) {
     ["Bulleted list", f((t, s, e) => F.list(t, s, e, "bullet")), "", "Ctrl+Shift+8"], ["Numbered list", f((t, s, e) => F.list(t, s, e, "numbered")), "", "Ctrl+Shift+7"],
     ["Task list", f((t, s, e) => F.list(t, s, e, "task")), "", "Ctrl+Shift+9"], ["Quote", f(F.quote), "", "Ctrl+Shift+Q"],
     ["Callout…", sub("Callout", F.CALLOUTS.map((c) => [c[0].toUpperCase() + c.slice(1), f((t, s, e) => F.callout(t, s, e, c))]))],
+    ["Insert", null],
     ["Code block", f(F.codeBlock), "", "Ctrl+Shift+K"], ["Table", f((t, s, e) => F.block(t, s, e, F.TABLE))], ["Divider", f((t, s, e) => F.block(t, s, e, F.RULE))],
     ...(platform.importImage ? [["Image…", insertImageFromPicker, "", "Ctrl+Shift+I"]] : []),
-    ["Document", null],
-    ...(cur()?.dirty ? [["Save", () => save(), "", KEY.save]] : []),
-    ["Find and replace…", () => openFind(true), "", "Ctrl+H"], ["Outline", toggleOutline, "", KEY.outline],
-    ["Switch to reading", toggleMode, "", "Ctrl+E"],
   ];
 }
 
