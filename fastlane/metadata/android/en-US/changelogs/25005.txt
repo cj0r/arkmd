@@ -1,0 +1,1 @@
+Redo with Ctrl+Shift+Z on Windows. Browser reload keys no longer reload the page. The window title shows the version.

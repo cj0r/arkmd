@@ -28,6 +28,6 @@ export const SHORTCUTS = [
     ["Ctrl+Shift+8", "Bulleted list"], ["Ctrl+Shift+7", "Numbered list"], ["Ctrl+Shift+9", "Task list"],
     ["Ctrl+Shift+Q", "Quote"], ["Ctrl+Shift+K", "Code block"], ["Ctrl+Shift+I", "Insert a picture (Windows and Linux)"],
     ["Enter", "Continue the list; on an empty item, end it"], ["Tab, Shift+Tab", "In a table: next, previous cell (Tab in the last cell adds a row)"], ["Tab, Shift+Tab", "On a list item: nest, un-nest"],
-    ["Ctrl+Z, Ctrl+Shift+Z", "Undo, redo (also buttons in the top bar)"],
+    ["Ctrl+Z; Ctrl+Y or Ctrl+Shift+Z", "Undo; redo (also buttons in the top bar)"],
   ]],
 ];

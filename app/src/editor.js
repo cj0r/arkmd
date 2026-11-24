@@ -155,7 +155,7 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         extras,
         EditorView.contentAttributes.of({ "aria-label": "Markdown editor", "aria-multiline": "true", tabindex: "0" }),
         Prec.highest(keymap.of(extraKeys)),     // ahead of the Markdown language's own Enter handling
-        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+        keymap.of([indentWithTab, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Mod-y", run: redo, preventDefault: true }, ...defaultKeymap, ...historyKeymap]),
         look.of([]),
         typing.of(typingAttrs(true)),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); }),

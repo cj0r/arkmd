@@ -2,6 +2,15 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.25.5 (2026-11-24)
+
+### Fixed
+- **Redo works with Ctrl+Shift+Z on Windows.** Windows only had Ctrl+Y. Both keys now redo on every platform, and Settings > Keyboard shortcuts lists both.
+- **The browser's page keys no longer act on the document.** Ctrl+R and F5 (reload), Ctrl+U, Ctrl+L, Ctrl+G and Alt+Left/Right (back, forward) are disabled; reloading dropped the open view of the document.
+
+### Changed
+- The window title shows the version, for example "notes.md — ArkMD 0.25.5".
+
 ## 0.25.4 (2026-11-23)
 
 ### Changed

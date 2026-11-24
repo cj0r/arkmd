@@ -165,7 +165,7 @@ const textOf = (t) => (t === cur() ? editor.getText() : docText(t.state));
 function updateChrome() {
   const t = cur();
   const open = !!t;
-  platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ArkMD` : "ArkMD");
+  platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ${appTitle}` : appTitle);
   $("btn-save").hidden = !(open && t.dirty);
   $("btn-format").hidden = mode() !== "edit";
   $("btn-outline").hidden = !open;
@@ -1325,6 +1325,7 @@ async function showUpdate() {
 }
 
 let shownVersion = "";
+let appTitle = "ArkMD";                 // "ArkMD 0.25.5" once the version is known
 async function installUpdate(status, buttons) {
   const dirty = tabs.dirty();
   if (dirty.length && !(await platform.confirm(
@@ -1796,6 +1797,9 @@ function onKey(e) {
   }
   if (e.key === "F1") { e.preventDefault(); showShortcuts(); return; }
   if (e.key === "F3" && find.open) { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); return; }
+  // The web engine's own page keys (reload, view source, back/forward) would drop the open document's view; they do nothing here.
+  const k = e.key.toLowerCase();
+  if (e.key === "F5" || ((e.altKey && !mod) && (e.key === "ArrowLeft" || e.key === "ArrowRight")) || (mod && !e.shiftKey && !e.altKey && (k === "r" || k === "u" || k === "l" || k === "g"))) { e.preventDefault(); return; }
   if (!mod) return;
   if (e.shiftKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moveTab(e.key === "PageUp" ? -1 : 1); return; }
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
@@ -2100,6 +2104,7 @@ async function init() {
   if (!tabs.count && recents().length === 0 && !store.get("welcomed", false)) await openWelcome();
   store.set("welcomed", true);
   shownVersion = await platform.version();
+  if (shownVersion) { appTitle = `ArkMD ${shownVersion}`; updateChrome(); }
   offerRecovery();
   if (isMac) {                       // tooltips are written with Ctrl; show Cmd, including tooltips set later
     const fix = (n) => { const t = n.getAttribute?.("title"); if (t?.includes("Ctrl")) n.setAttribute("title", keyLabel(t)); };

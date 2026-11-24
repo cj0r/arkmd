@@ -123,7 +123,7 @@ It's a hobby project maintained on a best-effort basis, with no guarantee of sup
 
 ## AI-assisted development
 
-ArkMD is developed with the help of AI coding tools (Claude). AI-generated code, tests and documentation are reviewed and tested by the maintainer before they're merged, and the maintainer is responsible for everything in a release. Even so, AI-assisted code can contain mistakes that review and testing miss, which is one more reason to follow the disclaimer above: keep backups of your files. ArkMD has been tested on Android (a phone and an emulator) and on Linux. Before each release the Windows installer is installed and started on a Windows runner in GitHub Actions, but it hasn't been tested on Windows hardware by the maintainer yet, and the macOS build hasn't been run on a Mac. If you find a bug, please [open an issue](https://github.com/cj0r/arkmd/issues).
+ArkMD is developed with the help of AI coding tools (Claude). AI-generated code, tests and documentation are reviewed and tested by the maintainer before they're merged, and the maintainer is responsible for everything in a release. Even so, AI-assisted code can contain mistakes that review and testing miss, which is one more reason to follow the disclaimer above: keep backups of your files. ArkMD has been tested on Android (a phone and an emulator), on Linux, and on Windows 11 in a virtual machine. Before each release the Windows installer is also installed and started on a Windows runner in GitHub Actions. It hasn't been tested with a screen reader such as TalkBack, and the macOS build hasn't been run on a Mac. If you find a bug, please [open an issue](https://github.com/cj0r/arkmd/issues).
 
 ## Support the project
 

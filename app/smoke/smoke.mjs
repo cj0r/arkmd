@@ -149,6 +149,33 @@ await step("editing and saving writes the file", async () => {
 
 await step("accessibility: editor screen", () => axe("editor screen"));
 
+await step("redo works with Ctrl+Shift+Z and Ctrl+Y; browser reload keys are blocked; the title shows the version", async () => {
+  await page.click("#editor .cm-content");
+  await page.keyboard.press("Control+End");
+  const before = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  await page.keyboard.type("REDOMARK");
+  const typed = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  const has = async () => (await page.evaluate(() => document.querySelector("#editor .cm-content").innerText)).includes("REDOMARK");
+  await page.keyboard.press("Control+z");
+  expect(!(await has()), "undo did not remove the typed text");
+  await page.keyboard.press("Control+Shift+Z");
+  expect(await has(), "Ctrl+Shift+Z did not redo");
+  await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+y");
+  expect(await has(), "Ctrl+Y did not redo");
+  const blocked = await page.evaluate(() => ["Control+r", "F5", "Control+u"].map((c) => {
+    const [mod, key] = c.includes("+") ? c.split("+") : [null, c];
+    const e = new KeyboardEvent("keydown", { key, ctrlKey: !!mod, bubbles: true, cancelable: true });
+    document.dispatchEvent(e); return e.defaultPrevented;
+  }));
+  expect(blocked.every(Boolean), "a browser key was not blocked: " + blocked);
+  const titles = await page.evaluate(() => window.__mock.calls.filter((c) => /set_title/.test(c.cmd)).map((c) => JSON.stringify(c.args)));
+  expect(titles.some((t) => t.includes("ArkMD 9.9.9")), "title has no version: " + titles.slice(-2));
+  await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+s");          // leave the tab clean for the steps that follow
+  void before; void typed;
+});
+
 await step("rename changes the file and the tab", async () => {
   await openMenu();
   await menuItem("Rename file").click();
