@@ -120,9 +120,16 @@ const desktopImpl = {
   async writeFile(ref, text) {
     await invoke("save_text_file", { path: ref, text });        // atomic: a temp file renamed over the original
   },
-  async saveAs(name, text, filters = this.filters) {
+  /** Choose a folder (Settings > Folder for new files). Returns its path or null. */
+  async pickFolder() {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const ref = await open({ multiple: false, directory: true });
+    return ref || null;
+  },
+  async saveAs(name, text, filters = this.filters, folder = "") {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    const ref = await save({ defaultPath: name, filters });
+    const sep = folder.includes("\\") && !folder.includes("/") ? "\\" : "/";
+    const ref = await save({ defaultPath: folder ? folder.replace(/[\\/]+$/, "") + sep + name : name, filters });
     if (!ref) return null;
     await this.writeFile(ref, text);
     return { ref, name: baseName(ref) };

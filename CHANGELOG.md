@@ -2,6 +2,13 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.26.0 (2026-11-24)
+
+### Added
+- **Callouts change type in place.** With the cursor inside a callout, choosing a type from the formatting panel changes that callout's type instead of inserting a new one. The title changes with it when it is still the old type's default title; a custom title is kept.
+- **Numbered lists renumber.** Inserting or deleting a numbered item corrects the numbers of the list (1, 2, 3 …), and Undo restores them. Lists that use the same number on every line and numbers edited in place are left as they are.
+- **Folder for new files (Windows and Linux).** Settings > Folder for new files sets the folder where the Save dialog starts for a file that has not been saved yet.
+
 ## 0.25.5 (2026-11-24)
 
 ### Fixed

@@ -185,16 +185,103 @@ export function codeBlock(src, s, e) {
   return block(src, s, e, `\`\`\`\n${inner}\n\`\`\``, 4, 4 + inner.length);
 }
 
-/** Obsidian callout; the selection (if any) becomes its body and the title is selected. */
+/**
+ * The callout header line the range sits in, if any: the quote block ("> ...") around `s`..`e` whose first line is
+ * "> [!type]". Returns { from, to, indent, type, fold, rest } for that first line, or null.
+ */
+function calloutAt(str, s, e) {
+  const lines = str.split("\n");
+  let pos = 0, at = -1, from = 0;
+  const starts = [];
+  for (let i = 0; i < lines.length; i++) { starts.push(pos); pos += lines[i].length + 1; }
+  const lineOf = (p) => { let i = 0; while (i + 1 < lines.length && starts[i + 1] <= p) i++; return i; };
+  const a = lineOf(s), b = lineOf(Math.max(s, e - (e > s && str[e - 1] === "\n" ? 1 : 0)));
+  const quoted = (i) => /^\s*>/.test(lines[i]);
+  if (!quoted(a)) return null;
+  let top = a;
+  while (top > 0 && quoted(top - 1)) top--;
+  for (let i = a; i <= b; i++) if (!quoted(i)) return null;
+  const m = /^(\s*>\s*)\[!([A-Za-z-]+)\]([+-]?)(.*)$/.exec(lines[top]);
+  if (!m) return null;
+  at = top; from = starts[at];
+  return { from, to: from + lines[at].length, indent: m[1], type: m[2], fold: m[3], rest: m[4] };
+}
+
+/**
+ * Obsidian callout. With the cursor or selection inside an existing callout, the callout changes type in place (and its
+ * title with it when the title is still the old type's default); otherwise a new callout wraps the selection (if any)
+ * and the title is selected.
+ */
 export function callout(src, s, e, type) {
+  const str = String(src);
+  const found = calloutAt(str, s, e);
+  if (found) {
+    const cap = (t) => (t.length ? t[0].toUpperCase() + t.slice(1) : "");
+    const title = found.rest.trim();
+    const restNew = title === "" || title.toLowerCase() === found.type.toLowerCase() ? ` ${cap(type)}` : found.rest;
+    const text = `${found.indent}[!${type}]${found.fold}${restNew}`;
+    const shift = text.length - (found.to - found.from);
+    const mv = (p) => (p <= found.to ? Math.min(p, found.from + text.length) : p + shift);
+    return { start: found.from, end: found.to, text, selStart: mv(s), selEnd: mv(e) };
+  }
   const title = type.length > 0 ? type[0].toUpperCase() + type.slice(1) : "";
-  const raw = String(src).substring(s, e);
+  const raw = str.substring(s, e);
   const body = (raw.length === 0 ? "Text" : raw)
     .split(/\r?\n/)
     .map((it) => `> ${it}`)
     .join("\n");
   const head = `> [!${type}] `;
   return block(src, s, e, `${head}${title}\n${body}`, head.length, head.length + title.length);
+}
+
+const NUMBERED_ITEM = /^(\s*)(\d+)([.)])( .*|)$/;
+
+/**
+ * Renumber numbered lists after an edit. `lines` are indexes of lines that were just edited or joined (the new text
+ * `src`). For each, the list around it (items at the same indent, nested lines and single blank lines between them)
+ * is renumbered 1, 2, 3 … from its first number. Lists whose items all carry the same number ("1." everywhere) are left
+ * alone. Returns edits [{ from, to, text }] over `src`, in ascending order, or [].
+ */
+export function renumber(src, lineIdx) {
+  const lines = String(src).split("\n");
+  const starts = [];
+  let pos = 0;
+  for (const l of lines) { starts.push(pos); pos += l.length + 1; }
+  const edits = new Map();
+  const done = new Set();
+  for (const idx of lineIdx) {
+    if (idx < 0 || idx >= lines.length) continue;
+    const m0 = NUMBERED_ITEM.exec(lines[idx]);
+    if (!m0) continue;
+    const indent = m0[1].length;
+    const items = [];
+    const walk = (dir) => {
+      let i = idx, blank = 0;
+      for (i = idx + dir; i >= 0 && i < lines.length; i += dir) {
+        const l = lines[i];
+        if (l.trim() === "") { if (++blank > 1) break; continue; }
+        blank = 0;
+        const m = NUMBERED_ITEM.exec(l);
+        const ind = l.length - l.trimStart().length;
+        if (m && m[1].length === indent) items.push(i);
+        else if (ind <= indent) break;
+      }
+    };
+    items.push(idx); walk(-1); walk(1);
+    items.sort((a, b) => a - b);
+    if (items.length < 2 || done.has(items[0])) continue;
+    done.add(items[0]);
+    const nums = items.map((i) => Number(NUMBERED_ITEM.exec(lines[i])[2]));
+    if (nums.every((n) => n === nums[0])) continue;
+    const first = nums[0];
+    items.forEach((i, k) => {
+      const m = NUMBERED_ITEM.exec(lines[i]);
+      if (Number(m[2]) === first + k) return;
+      const from = starts[i] + m[1].length;
+      edits.set(from, { from, to: from + m[2].length, text: String(first + k) });
+    });
+  }
+  return [...edits.values()].sort((a, b) => a.from - b.from);
 }
 
 const TABLE_ROW = /^\s*\|.*\|\s*$/;

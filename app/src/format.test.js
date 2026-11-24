@@ -13,6 +13,7 @@ import {
   block,
   codeBlock,
   callout,
+  renumber,
   RULE,
 } from "./format.js";
 
@@ -260,4 +261,44 @@ test("image keeps a following paragraph apart, and uses a selection as alt text"
   const sel = "my photo here";
   r = image(sel, 3, 8, "images/p.png", "p");
   assert.ok(r.text.includes("![photo](images/p.png)"));
+});
+
+const apply = (src, ed) => src.slice(0, ed.start) + ed.text + src.slice(ed.end);
+
+test("calloutChangesTypeInPlaceWhenTheCursorIsInsideOne", () => {
+  const t = (src, at, type, to = at) => apply(src, callout(src, at, to, type));
+  assert.equal(t("> [!info] Info\n> body", 18, "tip"), "> [!tip] Tip\n> body");
+  assert.equal(t("> [!warning]- Careful\n> text", 26, "tip"), "> [!tip]- Careful\n> text");
+  assert.equal(t("> [!note]\n> a", 12, "danger"), "> [!danger] Danger\n> a");
+  const doc = "intro\n\n> [!info] Info\n> a\n> b\n\nafter";
+  assert.equal(t(doc, doc.indexOf("a\n> b"), "quote", doc.indexOf("b\n\n") + 1), "intro\n\n> [!quote] Quote\n> a\n> b\n\nafter");
+  // the cursor stays where it was relative to the text
+  const ed = callout("> [!info] Info\n> body", 18, 18, "tip");
+  assert.equal(ed.selStart, 18 - 2);
+});
+
+test("calloutInsertsANewOneWhenNotInsideACallout", () => {
+  const out = apply("a\n\n> [!info] Info\n> x", callout("a\n\n> [!info] Info\n> x", 1, 1, "tip"));
+  assert.ok(out.includes("> [!tip] Tip") && out.includes("> [!info] Info"), out);
+});
+
+test("renumberFixesAListAfterAnInsertionOrRemoval", () => {
+  const fix = (src, idx) => { const ed = renumber(src, idx); let out = src; for (const x of [...ed].reverse()) out = out.slice(0, x.from) + x.text + out.slice(x.to); return out; };
+  assert.equal(fix("1. a\n2. b\n2. new\n3. c\n4. d", [2]), "1. a\n2. b\n3. new\n4. c\n5. d");
+  assert.equal(fix("1. a\n3. c\n4. d", [1]), "1. a\n2. c\n3. d");
+  assert.equal(fix("1. a\n2. b\n   - nested\n   1. inner\n3. c", [4]), "1. a\n2. b\n   - nested\n   1. inner\n3. c");
+  assert.equal(fix("4. a\n4. b\n7. c", [1]), "4. a\n5. b\n6. c");
+  assert.equal(fix("1. a\n\n3. b\n3. c", [2]), "1. a\n\n2. b\n3. c");
+});
+
+test("renumberLeavesListsNumberedTheSameWayAndOtherListsAlone", () => {
+  assert.deepEqual(renumber("1. a\n1. b\n1. c", [1]), []);
+  assert.deepEqual(renumber("1. a\n2. b\n3. c", [1]), []);
+  assert.deepEqual(renumber("- a\n- b", [1]), []);
+  // a separate list further down, after prose, is not touched
+  assert.deepEqual(renumber("1. a\n2. b\n\ntext\n\n1. x\n2. y", [1]), []);
+  // nested list numbers are renumbered on their own
+  const ed = renumber("1. a\n   1. x\n   3. y\n2. b", [2]);
+  assert.equal(ed.length, 1);
+  assert.equal(ed[0].text, "2");
 });

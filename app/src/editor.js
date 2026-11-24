@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
+import { renumber } from "./format.js";
 import { lineSeparatorFor, docText, withLineBreak } from "./eol.js";
 
 const look = new Compartment();
@@ -138,6 +139,29 @@ const extras = ViewPlugin.fromClass(class {
  * Returns { view, setText, getText, setLook(theme, font, size), scrollFraction(), scrollToFraction(f) }.
  */
 const typing = new Compartment();
+const MARKER = /^\s*\d+[.)] /;
+/**
+ * After typing or deleting, a numbered list that is out of sequence is renumbered: a new "2." inserted into 1, 2, 3
+ * renumbers what follows, and deleting an item closes the gap. It runs only when lines were added or removed or a line
+ * just became a list item, so editing a number in place is left alone (see renumber in format.js).
+ */
+const renumberLists = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged || !(tr.isUserEvent("input") || tr.isUserEvent("delete"))) return tr;
+  const before = tr.startState.doc, after = tr.newDoc, linesChanged = before.lines !== after.lines;
+  const idx = new Set();
+  tr.changes.iterChangedRanges((fromA, _toA, fromB) => {
+    const line = after.lineAt(Math.min(fromB, after.length));
+    const created = MARKER.test(line.text) && !MARKER.test(before.lineAt(Math.min(fromA, before.length)).text);
+    if (!linesChanged && !created) return;
+    idx.add(line.number - 1);
+    if (line.number > 1) idx.add(line.number - 2);
+    if (line.number < after.lines) idx.add(line.number);
+  });
+  if (!idx.size) return tr;
+  const edits = renumber(after.toString(), [...idx]);
+  if (!edits.length) return tr;
+  return [tr, { changes: edits.map((e) => ({ from: e.from, to: e.to, insert: e.text })), sequential: true }];
+});
 /** Spell check, autocorrect and sentence capitals. CodeMirror turns all three off; writing prose wants them on. */
 const typingAttrs = (on) => EditorView.contentAttributes.of(on
   ? { spellcheck: "true", autocorrect: "on", autocapitalize: "sentences" }
@@ -146,6 +170,7 @@ const typingAttrs = (on) => EditorView.contentAttributes.of(on
 export function createEditor(parent, { onChange, extraKeys = [] }) {
   const extensions = [
         history(),
+        renumberLists,
         drawSelection(),
         highlightActiveLine(),
         findField,

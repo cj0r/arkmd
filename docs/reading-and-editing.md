@@ -61,7 +61,7 @@ While you edit, a floating bar offers the most-used Markdown formatting, so you 
 | Link | Turns the selection into `[text](https://)` with the address selected |
 | Bulleted list, Numbered list, Task | Applies to every selected line; switches between list types |
 | Quote | Prefixes every selected line with `>` |
-| Callout | A menu of callout types (note, tip, info, warning, danger, question, example, quote) |
+| Callout | A menu of callout types (note, tip, info, warning, danger, question, example, quote). With the cursor inside an existing callout, choosing a type changes that callout's type (and its title, if it still has the old type's default title) instead of adding a new one |
 | Code block | Wraps the selection in a fenced block |
 | Image (Windows and Linux) | Choose a picture to copy next to the document and link (see Pictures below) |
 | Table, Divider | Insert a table or a horizontal rule on its own lines |
@@ -115,14 +115,14 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Ctrl+Shift+Q | Quote |
 | Ctrl+Shift+K | Code block |
 | Ctrl+Shift+I | Insert a picture (Windows and Linux) |
-| Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
+| Ctrl+Z; Ctrl+Y or Ctrl+Shift+Z | Undo; redo |
 
 Each list and style shortcut works on the selected lines or text, and pressing it again removes the formatting. With nothing selected, a style shortcut such as Ctrl+B opens a pair of marks; press it again after typing to step out past the closing marks.
 
 **Writing flow**
 
 - **Heading:** press Ctrl+2 on a line, or type `## `. With the cursor on a heading line, **Tab** makes it one level deeper (`##` becomes `###`) and **Shift+Tab** one level shallower, so you can step through the outline without retyping the marks.
-- **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item (a numbered item moves in by three spaces so the nesting stays valid) and **Shift+Tab** moves it back out. This works on several selected items too.
+- **Lists:** **Enter** continues a list with the next bullet, number or task; **Enter** on an empty item ends the list. **Tab** nests the current item (a numbered item moves in by three spaces so the nesting stays valid) and **Shift+Tab** moves it back out. This works on several selected items too. When you insert or delete a numbered item, the numbers of the list are corrected (1, 2, 3 …); a list that uses the same number on every line (all `1.`) is left as it is.
 - **Tables:** **Tab** and **Shift+Tab** move between cells, and Tab in the last cell adds a row.
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 

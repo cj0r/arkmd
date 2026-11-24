@@ -176,6 +176,22 @@ await step("redo works with Ctrl+Shift+Z and Ctrl+Y; browser reload keys are blo
   void before; void typed;
 });
 
+await step("deleting a numbered item renumbers the list", async () => {
+  await page.click("#editor .cm-content");
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\n\n1. one\ntwo\nthree");          // Enter continues the numbering itself
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+ArrowDown");
+  await page.keyboard.press("Delete");
+  const t = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  expect(/1\. one\s+2\. three/.test(t) && !/3\. three/.test(t), "list not renumbered: " + JSON.stringify(t.slice(-40)));
+  await page.keyboard.press("Control+z");
+  const u = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  expect(/1\. one\s+2\. two\s+3\. three/.test(u), "undo did not restore the list: " + JSON.stringify(u.slice(-40)));
+  await page.keyboard.press("Control+s");
+});
+
 await step("rename changes the file and the tab", async () => {
   await openMenu();
   await menuItem("Rename file").click();

@@ -584,7 +584,7 @@ async function save(as = false, quiet = false) {
   t.saving = true;
   try {
     if (!t.ref || as) {
-      const r = await platform.saveAs(t.name.includes(".") ? t.name : t.name + ".md", text);
+      const r = await platform.saveAs(t.name.includes(".") ? t.name : t.name + ".md", text, undefined, !t.ref && platform.pickFolder ? store.get("newFolder", "") : "");
       if (!r) return;
       t.ref = r.ref; t.name = r.name;
     } else {
@@ -1159,6 +1159,17 @@ function pickImages(after) {
   }, after);
 }
 
+/** Settings > Folder for new files (desktop): where the Save dialog starts for a file that hasn't been saved yet. */
+async function pickNewFolder(after) {
+  const dir = store.get("newFolder", "");
+  const choice = await ask("Folder for new files",
+    dir ? `New files are saved to ${dir} unless you pick another place in the Save dialog.` : "The Save dialog for a new file starts in the folder you choose here. Until you choose one, it starts where it last was.",
+    dir ? ["Choose a folder…", "Use the last folder again", "Cancel"] : ["Choose a folder…", "Cancel"]);
+  if (choice === 0) { const f = await platform.pickFolder(); if (f) store.set("newFolder", f); }
+  else if (dir && choice === 1) store.set("newFolder", "");
+  after();
+}
+
 function pickSize(after) {
   const def = platform.mobile ? 18 : 16;
   choose("Text size", [[null, SIZES.map((s) => ({ key: s, label: s === def ? `${s} (default)` : `${s}` }))]], textSize(), (s) => {
@@ -1466,6 +1477,10 @@ function openSettings() {
   row("Remote images", (IMAGE_POLICIES.find((p) => p[0] === store.get("remoteImages", "ask")) || IMAGE_POLICIES[0])[1].replace(" (default)", ""), () => pickImages(back));
   row("Reading font", fontById(store.get("readFont", "system")).name, () => pickFont("Reading font", "readFont", back));
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
+  if (platform.pickFolder) {
+    const dir = store.get("newFolder", "");
+    row("Folder for new files", dir ? baseName(dir) : "Ask each time", () => pickNewFolder(back));
+  }
   toggle("Match system light/dark", "Switches between a dark and a light theme with the device setting. Choose each one with Theme; the one you pick sets the dark or the light slot.", "autoTheme", false, () => { useActiveTheme(); applyLook(); });
   toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());

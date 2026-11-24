@@ -1,0 +1,1 @@
+Callouts change type in place. Numbered lists renumber after an insertion or deletion.
