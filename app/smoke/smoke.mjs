@@ -278,6 +278,29 @@ await step("menu is accessible", async () => {
   await page.keyboard.press("Escape");
 });
 
+await step("status bar and line numbers can be switched on and off in Settings", async () => {
+  const flip = async (label) => {
+    await openMenu();
+    await menuItem("Settings").click();
+    await page.locator("#dialog h2", { hasText: "Settings" }).waitFor();
+    await page.locator("#dialog button.row", { hasText: label }).click();
+    await page.locator("#dialog button", { hasText: "Done" }).click();
+  };
+  await flip("Status bar");
+  await page.locator("#statusbar:not([hidden])").waitFor();
+  const read = await page.locator("#statusbar").innerText();
+  expect(/words?/.test(read) && /\bKB\b|\bB\b/.test(read) && !/Line \d/.test(read), "reading status: " + read);
+  await page.click("#toggle");                              // edit mode adds the cursor position
+  await page.locator("#statusbar", { hasText: /Line \d+, column \d+/ }).waitFor();
+  await flip("Line numbers");
+  await page.locator("#editor .cm-lineNumbers").waitFor();
+  await flip("Line numbers");
+  expect((await page.locator("#editor .cm-lineNumbers").count()) === 0, "line numbers did not turn off");
+  await flip("Status bar");
+  await page.locator("#statusbar[hidden]").waitFor({ state: "attached" });
+  await page.click("#toggle");                              // back to reading, as the next step expects
+});
+
 await step("Esc steps back one dialog page, then closes", async () => {
   await openMenu();
   await menuItem("Settings").click();

@@ -1,0 +1,1 @@
+Status bar and line numbers, switched on in Settings. Settings is grouped by topic.

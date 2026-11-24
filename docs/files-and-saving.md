@@ -18,7 +18,7 @@ The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files fl
 - **Remove.** The ✕ on a card removes it from the list only; the file isn't touched. **Clear recent files** at the bottom empties the list.
 - **Open… and New** at the top are the same as in the **+** menu. Arrow keys move through the list and Enter opens a file; Esc closes the flyout.
 - **How many.** The list keeps the 200 most recently used files, plus any you've pinned.
-- **Privacy.** The list, with the titles and previews, is kept only in ArkMD's own storage on the device, like the rest of your settings. **Settings** > **History and recovery** > **Remember recent files** switches it off and clears it.
+- **Privacy.** The list, with the titles and previews, is kept only in ArkMD's own storage on the device, like the rest of your settings. **Settings** > **Files** > **Remember recent files** switches it off and clears it.
 - Files whose preview isn't known yet (from before this list existed) fill in the first time you open the flyout, where ArkMD can read them. A file that has since been moved or deleted stays in the list until you open it, and ArkMD then says it couldn't open it and removes it.
 
 ## Saving
@@ -71,7 +71,7 @@ ArkMD has no sign-in of its own for Google Drive, OneDrive or similar services; 
 ## History and recovery
 
 - **File history.** Each time you save a file, ArkMD keeps the text it replaces as an earlier version. **More** > **File history…** lists them, shows a preview and either loads one into the editor or opens it as a new tab. Loading it is an ordinary edit: Undo goes back, and nothing changes on disk until you save. Everything from the last day is kept, older versions are thinned to one a day, and each file keeps up to 30 versions, within about 50 MB in total. Documents over 2 MB aren't versioned.
-- **Where it lives.** In ArkMD's own storage on the device, never in your folders, so it doesn't clutter synced folders or vaults and doesn't travel to other devices. It is lost if you clear the app's data or uninstall it. **Settings** > **History and recovery** switches it off and clears it.
+- **Where it lives.** In ArkMD's own storage on the device, never in your folders, so it doesn't clutter synced folders or vaults and doesn't travel to other devices. It is lost if you clear the app's data or uninstall it. **Settings** > **Privacy and history** switches it off and clears it.
 - **Unsaved work.** While you edit, ArkMD saves a draft of unsaved changes every few seconds. After a crash, a power failure or the system closing the app, it offers to restore them. If you close the window and choose to discard changes, the drafts are deleted.
 - **Undo and Redo.** The arrows in the top bar and Ctrl+Z / Ctrl+Shift+Z step through the edits of the open file; each tab has its own history. **Ctrl+Shift+T** (or the **+** menu) reopens the last closed tab with its text and undo history, including unsaved changes you discarded, until you quit ArkMD.
 - **Limits.** History records saves made in ArkMD, so it doesn't cover changes made by other programs. It's not a backup or version control: there are no names or branches, and each device keeps its own.

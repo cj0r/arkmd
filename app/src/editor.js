@@ -1,6 +1,6 @@
 // CodeMirror 6 Markdown editor, themed from shared/web/themes.json (same roles as the Android editor).
 import { EditorState, Compartment, RangeSetBuilder, Prec, StateField, StateEffect } from "@codemirror/state";
-import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, WidgetType, highlightActiveLine } from "@codemirror/view";
+import { EditorView, keymap, drawSelection, ViewPlugin, Decoration, WidgetType, highlightActiveLine, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -156,6 +156,7 @@ const nestedMarkers = ViewPlugin.fromClass(class {
  * Returns { view, setText, getText, setLook(theme, font, size), scrollFraction(), scrollToFraction(f) }.
  */
 const typing = new Compartment();
+const gutter = new Compartment();
 const MARKER = /^\s*\d+[.)] /;
 /**
  * After typing or deleting, a numbered list that is out of sequence is renumbered: a new "2." inserted into 1, 2, 3
@@ -184,7 +185,7 @@ const typingAttrs = (on) => EditorView.contentAttributes.of(on
   ? { spellcheck: "true", autocorrect: "on", autocapitalize: "sentences" }
   : { spellcheck: "false", autocorrect: "off", autocapitalize: "off" });
 
-export function createEditor(parent, { onChange, extraKeys = [] }) {
+export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys = [] }) {
   const extensions = [
         history(),
         renumberLists,
@@ -201,7 +202,8 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
         keymap.of([indentWithTab, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Mod-y", run: redo, preventDefault: true }, ...defaultKeymap, ...historyKeymap]),
         look.of([]),
         typing.of(typingAttrs(true)),
-        EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); }),
+        gutter.of([]),
+        EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); if (u.docChanged || u.selectionSet) onCursor(); }),
   ];
   /** A fresh state for a document, keeping its line endings (see eol.js). */
   const stateFor = (text) => {
@@ -211,13 +213,15 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
   const view = new EditorView({ parent, state: stateFor("") });
   let currentLook = [];
   let currentTyping = true;
+  let currentGutter = false;
+  const gutterExt = () => (currentGutter ? lineNumbers() : []);
   return {
     view,
     getText: () => docText(view.state),
     /** Load a document: fresh state, so undo history starts here. */
     setText(text) {
       view.setState(stateFor(text));
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping))] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt())] });
     },
     /** Fresh editor state for a document (own undo history); used per tab. */
     newState(text) { return stateFor(text); },
@@ -230,7 +234,7 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {
       view.setState(state);
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping))] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt())] });
     },
     replaceAll(text) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
@@ -239,6 +243,17 @@ export function createEditor(parent, { onChange, extraKeys = [] }) {
     setTyping(on) {
       currentTyping = !!on;
       view.dispatch({ effects: typing.reconfigure(typingAttrs(currentTyping)) });
+    },
+    /** Show or hide the line numbers on the left. */
+    setLineNumbers(on) {
+      currentGutter = !!on;
+      view.dispatch({ effects: gutter.reconfigure(gutterExt()) });
+    },
+    /** 1-based line and column of the cursor, and the selected text ("" when nothing is selected). */
+    cursorInfo() {
+      const sel = view.state.selection.main;
+      const line = view.state.doc.lineAt(sel.head);
+      return { line: line.number, column: sel.head - line.from + 1, selected: sel.empty ? "" : view.state.sliceDoc(sel.from, sel.to) };
     },
     setLook(theme, font, size) {
       currentLook = themeExtensions(theme, font, size);

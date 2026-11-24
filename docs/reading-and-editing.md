@@ -57,6 +57,8 @@ Text fields (the find bar, dialogs) keep the system menu. On Android, press and 
 - On a phone or a narrow window the top bar shows only the Recent files button, the tabs, **+**, Save (when there are changes) and **⋮**. **⋮** lists the open tabs, then Find and replace, Outline, the formatting-bar switch and Theme. Undo and Redo are at the start of the formatting bar.
 - **Swipes (phone).** Swipe right to open the Recent files list, swipe left to open the Outline. The opposite swipe closes the one that's open. Swiping along the tab strip, the formatting bar, a wide table or a code block scrolls it instead. Android's own back gesture from the screen edge is unaffected: start the swipe a little further in.
 - **Spell check.** The editor underlines misspelled words and lets the keyboard suggest and capitalize as you type. **Settings** > **Spell check and suggestions** turns this off, which suits code.
+- **Status bar.** **Settings** > **Status bar** shows a bar along the bottom with the line and column of the cursor (in the editor), the word and character counts and the size of the document. With text selected, the counts are for the selection.
+- **Line numbers.** **Settings** > **Line numbers** shows the number of each line beside it in the editor.
 - **⋮ (More)** holds Settings, **Support** (troubleshooting, the user guide, bug reports, ways to support and contribute to the project) and About, as well as the commands for the open file.
 - **+** opens a menu with **New file**, **Open file…** and your newest files. The clock button to its left opens the Recent files list (Ctrl+Shift+R).
 - On Linux and Windows, opening another file from your file manager adds it as a tab in the window that is already open.

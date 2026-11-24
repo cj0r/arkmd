@@ -51,6 +51,7 @@ const cur = () => tabs.active;
 const mode = () => cur()?.mode ?? "home";
 
 const editor = createEditor($("editor"), {
+  onCursor() { scheduleStatus(); },
   onChange(text) { const t = cur(); if (t) { setDirty(t, text !== t.saved); scheduleDraft(); scheduleAutosave(); } updateUndoButtons(); refreshFindSoon(); },
   extraKeys: [
     { key: "Mod-b", run: () => (format((t, s, e) => F.wrap(t, s, e, "**")), true) },
@@ -128,6 +129,7 @@ const textSize = () => store.get("fontSize", platform.mobile ? 18 : 16);
 
 function applyLook() {
   editor.setTyping(store.get("spellcheck", true));
+  editor.setLineNumbers(store.get("lineNumbers", false));
   const t = effective(theme);
   const size = textSize();
   const root = document.documentElement.style;
@@ -162,6 +164,30 @@ function setDirty(t, d) {
 
 const textOf = (t) => (t === cur() ? editor.getText() : docText(t.state));
 
+// ---- Status bar: line, column, words, characters and size of the open document ----------------------------
+let statusTimer = null;
+function scheduleStatus() {
+  if (statusTimer || !store.get("statusBar", false)) return;
+  statusTimer = setTimeout(() => { statusTimer = null; updateStatus(); }, 150);
+}
+function updateStatus() {
+  const bar = $("statusbar");
+  const on = store.get("statusBar", false) && !!cur();
+  bar.hidden = !on;
+  if (!on) return;
+  const text = editor.getText();
+  const info = mode() === "edit" ? editor.cursorInfo() : null;
+  const part = info?.selected ? stats(info.selected) : stats(text);
+  const n = (v, one, many) => `${v.toLocaleString("en-US")} ${v === 1 ? one : many}`;
+  const bytes = new TextEncoder().encode(text).length;
+  const size = bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
+  const items = [];
+  if (info) items.push(`Line ${info.line}, column ${info.column}`);
+  const sel = info?.selected ? " selected" : "";
+  items.push(n(part.words, "word", "words") + sel, n(part.characters, "character", "characters") + sel, size);
+  bar.replaceChildren(...items.map((t) => { const s = document.createElement("span"); s.textContent = t; return s; }));
+}
+
 function updateChrome() {
   const t = cur();
   const open = !!t;
@@ -188,6 +214,7 @@ function updateChrome() {
   $("toggle").title = mode() === "edit" ? "Read (Ctrl+E)" : "Edit (Ctrl+E)";
   $("toggle").setAttribute("aria-label", mode() === "edit" ? "Switch to reading" : "Switch to editing");
   renderTabs();
+  updateStatus();
 }
 
 let tabDragged = false;      // true just after a drag, so the click that ends it doesn't also switch tabs
@@ -1477,11 +1504,23 @@ function openSettings() {
 
   section("Appearance");
   row("Theme", effective(theme).name, () => pickTheme(back));
+  toggle("Match system light/dark", "Switches between a dark and a light theme with the device setting. Choose each one with Theme; the one you pick sets the dark or the light slot.", "autoTheme", false, () => { useActiveTheme(); applyLook(); });
   row("Text size", String(textSize()), () => pickSize(back));
   row("Content width", contentWidth().label, () => pickWidth(back));
-  row("Remote images", (IMAGE_POLICIES.find((p) => p[0] === store.get("remoteImages", "ask")) || IMAGE_POLICIES[0])[1].replace(" (default)", ""), () => pickImages(back));
   row("Reading font", fontById(store.get("readFont", "system")).name, () => pickFont("Reading font", "readFont", back));
+  toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
+
+  toggle("Status bar", "Shows the line and column, word and character counts and the size of the document along the bottom. Selecting text counts the selection.", "statusBar", false, () => updateStatus());
+
+  section("Editing and saving");
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
+  toggle("Line numbers", "Shows the line number beside each line in the editor.", "lineNumbers", false, (on) => editor.setLineNumbers(on));
+  toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
+  toggle("Autosave", "Saves a file a few seconds after you stop typing. Off by default. Earlier versions are still kept.", "autosave", false,
+    (on) => { if (on) scheduleAutosave(); });
+
+
+  section("Files");
   if (platform.pickFolder) {
     const dir = store.get("newFolder", "");
     row("Folder for new files", dir ? baseName(dir) : "Ask each time", () => pickNewFolder(back));
@@ -1490,25 +1529,20 @@ function openSettings() {
     toggle("Allow multiple windows", "Off, opening a file while ArkMD is running adds a tab to the open window. On, each launch opens its own window. Takes effect the next time ArkMD starts.", "multiWindow", false,
       (on) => platform.setMultipleInstances(on).catch((err) => toast("Couldn't save this setting: " + (err?.message || err))));
   }
-  toggle("Match system light/dark", "Switches between a dark and a light theme with the device setting. Choose each one with Theme; the one you pick sets the dark or the light slot.", "autoTheme", false, () => { useActiveTheme(); applyLook(); });
-  toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
-  toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());
+  toggle("Remember recent files", "Keeps the names, titles and a short preview of files you open, on this device only, for the Recent files list.", "recentOn", true,
+    (on) => { if (!on) { store.set("recent", []); renderRecents(); } });
 
-  section("Saving");
-  toggle("Autosave", "Saves a file a few seconds after you stop typing. Off by default. Earlier versions are still kept.", "autosave", false,
-    (on) => { if (on) scheduleAutosave(); });
-
-  section("History and recovery");
+  section("Privacy and history");
+  row("Remote images", (IMAGE_POLICIES.find((p) => p[0] === store.get("remoteImages", "ask")) || IMAGE_POLICIES[0])[1].replace(" (default)", ""), () => pickImages(back));
   toggle("Keep file history", "Keeps the previous text each time you save, on this device only.", "history", true);
   toggle("Recover unsaved work", "Saves a draft of unsaved changes every few seconds, so a crash doesn't lose them.", "recover", true,
     (on) => { if (on) flushDrafts(); else hdb.clearDrafts(); });
-  toggle("Remember recent files", "Keeps the names, titles and a short preview of files you open, on this device only, for the Recent files list.", "recentOn", true,
-    (on) => { if (!on) { store.set("recent", []); renderRecents(); } });
   row("Clear history and drafts", "", async () => {
     if (await platform.confirm("Delete every saved version and unsaved-work draft kept by ArkMD? Your files aren't touched.", "Clear history")) {
       await hdb.clearVersions(); await hdb.clearDrafts(); for (const t of tabs.all) t.hasDraft = false; toast("History cleared");
     }
   });
+
 
   if (platform.update) {
     section("Updates");

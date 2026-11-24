@@ -2,6 +2,15 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.30.0 (2026-11-24)
+
+### Added
+- **Status bar.** Settings > Status bar shows the line and column of the cursor (in the editor), word and character counts and the document size along the bottom of the window. With text selected, the counts are for the selection. Off by default.
+- **Line numbers.** Settings > Line numbers shows the number of each line in the editor. Off by default.
+
+### Changed
+- Settings is grouped into Appearance, Editing and saving, Files, Privacy and history, Updates, Keyboard and About. Remote images moved to Privacy and history, Remember recent files to Files, and Autosave to Editing and saving.
+
 ## 0.29.0 (2026-11-24)
 
 ### Added

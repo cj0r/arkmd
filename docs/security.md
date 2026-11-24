@@ -12,7 +12,7 @@ How to report a problem is in [SECURITY.md](../SECURITY.md). This page covers wh
 - **Raw HTML is off,** so a document can't run scripts or embed active content in the reader. As a second layer, the app's content security policy allows scripts only from ArkMD's own files: no inline scripts, no plug-ins.
 - **Log file (Windows and Linux):** errors and crashes are written to a text file in the app's log folder, up to about 1 MB. It holds no document text, is never sent anywhere, and you can delete it at any time.
 - **Backups (Android):** ArkMD turns off Android's cloud backup and device-to-device transfer for its own data, so recent-file previews, file history and drafts never leave the device that way.
-- **What it stores:** the version number, release notes and download address of an update found by a check (until you install it), your settings (theme, fonts, text size) and the list of recent files (file names and addresses, plus each file's title, its first lines as a short preview and its word count, so the list can show them), in the app's own storage on your device. **Settings** > **History and recovery** > **Remember recent files** switches the list off and clears it.
+- **What it stores:** the version number, release notes and download address of an update found by a check (until you install it), your settings (theme, fonts, text size) and the list of recent files (file names and addresses, plus each file's title, its first lines as a short preview and its word count, so the list can show them), in the app's own storage on your device. **Settings** > **Files** > **Remember recent files** switches the list off and clears it.
 
 ## The F-Droid repository
 
