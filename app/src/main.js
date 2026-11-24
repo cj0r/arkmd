@@ -981,14 +981,16 @@ function menu(anchor, entries, at = null) {
     return b;
   }));
   m.hidden = false;
+  m.style.maxHeight = Math.max(80, innerHeight - 16) + "px";     // a short window (a phone on its side) scrolls the menu
   const r = anchor.getBoundingClientRect();
   const w = m.offsetWidth, h = m.offsetHeight;
+  const fit = (top) => Math.max(8, Math.min(top, innerHeight - h - 8));   // never above or below the screen
   if (at) {                                   // a right-click menu opens at the pointer
     m.style.left = Math.max(8, Math.min(at.x, innerWidth - w - 8)) + "px";
-    m.style.top = Math.max(8, Math.min(at.y, innerHeight - h - 8)) + "px";
+    m.style.top = fit(at.y) + "px";
   } else {
     m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
-    m.style.top = (r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+    m.style.top = fit(r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
   }
   m.querySelector("button")?.focus({ preventScroll: true });
 }

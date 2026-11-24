@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.30.2 (2026-11-24)
+
+### Fixed
+- In a short window, such as a phone on its side, the menu is kept on the screen and scrolls when it is taller than the window. It could open above the top edge and leave only its last entry visible.
+- In a very short window, such as a phone on its side with the keyboard open, the Read/Edit button is smaller and stays inside the editor instead of covering the top bar's buttons, and the status bar is hidden so it no longer covers lines of the document.
+
 ## 0.30.1 (2026-11-24)
 
 ### Fixed

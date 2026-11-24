@@ -1,0 +1,1 @@
+Fixes for a phone on its side: the menu stays on screen, and the Read/Edit button and status bar no longer cover the top bar or text.
