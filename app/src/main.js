@@ -1486,6 +1486,10 @@ function openSettings() {
     const dir = store.get("newFolder", "");
     row("Folder for new files", dir ? baseName(dir) : "Ask each time", () => pickNewFolder(back));
   }
+  if (platform.setMultipleInstances) {
+    toggle("Allow multiple windows", "Off, opening a file while ArkMD is running adds a tab to the open window. On, each launch opens its own window. Takes effect the next time ArkMD starts.", "multiWindow", false,
+      (on) => platform.setMultipleInstances(on).catch((err) => toast("Couldn't save this setting: " + (err?.message || err))));
+  }
   toggle("Match system light/dark", "Switches between a dark and a light theme with the device setting. Choose each one with Theme; the one you pick sets the dark or the light slot.", "autoTheme", false, () => { useActiveTheme(); applyLook(); });
   toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
   toggle("Contrast (WCAG AA)", "Adjust text colors that fall below 4.5:1 contrast. Off shows the official colors.", "contrastAA", true, () => applyLook());

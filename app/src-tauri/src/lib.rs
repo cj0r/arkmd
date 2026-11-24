@@ -468,21 +468,72 @@ fn fit_window_to_screen(app: &tauri::App) {
     let _ = window.show();
 }
 
+/// The marker file that records "allow multiple windows": it lives in the app config folder, which Tauri names
+/// after the identifier, and is looked up here by hand because it is needed before the app exists.
+#[cfg(desktop)]
+fn multiple_instances_marker() -> Option<PathBuf> {
+    let base = if cfg!(target_os = "windows") {
+        std::env::var_os("APPDATA").map(PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library").join("Application Support"))
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+    };
+    base.map(|b| b.join("app.arkmd").join("multiple-instances"))
+}
+
+#[cfg(desktop)]
+fn multiple_instances_allowed() -> bool {
+    multiple_instances_marker().is_some_and(|p| p.exists())
+}
+
+/// Settings > Allow multiple windows: takes effect the next time ArkMD starts.
+#[cfg(desktop)]
+#[tauri::command]
+fn set_multiple_instances(allow: bool) -> Result<(), String> {
+    let path = multiple_instances_marker().ok_or("No settings folder")?;
+    if allow {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&path, b"").map_err(|e| e.to_string())
+    } else {
+        match std::fs::remove_file(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        }
+    }
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn set_multiple_instances(_allow: bool) -> Result<(), String> {
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
     // Must be the first plugin: a second launch sends its arguments here and exits.
+    // Skipped when Settings > Allow multiple windows is on (read from a marker file, since plugins load before the page).
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-        if let Some(path) = file_arg(argv.into_iter().skip(1).map(PathBuf::from)) {
-            let _ = app.fs_scope().allow_file(&path);
-            let _ = app.emit("arkmd-open", path.to_string_lossy().into_owned());
-        }
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
-    }));
+    let builder = if multiple_instances_allowed() {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(path) = file_arg(argv.into_iter().skip(1).map(PathBuf::from)) {
+                let _ = app.fs_scope().allow_file(&path);
+                let _ = app.emit("arkmd-open", path.to_string_lossy().into_owned());
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+    };
     let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -525,7 +576,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }

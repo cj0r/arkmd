@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.29.0 (2026-11-24)
+
+### Added
+- **Allow multiple windows (Windows and Linux).** Settings > Allow multiple windows lets each launch open its own window. It is off by default: a second launch adds its file as a tab in the running window. The change applies the next time ArkMD starts.
+
 ## 0.28.0 (2026-11-24)
 
 ### Changed

@@ -120,6 +120,8 @@ const desktopImpl = {
   async writeFile(ref, text) {
     await invoke("save_text_file", { path: ref, text });        // atomic: a temp file renamed over the original
   },
+  /** Settings > Allow multiple windows: recorded for the next start, since the single-instance check runs before the page. */
+  async setMultipleInstances(allow) { await invoke("set_multiple_instances", { allow }); },
   /** Choose a folder (Settings > Folder for new files). Returns its path or null. */
   async pickFolder() {
     const { open } = await import("@tauri-apps/plugin-dialog");
