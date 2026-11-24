@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.30.3 (2026-11-24)
+
+### Fixed
+- Android, on its side with the keyboard open: the keyboard is not subtracted from the window height, so the 0.30.2 rule for short windows never applied. The layout now measures the room left for the document. When little is left, the Read/Edit button is smaller and stays inside the editor instead of covering the top bar's buttons, and the status bar and the formatting bar are hidden until the keyboard closes.
+
 ## 0.30.2 (2026-11-24)
 
 ### Fixed

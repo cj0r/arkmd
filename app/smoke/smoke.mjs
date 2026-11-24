@@ -412,17 +412,20 @@ await step("phone-sized window: top bar, menu and dialogs are accessible", async
   await page.setViewportSize({ width: 1100, height: 760 });
 });
 
-await step("a phone on its side: the menu stays on screen and the Read/Edit button does not cover the top bar", async () => {
-  for (const [w, h] of [[915, 412], [915, 130]]) {
-    await page.setViewportSize({ width: w, height: h });
-    await openMenu();
-    const box = await page.locator("#menu").boundingBox();
-    expect(box.y >= 0 && box.y + box.height <= h + 1 && box.x >= 0 && box.x + box.width <= w + 1, `menu off screen at ${w}x${h}: ${JSON.stringify(box)}`);
-    await page.keyboard.press("Escape");
-    const bar = await page.locator("#bar").boundingBox();
-    const fab = await page.locator("#toggle").boundingBox();
-    expect(fab.y >= bar.y + bar.height - 1, `button covers the top bar at ${w}x${h}`);
-  }
+await step("a phone on its side: the menu stays on screen; with the keyboard open the Read/Edit button stays below the top bar and the bars that need room are hidden", async () => {
+  await page.setViewportSize({ width: 915, height: 412 });
+  await openMenu();
+  const box = await page.locator("#menu").boundingBox();
+  expect(box.y >= 0 && box.y + box.height <= 413 && box.x >= 0 && box.x + box.width <= 916, "menu off screen: " + JSON.stringify(box));
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => document.documentElement.style.setProperty("--inset-bottom", "270px"));     // the keyboard, as MainActivity reports it
+  await page.waitForFunction(() => document.body.classList.contains("short"));
+  const bar = await page.locator("#bar").boundingBox();
+  const fab = await page.locator("#toggle").boundingBox();
+  expect(fab.y >= bar.y + bar.height - 1, "button covers the top bar: " + JSON.stringify([bar, fab]));
+  expect(await page.locator("#statusbar").isHidden() && await page.locator("#formatbar").isHidden(), "bars still shown with the keyboard open");
+  await page.evaluate(() => document.documentElement.style.removeProperty("--inset-bottom"));
+  await page.waitForFunction(() => !document.body.classList.contains("short"));
   await page.setViewportSize({ width: 1100, height: 760 });
 });
 

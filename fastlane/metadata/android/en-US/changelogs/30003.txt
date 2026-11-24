@@ -1,0 +1,1 @@
+Phone on its side with the keyboard open: the Read/Edit button no longer covers the menu, and the status and formatting bars are hidden until the keyboard closes.

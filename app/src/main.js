@@ -164,6 +164,9 @@ function setDirty(t, d) {
 
 const textOf = (t) => (t === cur() ? editor.getText() : docText(t.state));
 
+// The room left for the document: with a phone on its side and the keyboard open there is little, and the layout shrinks to fit.
+new ResizeObserver(() => document.body.classList.toggle("short", $("content").clientHeight < 190)).observe($("content"));
+
 // ---- Status bar: line, column, words, characters and size of the open document ----------------------------
 let statusTimer = null;
 function scheduleStatus() {
