@@ -1,0 +1,1 @@
+Status bar no longer announced by screen readers on every change.

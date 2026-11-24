@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.30.1 (2026-11-24)
+
+### Fixed
+- The status bar is no longer a live region, so a screen reader does not announce it each time the cursor moves or the text changes. It stays reachable as the "Document information" landmark.
+
 ## 0.30.0 (2026-11-24)
 
 ### Added
