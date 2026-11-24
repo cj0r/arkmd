@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.25.4 (2026-11-23)
+
+### Changed
+- Settings and other dialogs: more space below the title and section headings, and between an option and its description.
+
 ## 0.25.3 (2026-11-23)
 
 ### Fixed
