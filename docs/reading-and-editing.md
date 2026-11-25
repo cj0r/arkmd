@@ -113,6 +113,14 @@ Apply a format again to remove it: bold text becomes plain, a bulleted line beco
 | Esc | Close a menu; in a dialog, go back one page (for example from Keyboard shortcuts to Settings), or close it from its first page |
 | Ctrl + and Ctrl − | Make the whole window larger or smaller (desktop) |
 
+**Clipboard**
+
+| Keys | Action |
+|---|---|
+| Ctrl+C or Ctrl+Shift+C | Copy (in the editor, the reader and text fields) |
+| Ctrl+V or Ctrl+Shift+V | Paste into the editor (Ctrl+Shift+V pastes as plain text, which for Markdown is the same) |
+| Ctrl+X | Cut (while editing) |
+
 **Formatting, while editing**
 
 | Keys | Action |

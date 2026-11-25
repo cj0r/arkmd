@@ -1,0 +1,1 @@
+Ctrl+Shift+C copies the selection, like Ctrl+C. Ctrl+Shift+V pastes as plain text.

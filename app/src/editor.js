@@ -363,5 +363,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
       view.focus();
     },
     selection() { const r = view.state.selection.main; return [r.from, r.to]; },
+    /** The selected text, every range of a multiple selection joined with line breaks like the browser's own copy. */
+    selectedText() { const st = view.state; return st.selection.ranges.filter((r) => !r.empty).map((r) => st.sliceDoc(r.from, r.to)).join(st.lineBreak); },
   };
 }

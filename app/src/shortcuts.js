@@ -16,6 +16,9 @@ export const SHORTCUTS = [
     ["Enter, Shift+Enter, F3", "Next, previous match while the find bar is open"], ["Ctrl+P", "Print"], ["Ctrl+,", "Settings"], ["F1", "This list"],
     ["Ctrl + and Ctrl −", "Larger, smaller window content"], ["Esc", "Close a menu; in a dialog, go back one page, or close it from its first page"],
   ]],
+  ["Clipboard", [
+    ["Ctrl+C, Ctrl+Shift+C", "Copy"], ["Ctrl+V, Ctrl+Shift+V", "Paste (as plain text)"], ["Ctrl+X", "Cut (while editing)"],
+  ]],
   ["Headings (while editing)", [
     ["Ctrl+1 … Ctrl+6", "Heading 1 to 6; again to turn it back into text"], ["Ctrl+0", "Normal text"],
     ["Tab, Shift+Tab", "On a heading line: one level deeper, one level up"],

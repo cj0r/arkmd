@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.6 (2026-11-25)
+
+### Added
+- Ctrl+Shift+C copies the selected text like Ctrl+C, in the editor, the reader and text fields. Ctrl+Shift+V pastes as plain text, which already worked. Both are listed under Settings > Keyboard shortcuts.
+
 ## 0.31.5 (2026-11-25)
 
 ### Fixed

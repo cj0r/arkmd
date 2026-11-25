@@ -1708,6 +1708,18 @@ async function editorCopy(cut) {
   if (cut) editor.view.dispatch({ changes: { from: s, to: e, insert: "" }, userEvent: "delete.cut" });
   editor.view.focus();
 }
+/** The text selected where the keyboard is: in a text field, in the editor, or in the reader. */
+function selectedTextHere() {
+  const a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") && typeof a.selectionStart === "number") return a.value.slice(a.selectionStart, a.selectionEnd);
+  if (a && $("editor").contains(a)) return editor.selectedText();
+  return document.getSelection()?.toString() || $("reader").contentWindow?.getSelection?.()?.toString() || "";
+}
+/** Ctrl+Shift+C: copy like Ctrl+C. (Ctrl+Shift+V needs no code: the web views paste as plain text, which pastes like Ctrl+V.) */
+function copySelection() {
+  const text = selectedTextHere();
+  if (text) platform.copyText(text).catch((err) => failed("copy", err));
+}
 async function editorPaste() {
   try {
     const text = await navigator.clipboard.readText();
@@ -1998,6 +2010,7 @@ function onKey(e) {
   if (e.key === "F5" || ((e.altKey && !mod) && (e.key === "ArrowLeft" || e.key === "ArrowRight")) || (mod && !e.shiftKey && !e.altKey && (k === "r" || k === "u" || k === "l" || k === "g"))) { e.preventDefault(); return; }
   if (!mod) return;
   if (e.shiftKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moveTab(e.key === "PageUp" ? -1 : 1); return; }
+  if (e.shiftKey && !e.altKey && k === "c") { e.preventDefault(); copySelection(); return; }
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }

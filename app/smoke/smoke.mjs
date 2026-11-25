@@ -526,6 +526,31 @@ await step("a history dialog closes with its tab, so Restore cannot land in anot
   }
 });
 
+await step("Ctrl+Shift+C copies the selection like Ctrl+C: in the reader, the editor and a text field; nothing selected copies nothing", async () => {
+  await page.evaluate(() => { window.__mock.files["/docs/copy.md"] = "# Copy test\n\nParagraph to copy.\n"; window.__mock.next = "/docs/copy.md"; });
+  await page.keyboard.press("Control+o");
+  await reader().locator("h1", { hasText: "Copy test" }).waitFor({ timeout: 15000 });
+  const copies = async () => (await call("copy_text")).map((c) => c.args.text);
+  const start = (await copies()).length;
+  await reader().locator("p", { hasText: "Paragraph to copy." }).click({ clickCount: 3 });          // select the paragraph in the reader
+  await page.keyboard.press("Control+Shift+C"); await page.waitForTimeout(200);
+  let now = await copies();
+  expect(now.length === start + 1 && now.at(-1).includes("Paragraph to copy."), "the reader selection was not copied: " + JSON.stringify(now.slice(start)));
+  await reader().locator("h1").click();                                                              // a click leaves nothing selected
+  await page.keyboard.press("Control+Shift+C"); await page.keyboard.press("Control+c"); await page.waitForTimeout(200);
+  expect((await copies()).length === start + 1, "something was copied with nothing selected");
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(300);                            // the editor
+  await page.keyboard.press("Control+a"); await page.keyboard.press("Control+Shift+C"); await page.waitForTimeout(200);
+  now = await copies();
+  expect(now.length === start + 2 && now.at(-1) === "# Copy test\n\nParagraph to copy.\n", "the editor selection was not copied: " + JSON.stringify(now.at(-1)));
+  await page.keyboard.press("Control+f"); await page.keyboard.type("needle"); await page.keyboard.press("Control+a");   // a text field
+  await page.keyboard.press("Control+Shift+C"); await page.waitForTimeout(200);
+  now = await copies();
+  expect(now.length === start + 3 && now.at(-1) === "needle", "the text field selection was not copied: " + JSON.stringify(now.at(-1)));
+  await page.keyboard.press("Escape"); await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+});
+
 await step("no script errors or blocked requests", async () => {
   expect(problems.length === 0, problems.join("\n"));
 });
