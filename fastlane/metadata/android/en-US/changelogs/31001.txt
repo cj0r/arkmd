@@ -1,0 +1,1 @@
+Closing tags in code blocks, with a setting. Selected text in code blocks shows a highlight.

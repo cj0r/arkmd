@@ -131,6 +131,7 @@ function applyLook() {
   editor.setTyping(store.get("spellcheck", true));
   editor.setLineNumbers(store.get("lineNumbers", false));
   editor.setAutoClose(store.get("autoClose", true));
+  editor.setTagClose(store.get("autoCloseTags", true));
   const t = effective(theme);
   const size = textSize();
   const root = document.documentElement.style;
@@ -1526,6 +1527,7 @@ function openSettings() {
   row("Editing font", fontById(store.get("editFont", "system")).name, () => pickFont("Editing font", "editFont", back));
   toggle("Line numbers", "Shows the line number beside each line in the editor.", "lineNumbers", false, (on) => editor.setLineNumbers(on));
   toggle("Close brackets in code", "Typing ( [ { or a quote inside a code block with a language, such as ```js, adds the closing one. Ordinary text is not affected.", "autoClose", true, (on) => editor.setAutoClose(on));
+  toggle("Close tags in code", "Typing <div> or </ inside a code block with a language, such as ```html, adds or completes the closing tag. Ordinary text is not affected.", "autoCloseTags", true, (on) => editor.setTagClose(on));
   toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
   toggle("Autosave", "Saves a file a few seconds after you stop typing. Off by default. Earlier versions are still kept.", "autosave", false,
     (on) => { if (on) scheduleAutosave(); });

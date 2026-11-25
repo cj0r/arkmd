@@ -266,12 +266,24 @@ await step("typing ( in a code block with a language closes it; in ordinary text
   const t = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
   expect(/note \(aside\s/.test(t) && !/note \(aside\)/.test(t), "text got a closing bracket: " + JSON.stringify(t.slice(-60)));
   expect(/const x = f\(\)/.test(t), "code did not get a closing bracket: " + JSON.stringify(t.slice(-60)));
+  await page.keyboard.press("Shift+Home");                // select the code line: it must show a highlight over the code block's background
+  const sel = await page.evaluate(() => { const el = document.querySelector(".cm-ark-codeblock span") || document.querySelector(".cm-ark-codeblock"); return getComputedStyle(el, "::selection").backgroundColor; });
+  expect(sel && sel !== "rgba(0, 0, 0, 0)" && sel !== "transparent", "no selection highlight in a code block: " + sel);
+  if (process.env.SMOKE_SHOT) { const b = await page.locator(".cm-ark-codeblock").last().boundingBox(); await page.screenshot({ path: process.env.SMOKE_SHOT, clip: { x: b.x, y: b.y - 40, width: Math.min(b.width, 700), height: 120 } }); }
+  await page.keyboard.press("ArrowRight");                // back to where the cursor was, inside the brackets
   await page.keyboard.type("1");
   await page.keyboard.press("ArrowRight");               // steps over the closing bracket
   await page.keyboard.type(";");
   const u = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
   expect(/const x = f\(1\);/.test(u), "typing past the closing bracket failed: " + JSON.stringify(u.slice(-40)));
-  for (let i = 0; i < 20; i++) await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\n```\n\nuse <b>bold\n\n```html\n");
+  await page.waitForTimeout(1500);                        // the HTML language loads on first use
+  await page.keyboard.type("<div>");
+  const h = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  expect(/<div><\/div>/.test(h), "html tag was not closed in a code block: " + JSON.stringify(h.slice(-50)));
+  expect(/use <b>bold\s/.test(h) && !/<b><\/b>/.test(h), "a tag was closed in ordinary text: " + JSON.stringify(h.slice(-80)));
+  for (let i = 0; i < 40; i++) await page.keyboard.press("Control+z");
   await page.keyboard.press("Control+s");
   await page.click("#toggle");                            // leave the tab in reading mode, as the next step expects
 });

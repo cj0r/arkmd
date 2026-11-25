@@ -2,6 +2,14 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.1 (2026-11-24)
+
+### Added
+- **Closing tags in code blocks.** Typing `<div>` inside a fenced code block that names a language, such as html, adds `</div>`, and typing `</` completes the closing tag. Ordinary text, inline code and fences without a language are not affected. Settings > Close tags in code turns it off.
+
+### Fixed
+- Selected text in a code block in the editor now shows a highlight. The code block's background covered it.
+
 ## 0.31.0 (2026-11-24)
 
 ### Added

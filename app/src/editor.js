@@ -92,6 +92,8 @@ function themeExtensions(theme, font, size) {
     ".cm-ark-callout": { color: theme.accent, fontWeight: "700" },
     ".cm-ark-front": { color: soft(theme), fontFamily: "ArkMono, monospace", fontSize: ".9em" },
     ".cm-ark-codeblock": { backgroundColor: theme.bgAlt, fontFamily: "ArkMono, monospace", fontSize: ".92em" },
+    // The drawn selection sits behind the lines, so a line with its own background hides it: code lines show the browser's.
+    ".cm-line.cm-ark-codeblock ::selection, .cm-line.cm-ark-codeblock::selection": { backgroundColor: theme.selection + " !important" },
   }, { dark: !!theme.dark });
   return [view, syntaxHighlighting(style)];
 }
@@ -159,6 +161,7 @@ const nestedMarkers = ViewPlugin.fromClass(class {
 const typing = new Compartment();
 const gutter = new Compartment();
 const autoClose = new Compartment();
+const tagClose = new Compartment();
 /**
  * Closing brackets and quotes while typing code: "(" gives "()", typing ")" steps over it, Backspace removes the pair.
  * It applies inside fenced code blocks whose language is known (that language's own settings are used); prose, inline
@@ -212,6 +215,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
         typing.of(typingAttrs(true)),
         gutter.of([]),
         autoClose.of(autoCloseExt(true)),
+        tagClose.of([]),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); if (u.docChanged || u.selectionSet) onCursor(); }),
   ];
   /** A fresh state for a document, keeping its line endings (see eol.js). */
@@ -224,6 +228,9 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
   let currentTyping = true;
   let currentGutter = false;
   let currentAutoClose = true;
+  let currentTagClose = false;
+  let tagCloseModule = null;      // the HTML language package, loaded the first time tag closing is switched on
+  const tagCloseExt = () => (currentTagClose && tagCloseModule ? tagCloseModule.autoCloseTags : []);
   const gutterExt = () => (currentGutter ? lineNumbers() : []);
   return {
     view,
@@ -231,7 +238,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     /** Load a document: fresh state, so undo history starts here. */
     setText(text) {
       view.setState(stateFor(text));
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose))] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose)), tagClose.reconfigure(tagCloseExt())] });
     },
     /** Fresh editor state for a document (own undo history); used per tab. */
     newState(text) { return stateFor(text); },
@@ -244,7 +251,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {
       view.setState(state);
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose))] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose)), tagClose.reconfigure(tagCloseExt())] });
     },
     replaceAll(text) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
@@ -258,6 +265,12 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     setAutoClose(on) {
       currentAutoClose = !!on;
       view.dispatch({ effects: autoClose.reconfigure(autoCloseExt(currentAutoClose)) });
+    },
+    /** Close HTML and XML tags while typing in code blocks: typing <div> adds </div>. Loads the HTML package on first use. */
+    async setTagClose(on) {
+      currentTagClose = !!on;
+      if (currentTagClose && !tagCloseModule) tagCloseModule = await import("@codemirror/lang-html");
+      view.dispatch({ effects: tagClose.reconfigure(tagCloseExt()) });
     },
     /** Show or hide the line numbers on the left. */
     setLineNumbers(on) {
