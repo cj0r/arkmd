@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.3 (2026-11-24)
+
+### Fixed
+- Selected text in a code block is painted with the theme's selection color by the editor itself. The browser's own highlight, used in 0.31.1 and 0.31.2, was shown much darker than the theme's color on some systems and could not be seen against the code block.
+- Contrast mode now moves the selection color until it has at least 2:1 contrast with the page and code block backgrounds where body text on it can stay at 4.5:1 (the weakest light themes reach about 1.5:1). Themes whose selection already met this are unchanged.
+
 ## 0.31.2 (2026-11-24)
 
 ### Fixed

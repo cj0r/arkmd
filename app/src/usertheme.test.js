@@ -20,7 +20,7 @@ test("the selection in every built-in theme keeps text readable and can be seen"
     const sel = eff.selection;
     assert.ok(contrast(eff.fg, sel) >= 4.5, `${key}: text on the selection ${contrast(eff.fg, sel).toFixed(2)}`);
     const seen = Math.min(contrast(sel, t.bg), contrast(sel, t.bgAlt));
-    assert.ok(seen >= 1.35, `${key}: selection against the background ${seen.toFixed(2)}`);
+    assert.ok(seen >= 1.4, `${key}: selection against the background ${seen.toFixed(2)}`);
   }
 });
 

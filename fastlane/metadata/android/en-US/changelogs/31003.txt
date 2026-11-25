@@ -1,0 +1,1 @@
+Selected text in code blocks is shown in the theme's selection color, with more contrast against the background.

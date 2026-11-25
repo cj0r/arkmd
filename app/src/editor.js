@@ -92,8 +92,9 @@ function themeExtensions(theme, font, size) {
     ".cm-ark-callout": { color: theme.accent, fontWeight: "700" },
     ".cm-ark-front": { color: soft(theme), fontFamily: "ArkMono, monospace", fontSize: ".9em" },
     ".cm-ark-codeblock": { backgroundColor: theme.bgAlt, fontFamily: "ArkMono, monospace", fontSize: ".92em" },
-    // The drawn selection sits behind the lines, so a line with its own background hides it: code lines show the browser's.
-    ".cm-line.cm-ark-codeblock ::selection, .cm-line.cm-ark-codeblock::selection": { backgroundColor: theme.selection + " !important", color: theme.fg + " !important" },
+    // The drawn selection sits behind the lines, so a code line (which has its own background) hides it: the selected part of
+    // a code line is marked instead (see codeSelection), in the selection colour with the main text colour.
+    ".cm-ark-selected, .cm-ark-selected span": { backgroundColor: theme.selection, color: theme.fg + " !important" },
   }, { dark: !!theme.dark });
   return [view, syntaxHighlighting(style)];
 }
@@ -134,6 +135,30 @@ const extras = ViewPlugin.fromClass(class {
       else if (b > a) builder.add(a, b, Decoration.mark({ class: cls }));
     }
     return builder.finish();
+  }
+}, { decorations: (v) => v.decorations });
+
+/** Marks the selected text inside code blocks so it can be painted over the block's background (see the theme above). */
+const codeSelection = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(u) { if (u.selectionSet || u.docChanged || u.viewportChanged) this.decorations = this.build(u.view); }
+  build(view) {
+    const sel = view.state.selection.main;
+    const lines = view.plugin(extras)?.decorations;
+    if (sel.empty || !lines) return Decoration.none;
+    const doc = view.state.doc, b = new RangeSetBuilder(), mark = Decoration.mark({ class: "cm-ark-selected" });
+    for (const { from, to } of view.visibleRanges) {
+      const a = Math.max(from, sel.from), z = Math.min(to, sel.to);
+      if (a >= z) continue;
+      for (let n = doc.lineAt(a).number, last = doc.lineAt(z).number; n <= last; n++) {
+        const line = doc.line(n);
+        let isCode = false;
+        lines.between(line.from, line.from, (_f, _t, v) => { if (v.spec.class === "cm-ark-codeblock") isCode = true; });
+        const s = Math.max(line.from, a), e = Math.min(line.to, z);
+        if (isCode && e > s) b.add(s, e, mark);
+      }
+    }
+    return b.finish();
   }
 }, { decorations: (v) => v.decorations });
 
@@ -208,6 +233,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
         EditorView.lineWrapping,
         markdown({ base: markdownLanguage, codeLanguages }),
         extras,
+        codeSelection,
         EditorView.contentAttributes.of({ "aria-label": "Markdown editor", "aria-multiline": "true", tabindex: "0" }),
         Prec.highest(keymap.of(extraKeys)),     // ahead of the Markdown language's own Enter handling
         keymap.of([indentWithTab, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Mod-y", run: redo, preventDefault: true }, ...defaultKeymap, ...historyKeymap]),

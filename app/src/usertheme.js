@@ -113,19 +113,18 @@ export function withAA(t) {
   const hl = {};
   for (const [k, v] of Object.entries(t.hljs)) { const m = meet(v, alt); if (m !== v) hl[k] = m; }
   if (Object.keys(hl).length) aa.hljs = hl;
-  const sel = selectionAA(t, eff, { ...t.hljs, ...hl });
+  const sel = selectionAA(t, eff);
   if (sel !== t.selection) aa.selection = sel;
   t.aa = aa;
   return t;
 }
 
-const SELECTION_SEEN = 1.5;      // contrast the selection needs against the page and the code-block background, to be seen
-const SELECTION_SYNTAX = 3.0;    // contrast code colours keep on the selection (text itself stays at AA)
+const SELECTION_SEEN = 2.0;      // contrast the selection wants against the page and the code-block background, to be seen
 /** The selection colour as in gen_themes.py: the theme's own when text stays readable on it and it can be seen; otherwise
- *  moved in OKLab lightness away from the background until it can be seen or the text on it would drop below its limit. */
-function selectionAA(t, eff, hljs) {
-  const { bg, bgAlt: alt } = t, fg = eff.fg, codes = Object.values(hljs);
-  const readable = (c) => contrast(fg, c) >= AA && codes.every((k) => contrast(k, c) >= SELECTION_SYNTAX);
+ *  moved in OKLab lightness away from the background until it can be seen or body text on it would drop below AA. */
+function selectionAA(t, eff) {
+  const { bg, bgAlt: alt } = t, fg = eff.fg;
+  const readable = (c) => contrast(fg, c) >= AA;
   const seen = (c) => Math.min(contrast(c, bg), contrast(c, alt));
   const cur = t.selection;
   if (seen(cur) >= SELECTION_SEEN && readable(cur)) return cur;

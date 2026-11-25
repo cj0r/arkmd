@@ -267,8 +267,13 @@ await step("typing ( in a code block with a language closes it; in ordinary text
   expect(/note \(aside\s/.test(t) && !/note \(aside\)/.test(t), "text got a closing bracket: " + JSON.stringify(t.slice(-60)));
   expect(/const x = f\(\)/.test(t), "code did not get a closing bracket: " + JSON.stringify(t.slice(-60)));
   await page.keyboard.press("Shift+Home");                // select the code line: it must show a highlight over the code block's background
-  const sel = await page.evaluate(() => { const el = document.querySelector(".cm-ark-codeblock span") || document.querySelector(".cm-ark-codeblock"); return getComputedStyle(el, "::selection").backgroundColor; });
-  expect(sel && sel !== "rgba(0, 0, 0, 0)" && sel !== "transparent", "no selection highlight in a code block: " + sel);
+  const sel = await page.evaluate(() => {
+    const el = document.querySelector(".cm-ark-selected");
+    if (!el) return null;
+    const line = el.closest(".cm-line");
+    return { mark: getComputedStyle(el).backgroundColor, block: getComputedStyle(line).backgroundColor };
+  });
+  expect(sel && sel.mark !== "rgba(0, 0, 0, 0)" && sel.mark !== sel.block, "no selection highlight in a code block: " + JSON.stringify(sel));
   if (process.env.SMOKE_SHOT) { const b = await page.locator(".cm-ark-codeblock").last().boundingBox(); await page.screenshot({ path: process.env.SMOKE_SHOT, clip: { x: b.x, y: b.y - 40, width: Math.min(b.width, 700), height: 120 } }); }
   await page.keyboard.press("ArrowRight");                // back to where the cursor was, inside the brackets
   await page.keyboard.type("1");

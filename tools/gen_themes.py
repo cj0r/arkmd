@@ -489,19 +489,18 @@ def meet_all(color, bgs, target=AA):
     return color
 
 
-SELECTION_SEEN = 1.5      # contrast the selection needs against the page and the code-block background, to be seen
-SELECTION_SYNTAX = 3.0    # contrast code colours keep on the selection (text itself stays at AA)
+SELECTION_SEEN = 2.0      # contrast the selection wants against the page and the code-block background, to be seen
 
 
-def selection_aa(t, eff, hljs):
-    """The selection colour: the theme's own when text stays readable on it and it can be seen; otherwise moved in OKLab
-    lightness away from the background (lighter on dark themes, darker on light ones), keeping hue and chroma, until
-    it can be seen or the text on it would drop below AA (body text) or SELECTION_SYNTAX (code colours)."""
+def selection_aa(t, eff):
+    """The selection colour: the theme's own when body text stays at AA on it and it can be seen; otherwise moved in
+    OKLab lightness away from the background (lighter on dark themes, darker on light ones), keeping hue and chroma,
+    until it can be seen or body text on it would drop below AA. Selected code and reader text are shown in the body
+    text colour, so that is the text the limit protects."""
     bg, alt, fg = t["bg"], t["bgAlt"], eff["fg"]
-    codes = list(hljs.values())
 
     def readable(c):
-        return contrast(fg, c) >= AA and all(contrast(k, c) >= SELECTION_SYNTAX for k in codes)
+        return contrast(fg, c) >= AA
 
     def seen(c):
         return min(contrast(c, bg), contrast(c, alt))
@@ -552,7 +551,7 @@ def with_aa(t):
     hl = {k: meet(v, alt) for k, v in t["hljs"].items() if meet(v, alt) != v}
     if hl:
         aa["hljs"] = hl
-    sel = selection_aa(t, eff, {**t["hljs"], **hl})
+    sel = selection_aa(t, eff)
     if sel != t["selection"]:
         aa["selection"] = sel
     t["aa"] = aa

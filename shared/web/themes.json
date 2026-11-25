@@ -54,7 +54,7 @@
       "hljs": {
         "comment": "#747eaa"
       },
-      "selection": "#293558"
+      "selection": "#3e4c70"
     }
   },
   "tokyo-night-storm": {
@@ -116,7 +116,7 @@
       "hljs": {
         "comment": "#7e88b5"
       },
-      "selection": "#303e66"
+      "selection": "#475680"
     }
   },
   "tokyo-night-moon": {
@@ -174,7 +174,8 @@
       "fgMuted": "#909dd9",
       "hljs": {
         "comment": "#7a85c0"
-      }
+      },
+      "selection": "#3e528b"
     }
   },
   "tokyo-night-light": {
@@ -245,7 +246,7 @@
         "deletion": "#8e4951",
         "addition": "#006876"
       },
-      "selection": "#b0b1ba"
+      "selection": "#a5a6af"
     }
   },
   "catppuccin-mocha": {
@@ -300,7 +301,8 @@
     "soft": "#9ca3bc",
     "aa": {
       "fg": "#d8e1ff",
-      "fgMuted": "#959bb4"
+      "fgMuted": "#959bb4",
+      "selection": "#4c4f62"
     }
   },
   "catppuccin-macchiato": {
@@ -355,7 +357,8 @@
     "soft": "#9fa6c0",
     "aa": {
       "fg": "#d9e2ff",
-      "fgMuted": "#99a1bd"
+      "fgMuted": "#99a1bd",
+      "selection": "#51556c"
     }
   },
   "catppuccin-frappe": {
@@ -415,7 +418,8 @@
       "link": "#93b1f5",
       "h1": "#fb9597",
       "red": "#fb9597",
-      "purple": "#cca0e8"
+      "purple": "#cca0e8",
+      "selection": "#5b6178"
     }
   },
   "catppuccin-latte": {
@@ -508,7 +512,7 @@
         "deletion": "#d00a38",
         "addition": "#0c7900"
       },
-      "selection": "#bdc0c8"
+      "selection": "#b8bbc3"
     }
   },
   "dracula": {
@@ -572,7 +576,8 @@
       "purple": "#bf95fb",
       "hljs": {
         "comment": "#7888bc"
-      }
+      },
+      "selection": "#54576b"
     }
   },
   "alucard": {
@@ -636,7 +641,7 @@
         "regexp": "#c73627",
         "deletion": "#c73627"
       },
-      "selection": "#c3c3d2"
+      "selection": "#a8a8b6"
     }
   },
   "github-dark": {
@@ -694,7 +699,7 @@
       "link": "#3385fb",
       "checkbox": "#3385fb",
       "tag": "#3385fb",
-      "selection": "#343a41"
+      "selection": "#474d55"
     }
   },
   "github-dark-dimmed": {
@@ -765,7 +770,7 @@
         "keyword": "#f67268",
         "comment": "#8f9daa"
       },
-      "selection": "#464e58"
+      "selection": "#48505a"
     }
   },
   "github-light": {
@@ -830,7 +835,7 @@
       "hljs": {
         "comment": "#6a737d"
       },
-      "selection": "#bccfe5"
+      "selection": "#a0b3c9"
     }
   },
   "monokai": {
@@ -975,7 +980,8 @@
         "operator": "#a881b2",
         "deletion": "#fb524a",
         "addition": "#339d92"
-      }
+      },
+      "selection": "#525456"
     }
   },
   "rose-pine": {
@@ -1035,7 +1041,8 @@
       "hljs": {
         "keyword": "#4d8fab",
         "comment": "#8783a0"
-      }
+      },
+      "selection": "#504d63"
     }
   },
   "rose-pine-moon": {
@@ -1100,7 +1107,7 @@
         "operator": "#928eac",
         "punctuation": "#928eac"
       },
-      "selection": "#45425b"
+      "selection": "#57556f"
     }
   },
   "rose-pine-dawn": {
@@ -1187,7 +1194,7 @@
         "regexp": "#ab6200",
         "deletion": "#aa5a71"
       },
-      "selection": "#d4cecd"
+      "selection": "#c5bfbe"
     }
   },
   "one-dark-pro": {
@@ -1251,7 +1258,8 @@
       "soft": "#a0a6b2",
       "hljs": {
         "comment": "#868b96"
-      }
+      },
+      "selection": "#535a67"
     }
   },
   "one-dark-pro-night-flat": {
@@ -1311,7 +1319,8 @@
       "red": "#e26e76",
       "hljs": {
         "comment": "#858a94"
-      }
+      },
+      "selection": "#4b515e"
     }
   },
   "nord": {
@@ -1384,7 +1393,7 @@
         "operator": "#90b1d1",
         "deletion": "#f6929a"
       },
-      "selection": "#525b6e"
+      "selection": "#616a7d"
     }
   },
   "gruvbox-dark": {
@@ -1448,7 +1457,8 @@
       "hljs": {
         "comment": "#948475",
         "punctuation": "#948475"
-      }
+      },
+      "selection": "#5c5551"
     }
   },
   "gruvbox-light": {
@@ -1531,7 +1541,7 @@
         "regexp": "#336c4a",
         "addition": "#686200"
       },
-      "selection": "#c4b391"
+      "selection": "#b1a17f"
     }
   },
   "solarized-dark": {
@@ -1614,7 +1624,8 @@
         "literal": "#de5d2d",
         "punctuation": "#728890",
         "deletion": "#f04740"
-      }
+      },
+      "selection": "#32514d"
     }
   },
   "solarized-light": {
@@ -1776,7 +1787,8 @@
       "hljs": {
         "comment": "#86948b",
         "punctuation": "#86948b"
-      }
+      },
+      "selection": "#576369"
     }
   },
   "everforest-light": {
@@ -1870,7 +1882,7 @@
         "deletion": "#ce2a2f",
         "addition": "#637400"
       },
-      "selection": "#cbc7b1"
+      "selection": "#c7c3ad"
     }
   },
   "ayu-dark": {
@@ -1930,7 +1942,7 @@
         "comment": "#757d86",
         "punctuation": "#757d86"
       },
-      "selection": "#273443"
+      "selection": "#394757"
     }
   },
   "ayu-mirage": {
@@ -1989,7 +2001,8 @@
       "hljs": {
         "comment": "#7d879a",
         "punctuation": "#7d879a"
-      }
+      },
+      "selection": "#43546a"
     }
   },
   "ayu-light": {
@@ -2083,7 +2096,7 @@
         "deletion": "#cd373c",
         "addition": "#527b00"
       },
-      "selection": "#bacddc"
+      "selection": "#b6c9d8"
     }
   },
   "one-light": {
@@ -2172,7 +2185,7 @@
         "deletion": "#c2362c",
         "addition": "#257927"
       },
-      "selection": "#c1c1c2"
+      "selection": "#a6a6a7"
     }
   },
   "night-owl": {
@@ -2233,7 +2246,8 @@
       "hljs": {
         "comment": "#6a7e7e",
         "punctuation": "#6a7e7e"
-      }
+      },
+      "selection": "#2d4b64"
     }
   },
   "light-owl": {
@@ -2326,7 +2340,7 @@
         "deletion": "#ce2b2d",
         "addition": "#007d58"
       },
-      "selection": "#c1c8cb"
+      "selection": "#a8aeb1"
     }
   },
   "synthwave-84": {
@@ -2382,7 +2396,7 @@
     "aa": {
       "fgMuted": "#969ed0",
       "red": "#ff757a",
-      "selection": "#493769"
+      "selection": "#5d4b7e"
     }
   },
   "panda": {
@@ -2448,7 +2462,8 @@
         "comment": "#8b8b8b",
         "punctuation": "#8b8b8b",
         "deletion": "#ff3d77"
-      }
+      },
+      "selection": "#54585d"
     }
   },
   "nightfox": {
@@ -2514,7 +2529,8 @@
         "comment": "#768394",
         "punctuation": "#768394",
         "deletion": "#d35876"
-      }
+      },
+      "selection": "#42536a"
     }
   },
   "dayfox": {
@@ -2589,7 +2605,7 @@
         "punctuation": "#696058",
         "regexp": "#156c73"
       },
-      "selection": "#c8b3a0"
+      "selection": "#ad9986"
     }
   },
   "vscode-dark": {
@@ -2654,7 +2670,8 @@
       "hljs": {
         "regexp": "#d66e6d",
         "deletion": "#fa4d4c"
-      }
+      },
+      "selection": "#2d567f"
     }
   },
   "vscode-light": {
@@ -2721,7 +2738,7 @@
         "builtin": "#1b7891",
         "addition": "#007e51"
       },
-      "selection": "#a3ccf4"
+      "selection": "#8ab2da"
     }
   },
   "material-palenight": {
@@ -2789,7 +2806,8 @@
       "hljs": {
         "comment": "#848cb4",
         "punctuation": "#848cb4"
-      }
+      },
+      "selection": "#5a587f"
     }
   },
   "material-ocean": {
@@ -2849,7 +2867,7 @@
         "comment": "#747a8d",
         "punctuation": "#747a8d"
       },
-      "selection": "#2d3143"
+      "selection": "#424659"
     }
   },
   "material-lighter": {
@@ -2944,7 +2962,7 @@
         "deletion": "#d62828",
         "addition": "#577a13"
       },
-      "selection": "#b8cecc"
+      "selection": "#b3c9c7"
     }
   },
   "basic-light": {
@@ -3003,7 +3021,7 @@
         "type": "#1e7993",
         "builtin": "#1e7993"
       },
-      "selection": "#bacde1"
+      "selection": "#9fb1c4"
     }
   },
   "basic-dark": {
@@ -3057,7 +3075,8 @@
     "h6": "#979da5",
     "soft": "#9a9a9a",
     "aa": {
-      "red": "#d47d7c"
+      "red": "#d47d7c",
+      "selection": "#3c5779"
     }
   },
   "nordic": {
@@ -3124,7 +3143,8 @@
         "comment": "#778aa3",
         "punctuation": "#778aa3",
         "deletion": "#cb6c74"
-      }
+      },
+      "selection": "#4e5769"
     }
   },
   "vaporwave": {
@@ -3183,7 +3203,8 @@
       "h5": "#d382ff",
       "italic": "#d382ff",
       "red": "#ff75a1",
-      "purple": "#d382ff"
+      "purple": "#d382ff",
+      "selection": "#5d4c7c"
     }
   }
 }
