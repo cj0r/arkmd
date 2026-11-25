@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { renumber, markerLabels } from "./format.js";
 import { lineSeparatorFor, docText, withLineBreak } from "./eol.js";
 
@@ -157,6 +158,13 @@ const nestedMarkers = ViewPlugin.fromClass(class {
  */
 const typing = new Compartment();
 const gutter = new Compartment();
+const autoClose = new Compartment();
+/**
+ * Closing brackets and quotes while typing code: "(" gives "()", typing ")" steps over it, Backspace removes the pair.
+ * It applies inside fenced code blocks whose language is known (that language's own settings are used); prose, inline
+ * code and fences without a language get nothing, so apostrophes and quotes in text are left alone.
+ */
+const autoCloseExt = (on) => (on ? [closeBrackets(), markdownLanguage.data.of({ closeBrackets: { brackets: [] } }), keymap.of(closeBracketsKeymap)] : []);
 const MARKER = /^\s*\d+[.)] /;
 /**
  * After typing or deleting, a numbered list that is out of sequence is renumbered: a new "2." inserted into 1, 2, 3
@@ -203,6 +211,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
         look.of([]),
         typing.of(typingAttrs(true)),
         gutter.of([]),
+        autoClose.of(autoCloseExt(true)),
         EditorView.updateListener.of((u) => { if (u.docChanged) onChange(docText(u.state)); if (u.docChanged || u.selectionSet) onCursor(); }),
   ];
   /** A fresh state for a document, keeping its line endings (see eol.js). */
@@ -214,6 +223,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
   let currentLook = [];
   let currentTyping = true;
   let currentGutter = false;
+  let currentAutoClose = true;
   const gutterExt = () => (currentGutter ? lineNumbers() : []);
   return {
     view,
@@ -221,7 +231,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     /** Load a document: fresh state, so undo history starts here. */
     setText(text) {
       view.setState(stateFor(text));
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt())] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose))] });
     },
     /** Fresh editor state for a document (own undo history); used per tab. */
     newState(text) { return stateFor(text); },
@@ -234,7 +244,7 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     /** Swap in another tab's state, keeping the current theme and font. */
     setState(state) {
       view.setState(state);
-      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt())] });
+      view.dispatch({ effects: [look.reconfigure(currentLook), typing.reconfigure(typingAttrs(currentTyping)), gutter.reconfigure(gutterExt()), autoClose.reconfigure(autoCloseExt(currentAutoClose))] });
     },
     replaceAll(text) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
@@ -243,6 +253,11 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
     setTyping(on) {
       currentTyping = !!on;
       view.dispatch({ effects: typing.reconfigure(typingAttrs(currentTyping)) });
+    },
+    /** Close brackets and quotes while typing in code blocks (see autoCloseExt). */
+    setAutoClose(on) {
+      currentAutoClose = !!on;
+      view.dispatch({ effects: autoClose.reconfigure(autoCloseExt(currentAutoClose)) });
     },
     /** Show or hide the line numbers on the left. */
     setLineNumbers(on) {

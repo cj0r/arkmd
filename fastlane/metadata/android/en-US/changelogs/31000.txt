@@ -1,0 +1,1 @@
+Closing brackets and quotes while typing in code blocks that name a language. Can be turned off in Settings.

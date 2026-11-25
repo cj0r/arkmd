@@ -256,6 +256,26 @@ await step("Tab nests a numbered item (shown a., i. like the reader) and Shift+T
   void raw;
 });
 
+await step("typing ( in a code block with a language closes it; in ordinary text it does not", async () => {
+  if (!(await page.locator("#editor .cm-content").isVisible())) { await page.click("#toggle"); await page.locator("#editor .cm-content").waitFor(); }
+  await page.click("#editor .cm-content");
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\n\nnote (aside\n\n```js\n");
+  await page.waitForTimeout(1500);                        // the JavaScript language loads on first use
+  await page.keyboard.type("const x = f(");
+  const t = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  expect(/note \(aside\s/.test(t) && !/note \(aside\)/.test(t), "text got a closing bracket: " + JSON.stringify(t.slice(-60)));
+  expect(/const x = f\(\)/.test(t), "code did not get a closing bracket: " + JSON.stringify(t.slice(-60)));
+  await page.keyboard.type("1");
+  await page.keyboard.press("ArrowRight");               // steps over the closing bracket
+  await page.keyboard.type(";");
+  const u = await page.evaluate(() => document.querySelector("#editor .cm-content").innerText);
+  expect(/const x = f\(1\);/.test(u), "typing past the closing bracket failed: " + JSON.stringify(u.slice(-40)));
+  for (let i = 0; i < 20; i++) await page.keyboard.press("Control+z");
+  await page.keyboard.press("Control+s");
+  await page.click("#toggle");                            // leave the tab in reading mode, as the next step expects
+});
+
 await step("rename changes the file and the tab", async () => {
   await openMenu();
   await menuItem("Rename file").click();

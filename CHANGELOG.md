@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.0 (2026-11-24)
+
+### Added
+- **Closing brackets in code blocks.** Typing ( [ { or a quote inside a fenced code block that names a language adds the closing one. Typing the closing character steps over it and Backspace removes an empty pair. Ordinary text, inline code and fences without a language are not affected. Settings > Close brackets in code turns it off.
+
 ## 0.30.4 (2026-11-24)
 
 ### Fixed
