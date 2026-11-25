@@ -6,6 +6,7 @@ export const LIMITS = {
   totalBytes: 50 * 1024 * 1024,      // across all files
   maxDocBytes: 2 * 1024 * 1024,      // larger documents are not versioned
   closedTabs: 10,                    // tabs that "Reopen closed tab" remembers
+  closedChars: 6_000_000,            // ...and no more than this much text between them (each keeps its whole editor state)
 };
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -94,8 +95,14 @@ export function draftsToOffer(drafts) {
     .sort((a, b) => b.t - a.t);
 }
 
-/** A closed tab to remember for "Reopen closed tab": keeps the stack within its limit, newest last. */
-export function pushClosed(stack, tab, limit = LIMITS.closedTabs) {
-  const next = [...stack, tab];
-  return next.length > limit ? next.slice(next.length - limit) : next;
+/** A closed tab to remember for "Reopen closed tab": keeps the stack within its limits, newest last. Besides the number of
+ *  tabs, the text they hold is limited (`chars` on each entry), so ten large documents are not all kept; the oldest go
+ *  first, and the newest is always kept. */
+export function pushClosed(stack, tab, limit = LIMITS.closedTabs, budget = LIMITS.closedChars) {
+  let next = [...stack, tab];
+  if (next.length > limit) next = next.slice(next.length - limit);
+  const weight = (c) => (c && typeof c.chars === "number" ? c.chars : 0);
+  let total = next.reduce((n, c) => n + weight(c), 0);
+  while (next.length > 1 && total > budget) { total -= weight(next[0]); next = next.slice(1); }
+  return next;
 }

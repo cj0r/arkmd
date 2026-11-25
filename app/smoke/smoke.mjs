@@ -490,6 +490,42 @@ await step("every built-in theme meets the contrast rules (app and reader)", asy
   expect(!failing.length, `${failing.length} theme(s): ` + failing.slice(0, 8).join(" | "));
 });
 
+await step("a history dialog closes with its tab, so Restore cannot land in another tab; Reopen closed tab still works", async () => {
+  const tabs = page.locator(".tab");
+  const openDoc = async (path, heading) => {
+    await page.evaluate((p) => { window.__mock.next = p; }, path);
+    await page.keyboard.press("Control+o");
+    await reader().locator("h1", { hasText: heading }).waitFor({ timeout: 15000 });
+  };
+  await page.evaluate(() => { window.__mock.files["/docs/history-a.md"] = "# History A\n\nfirst text\n"; window.__mock.files["/docs/history-b.md"] = "# History B\n\nother file\n"; });
+  await openDoc("/docs/history-a.md", "History A");
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  await page.keyboard.type("ONE "); await page.keyboard.press("Control+s"); await page.waitForTimeout(600);
+  await page.keyboard.type("TWO "); await page.keyboard.press("Control+s"); await page.waitForTimeout(600);
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  await openDoc("/docs/history-b.md", "History B");
+  await tabs.filter({ hasText: "history-a.md" }).first().click(); await page.waitForTimeout(300);
+  await openMenu();
+  await menuItem("File history").click();
+  await page.locator("#dialog button.row").first().click();
+  await page.locator("#dialog button", { hasText: "Restore into the editor" }).waitFor();
+  await page.keyboard.press("Control+w"); await page.waitForTimeout(400);
+  expect(!(await dialogOpen()), "the history dialog stayed open after its tab was closed");
+  expect((await page.locator(".tab.active").innerText()).includes("history-b.md"), "the other tab should be active");
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(300);
+  const text = await page.evaluate(() => document.querySelector(".cm-content")?.innerText ?? "");
+  expect(text.includes("History B") && !text.includes("ONE") && !text.includes("TWO"), "the other tab's text changed: " + text.slice(0, 60));
+  expect((await page.locator(".tab.active").innerText()).indexOf("unsaved") < 0, "the other tab is marked as changed");
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  const before = await tabs.count();
+  await page.keyboard.press("Control+Shift+T"); await page.waitForTimeout(500);
+  expect(await tabs.count() === before + 1 && (await page.locator(".tab.active").innerText()).includes("history-a.md"), "Reopen closed tab did not bring history-a.md back");
+  for (const name of ["history-a.md", "history-b.md"]) {            // close only the two tabs this step opened
+    await tabs.filter({ hasText: name }).first().click(); await page.waitForTimeout(200);
+    await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+  }
+});
+
 await step("no script errors or blocked requests", async () => {
   expect(problems.length === 0, problems.join("\n"));
 });

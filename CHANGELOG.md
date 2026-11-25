@@ -2,6 +2,13 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.5 (2026-11-25)
+
+### Fixed
+- Restoring an earlier version from File history no longer changes another tab when the file's own tab was closed while the dialog was open. The dialog now closes together with its tab.
+- File history and unsaved-work recovery open their database again after a failed or closed connection. Before, one failure turned them off until ArkMD was restarted.
+- Reopen closed tab keeps at most 6 million characters of closed documents in addition to the limit of ten tabs, dropping the oldest first and always keeping the most recent. Ten large documents were kept in memory before.
+
 ## 0.31.4 (2026-11-25)
 
 ### Fixed

@@ -4,23 +4,34 @@
 import { LIMITS, byteLength, worthKeeping, planPrune, planTotalPrune } from "./history.js";
 
 let dbPromise = null;
+/** The open database. A failed open, a connection the browser closed, or another window upgrading the database all
+ *  clear the cached promise, so the next call opens it again instead of history and drafts staying off for the session. */
 function db() {
-  dbPromise ??= new Promise((resolve, reject) => {
-    if (typeof indexedDB === "undefined") return reject(new Error("no IndexedDB"));
-    const r = indexedDB.open("arkmd-history", 1);
-    r.onupgradeneeded = () => {
-      const d = r.result;
-      d.createObjectStore("versions", { keyPath: "id", autoIncrement: true }).createIndex("key", "key");
-      d.createObjectStore("drafts", { keyPath: "key" });
-    };
-    r.onsuccess = () => resolve(r.result);
-    r.onerror = () => reject(r.error);
-  });
+  if (!dbPromise) {
+    const p = new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") return reject(new Error("no IndexedDB"));
+      const r = indexedDB.open("arkmd-history", 1);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        d.createObjectStore("versions", { keyPath: "id", autoIncrement: true }).createIndex("key", "key");
+        d.createObjectStore("drafts", { keyPath: "key" });
+      };
+      r.onsuccess = () => {
+        const d = r.result;
+        d.onversionchange = () => { d.close(); if (dbPromise === p) dbPromise = null; };
+        d.onclose = () => { if (dbPromise === p) dbPromise = null; };
+        resolve(d);
+      };
+      r.onerror = () => reject(r.error);
+    });
+    p.catch(() => { if (dbPromise === p) dbPromise = null; });
+    dbPromise = p;
+  }
   return dbPromise;
 }
 
 /** Run `fn(store)` in a transaction; resolves with fn's request result (or its return value) once committed. */
-async function run(storeName, mode, fn, fallback) {
+async function run(storeName, mode, fn, fallback, retried = false) {
   try {
     const d = await db();
     return await new Promise((resolve, reject) => {
@@ -30,7 +41,9 @@ async function run(storeName, mode, fn, fallback) {
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
     });
-  } catch {
+  } catch (e) {
+    // a connection that was closed under us: open it again once and repeat
+    if (!retried && e?.name === "InvalidStateError") { dbPromise = null; return run(storeName, mode, fn, fallback, true); }
     return fallback;
   }
 }

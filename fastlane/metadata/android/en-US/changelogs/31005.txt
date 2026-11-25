@@ -1,0 +1,1 @@
+Restoring a file version no longer affects another tab, file history recovers after a database error, and closed large documents use less memory.

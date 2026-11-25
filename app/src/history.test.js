@@ -87,3 +87,19 @@ test("the closed-tab stack keeps the most recent ones", () => {
   assert.equal(s.at(-1), 12);
   assert.equal(s[0], 3);
 });
+
+test("closed tabs are also limited by the text they hold, oldest first, and the newest is always kept", () => {
+  const tab = (name, chars) => ({ name, chars });
+  let s = [];
+  for (const t of [tab("a", 2_000_000), tab("b", 2_000_000), tab("c", 2_000_000)]) s = pushClosed(s, t);
+  assert.deepEqual(s.map((t) => t.name), ["a", "b", "c"]);               // exactly at the budget
+  s = pushClosed(s, tab("d", 1_000_000));
+  assert.deepEqual(s.map((t) => t.name), ["b", "c", "d"]);
+  s = pushClosed(s, tab("huge", 50_000_000));
+  assert.deepEqual(s.map((t) => t.name), ["huge"]);                         // alone, though over the budget
+  s = pushClosed(s, tab("small", 10));
+  assert.deepEqual(s.map((t) => t.name), ["small"]);                        // the huge one goes first
+  assert.deepEqual(pushClosed([], { name: "no size" }).map((t) => t.name), ["no size"]);
+  const many = Array.from({ length: 10 }, (_, i) => tab("t" + i, 100_000));
+  assert.equal(many.reduce((acc, t) => pushClosed(acc, t), []).length, 10);                    // ordinary notes: all ten kept
+});

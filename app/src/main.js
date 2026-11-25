@@ -395,9 +395,10 @@ async function closeTab(id = cur()?.id) {
   if (t.dirty && !(await platform.confirm(`"${t.name}" has unsaved changes. Discard them?`, "Unsaved changes"))) return;
   const wasActive = t === cur();
   if (wasActive) snapshot();
-  if (t.ref || t.saved || t.dirty) closed = pushClosed(closed, { ref: t.ref, name: t.name, saved: t.saved, dirty: t.dirty, mode: t.mode, scroll: t.scroll, state: t.state, draftKey: t.draftKey });
+  if (t.ref || t.saved || t.dirty) closed = pushClosed(closed, { ref: t.ref, name: t.name, saved: t.saved, dirty: t.dirty, mode: t.mode, scroll: t.scroll, state: t.state, draftKey: t.draftKey, chars: (t.saved?.length ?? 0) + (t.state?.doc?.length ?? 0) });
   hdb.deleteDraft(t.draftKey);
   tabs.close(id);
+  if (historyTabId === id && !$("dialog-backdrop").hidden) closeDialog();       // its history dialog has nothing left to act on
   if (wasActive) show(); else updateChrome();
 }
 
@@ -416,8 +417,9 @@ function updateUndoButtons() {
 }
 
 function reopenClosed() {
-  const c = closed.pop();
-  if (!c) { toast("No closed tabs to reopen"); return; }
+  const popped = closed.pop();
+  if (!popped) { toast("No closed tabs to reopen"); return; }
+  const { chars, ...c } = popped;
   const open = tabs.findByRef(c.ref);
   if (open) { activateTab(open.id); return; }
   snapshot();
@@ -466,10 +468,12 @@ async function offerRecovery() {
 }
 
 /** The history dialog for the current file: earlier versions kept each time it was saved. */
+let historyTabId = null;                           // the tab whose history dialog is open
 async function showHistory() {
   const t = cur();
   if (!t) return;
   const d = $("dialog");
+  historyTabId = t.id;
   dialogReturn = document.activeElement;
   d.className = "settings";
   const h = document.createElement("h2"); h.id = "dialog-title"; h.textContent = `History: ${t.name}`;
@@ -499,6 +503,7 @@ async function showHistory() {
 }
 
 async function showVersion(t, v) {
+  historyTabId = t.id;
   const rec = await hdb.getVersion(v.id);
   if (!rec) { toast("That version is no longer available"); return showHistory(); }
   const d = $("dialog");
@@ -511,6 +516,7 @@ async function showVersion(t, v) {
   const button = (label, fn) => { const b = document.createElement("button"); b.className = "opt"; b.textContent = label; b.onclick = fn; return b; };
   const restore = button("Restore into the editor", () => {
     closeDialog();
+    if (!tabs.find(t.id)) { toast("That file was closed, so nothing was restored."); return; }
     if (t !== cur()) activateTab(t.id);
     if (t.mode === "read") toggleMode();
     editor.replaceAll(rec.text);
@@ -1069,6 +1075,7 @@ function dismissDialog() {
 
 function closeDialog() {
   dialogBack = null;
+  historyTabId = null;
   if (pendingAsk) { const r = pendingAsk; pendingAsk = null; r(-1); }
   if ($("dialog-backdrop").hidden) return;
   $("dialog-backdrop").hidden = true;
