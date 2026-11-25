@@ -1,0 +1,1 @@
+Fixes the ResizeObserver error on a phone in landscape. The outline no longer repeats the counts shown in the status bar.

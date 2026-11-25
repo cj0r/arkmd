@@ -290,6 +290,10 @@ await step("status bar and line numbers can be switched on and off in Settings",
   await page.locator("#statusbar:not([hidden])").waitFor();
   const read = await page.locator("#statusbar").innerText();
   expect(/words?/.test(read) && /\bKB\b|\bB\b/.test(read) && !/Line \d/.test(read), "reading status: " + read);
+  await page.click("#btn-outline");                         // its own counts would repeat the bar's
+  await page.locator("#outline:not([hidden])").waitFor();
+  expect(await page.locator(".outline-foot").isHidden(), "outline repeats the counts shown in the status bar");
+  await page.click("#btn-outline");
   await page.click("#toggle");                              // edit mode adds the cursor position
   await page.locator("#statusbar", { hasText: /Line \d+, column \d+/ }).waitFor();
   await flip("Line numbers");

@@ -165,7 +165,9 @@ function setDirty(t, d) {
 const textOf = (t) => (t === cur() ? editor.getText() : docText(t.state));
 
 // The room left for the document: with a phone on its side and the keyboard open there is little, and the layout shrinks to fit.
-new ResizeObserver(() => document.body.classList.toggle("short", $("content").clientHeight < 190)).observe($("content"));
+// It measures the page itself (window minus the bars the system and keyboard take), not #content, which changes when the
+// status bar is hidden and would flip the class back and forth.
+new ResizeObserver((entries) => document.body.classList.toggle("short", entries[0].contentRect.height < 250)).observe(document.body);
 
 // ---- Status bar: line, column, words, characters and size of the open document ----------------------------
 let statusTimer = null;
@@ -177,6 +179,7 @@ function updateStatus() {
   const bar = $("statusbar");
   const on = store.get("statusBar", false) && !!cur();
   bar.hidden = !on;
+  document.body.classList.toggle("has-statusbar", on);     // the outline's own counts would repeat the bar's
   if (!on) return;
   const text = editor.getText();
   const info = mode() === "edit" ? editor.cursorInfo() : null;
@@ -188,6 +191,7 @@ function updateStatus() {
   if (info) items.push(`Line ${info.line}, column ${info.column}`);
   const sel = info?.selected ? " selected" : "";
   items.push(n(part.words, "word", "words") + sel, n(part.characters, "character", "characters") + sel, size);
+  if (!info?.selected && part.minutes) items.push(`${part.minutes} min read`);
   bar.replaceChildren(...items.map((t) => { const s = document.createElement("span"); s.textContent = t; return s; }));
 }
 
@@ -2260,7 +2264,7 @@ function onReaderLoad() {
 }
 
 // Never fail silently: surface unexpected errors to the user.
-window.addEventListener("error", (e) => { logError("Unhandled error", e.error || e.message, `${e.filename || ""}:${e.lineno || 0}`); toast(`Error: ${e.message}`); });
+window.addEventListener("error", (e) => { if (/ResizeObserver loop/.test(e.message || "")) return; logError("Unhandled error", e.error || e.message, `${e.filename || ""}:${e.lineno || 0}`); toast(`Error: ${e.message}`); });
 window.addEventListener("unhandledrejection", (e) => { logError("Unhandled promise rejection", e.reason); toast(`Error: ${e.reason?.message || e.reason}`); });
 
 async function init() {

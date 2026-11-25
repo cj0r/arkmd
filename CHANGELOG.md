@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.30.4 (2026-11-24)
+
+### Fixed
+- Android, on its side with the keyboard open: the layout switched back and forth between its normal and compact forms, which showed the error "ResizeObserver loop completed with undelivered notifications". The compact form is now chosen from the height of the page, which the compact form does not change. That browser notice is no longer shown as an error.
+- With the status bar on, the outline panel no longer repeats the word and character counts under the bar; the status bar now also shows the reading time.
+
 ## 0.30.3 (2026-11-24)
 
 ### Fixed
