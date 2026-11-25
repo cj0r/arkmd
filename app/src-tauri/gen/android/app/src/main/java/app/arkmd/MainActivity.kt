@@ -215,7 +215,10 @@ class MainActivity : TauriActivity() {
         @JavascriptInterface fun downloadUpdate(id: Int, url: String, fileName: String) = main.post {
             runCatching {
                 val uri = Uri.parse(url)
-                require(uri.scheme == "https" && uri.host == "github.com") { "updates come from github.com over https" }
+                require(uri.scheme == "https" && uri.host == "github.com" && (uri.path ?: "").startsWith("/cj0r/arkmd/releases/download/") &&
+                    uri.pathSegments.none { it == "." || it == ".." }) {
+                    "updates come from ArkMD's releases on github.com over https"
+                }
                 val name = fileName.replace(Regex("[^A-Za-z0-9._-]"), "-")
                 val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                 val downloadId = dm.enqueue(
@@ -364,6 +367,7 @@ class MainActivity : TauriActivity() {
                         JSONObject().put("ref", JSONObject.NULL).put("name", subject?.let { "$it.md" } ?: "Untitled.md")
                             .put("text", i.getStringExtra(Intent.EXTRA_TEXT) ?: "")
                     } else {
+                        require(uri.scheme == "content") { "not a document address" }
                         val read = readText(uri)
                         if (read is String) fileInfo(uri).put("text", read)
                         else fileInfo(uri).put("text", (read as JSONObject).getString("text")).put("notUtf8", read.getString("encoding"))
@@ -381,7 +385,11 @@ class MainActivity : TauriActivity() {
         }.let { }
 
         @JavascriptInterface fun openUrl(url: String) = main.post {
-            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            runCatching {
+                val uri = Uri.parse(url)
+                require(uri.scheme?.lowercase() in setOf("http", "https", "mailto")) { "only web and mail addresses can be opened" }
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            }
         }.let { }
 
         /** Re-send the current insets (the page asks once it has loaded). */

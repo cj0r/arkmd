@@ -6,13 +6,13 @@ ArkMD 0.25.2 is released under the GNU General Public License v3.0 (see `LICENSE
 
 | Component | Version | License | Source |
 |---|---|---|---|
-| markdown-it | 14.1.0 | MIT | https://github.com/markdown-it/markdown-it |
+| markdown-it | 14.3.3 | MIT | https://github.com/markdown-it/markdown-it |
 | markdown-it-task-lists | 2.1.1 | ISC | https://github.com/revin/markdown-it-task-lists |
 | markdown-it-footnote | 4.0.0 | MIT | https://github.com/markdown-it/markdown-it-footnote |
 | highlight.js | 11.10.0 | BSD-3-Clause | https://github.com/highlightjs/highlight.js |
-| mermaid | 11.17.2 | MIT | https://github.com/mermaid-js/mermaid |
-| mermaid's bundled libraries: d3, dagre-d3-es, cytoscape, dayjs, katex, khroma, marked, roughjs, stylis, uuid and others | as bundled in mermaid 11.17.2 | MIT, ISC, BSD-3-Clause | https://github.com/mermaid-js/mermaid/blob/develop/package.json |
-| DOMPurify (bundled in mermaid; offered under MPL-2.0 or Apache-2.0, used under Apache-2.0) | as bundled in mermaid 11.17.2 | Apache-2.0 | https://github.com/cure53/DOMPurify |
+| mermaid | 12.3.0 | MIT | https://github.com/mermaid-js/mermaid |
+| mermaid's bundled libraries: d3, dagre-d3-es, cytoscape, dayjs, katex, khroma, marked, roughjs, stylis, uuid and others | as bundled in mermaid 12.3.0 | MIT, ISC, BSD-3-Clause | https://github.com/mermaid-js/mermaid/blob/develop/package.json |
+| DOMPurify (bundled in mermaid; offered under MPL-2.0 or Apache-2.0, used under Apache-2.0) | as bundled in mermaid 12.3.0 | Apache-2.0 | https://github.com/cure53/DOMPurify |
 
 ## Fonts
 

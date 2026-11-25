@@ -12,6 +12,19 @@ fn temp_path(path: &Path) -> PathBuf {
     path.with_file_name(format!(".{name}.arkmd-{}.tmp", std::process::id()))
 }
 
+/// Create `path` as a new file. Something already at that name (a leftover from a crashed save, or a symbolic link put there
+/// on purpose) is removed first rather than written through, so the temporary file is never a link to another file.
+fn create_new(path: &Path) -> std::io::Result<fs::File> {
+    let open = || fs::OpenOptions::new().write(true).create_new(true).open(path);
+    match open() {
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            fs::remove_file(path)?;
+            open()
+        }
+        other => other,
+    }
+}
+
 /// Replace the contents of `path` with `bytes`.
 ///
 /// A symbolic link is followed, so the file it points to is the one replaced and the link stays. If the folder doesn't
@@ -24,7 +37,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     };
     let temp = temp_path(&target);
     let attempt = (|| -> std::io::Result<()> {
-        let mut file = fs::File::create(&temp)?;
+        let mut file = create_new(&temp)?;
         file.write_all(bytes)?;
         file.sync_all()?;
         if let Ok(meta) = fs::metadata(&target) {
@@ -76,6 +89,21 @@ mod tests {
         let file = dir.join("new.md");
         write_atomic(&file, b"hello").unwrap();
         assert_eq!(fs::read_to_string(&file).unwrap(), "hello");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_planted_link_at_the_temp_name_is_not_written_through() {
+        use std::os::unix::fs::symlink;
+        let dir = scratch("planted");
+        let file = dir.join("note.md");
+        fs::write(&file, "old").unwrap();
+        let victim = dir.join("victim.txt");
+        fs::write(&victim, "keep").unwrap();
+        symlink(&victim, temp_path(&file.canonicalize().unwrap())).unwrap();
+        write_atomic(&file, b"new").unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&victim).unwrap(), "keep");
     }
 
     #[cfg(unix)]

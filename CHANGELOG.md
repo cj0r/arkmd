@@ -2,6 +2,16 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.4 (2026-11-25)
+
+### Fixed
+- markdown-it is updated from 14.1.0 to 14.3.3. Older versions could make the reader very slow on a crafted file (smart quotes, link detection, link reference definitions).
+- mermaid is updated from 11.17.2 to 12.3.0, which bundles DOMPurify 3.4.17 instead of 3.4.12.
+- Image and file links that name an absolute path, a drive letter or a network share are refused, including when the address is percent-encoded. Only paths relative to the document's folder are read.
+- Code blocks in LiveScript are shown without highlighting: highlight.js 11.10 has a grammar for it with a regular expression that can take very long, and no fixed release exists.
+- Saving no longer writes through a file or link that already has the temporary file's name; it is replaced first.
+- Android: only http, https and mailto addresses are opened, update downloads must come from ArkMD's releases on GitHub, Open with and Share accept only content addresses, and the file provider no longer covers shared storage.
+
 ## 0.31.3 (2026-11-24)
 
 ### Fixed

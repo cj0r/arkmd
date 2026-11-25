@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseLink, wikilinkTarget, slugify, imageType } from "./links.js";
+import { parseLink, wikilinkTarget, slugify, imageType, isRelativePath } from "./links.js";
 
 test("web and mail links are external", () => {
   assert.deepEqual(parseLink("https://example.com/a?b#c"), { kind: "external", url: "https://example.com/a?b#c" });
@@ -19,6 +19,19 @@ test("relative links point at files next to the document", () => {
 
 test("other schemes and absolute paths are refused", () => {
   for (const h of ["javascript:alert(1)", "file:///etc/passwd", "data:text/html,x", "/etc/passwd", "C:\\x.md", "\\\\server\\share", "//host/x", "", null]) assert.equal(parseLink(h), null, String(h));
+});
+
+test("absolute and network paths are refused after percent-decoding too", () => {
+  for (const h of ["%5C%5Cserver%5Cshare%5Ca.png", "%2F%2Fserver%2Fshare%2Fa.png", "%2Fhome%2Fuser%2Fa.png", "%43%3A%5CUsers%5Ca.png", "%5Cserver%5Cshare%5Ca.png", "c%3A/a.png"]) assert.equal(parseLink(h), null, h);
+  assert.deepEqual(parseLink("images/a%20b.png"), { kind: "file", path: "images/a b.png", fragment: "" });
+  assert.deepEqual(parseLink("../shared/a.png"), { kind: "file", path: "../shared/a.png", fragment: "" });
+  assert.equal(isRelativePath("a/b.md"), true);
+  assert.equal(isRelativePath("//host/x.md"), false);
+});
+
+test("wikilinks to absolute or network paths are refused", () => {
+  for (const t of ["//server/share/Note", "\\\\server\\share\\Note", "/etc/Note", "C:/Users/Note", "c:\\Note"]) assert.equal(wikilinkTarget(t), null, t);
+  assert.deepEqual(wikilinkTarget("folder\\Note"), { path: "folder/Note.md", fragment: "" });
 });
 
 test("wikilinks name a file and an optional heading", () => {

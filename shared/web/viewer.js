@@ -2,6 +2,9 @@
   function esc(s) { return s.replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
   var imagePolicy = "ask", allowedRemote = {};
+  // highlight.js 11.10's LiveScript grammar has a regular expression that can take very long on crafted text, and no
+  // fixed release exists yet; that language is shown as plain text instead.
+  try { hljs.unregisterLanguage("livescript"); } catch (e) {}
   var md = window.markdownit({
     html: false, linkify: true, typographer: true, breaks: false,
     highlight: function (code, lang) {

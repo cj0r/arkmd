@@ -245,12 +245,25 @@ fn find_ignoring_case(wanted: &std::path::Path) -> std::io::Result<PathBuf> {
     Err(std::io::ErrorKind::NotFound.into())
 }
 
+/// Whether `rel` stays relative to the document's folder. A rooted path, a drive letter or a network share (`\\\\host\\share`,
+/// `//host/share`) would make `join` drop the document's folder, so they are refused here whatever the page checked.
+fn is_relative_link(rel: &str) -> bool {
+    use std::path::Component;
+    let bytes = rel.as_bytes();
+    let drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    !(rel.starts_with('/') || rel.starts_with('\\') || drive)
+        && Path::new(rel).components().all(|c| !matches!(c, Component::Prefix(_) | Component::RootDir))
+}
+
 /// A file next to an open document: `rel` resolved against the folder of `base`, which must be a file ArkMD was
 /// already given access to. Only files of the listed types are allowed, so a document can't reach other data.
 fn resolve_linked(app: &tauri::AppHandle, base: &str, rel: &str, exts: &[&str]) -> Result<PathBuf, String> {
     let base = PathBuf::from(base);
     if !app.fs_scope().is_allowed(&base) {
         return Err("the document is not open in ArkMD".into());
+    }
+    if !is_relative_link(rel) {
+        return Err("only files next to the document can be opened".into());
     }
     let dir = base.parent().ok_or("the document has no folder")?;
     let wanted = dir.join(rel);
@@ -613,6 +626,16 @@ mod tests {
         let up = rename_in_place(&c, "C.md").unwrap();
         assert_eq!(std::fs::read_to_string(up).unwrap(), "one");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn linked_paths_must_be_relative() {
+        for ok in ["a.md", "images/a.png", "../shared/a.png", "./a.md", "sub dir/a b.md"] {
+            assert!(is_relative_link(ok), "{ok}");
+        }
+        for bad in ["/etc/a.png", "//server/share/a.png", "\\\\server\\share\\a.png", "\\a.png", "C:\\a.png", "c:/a.png", "C:a.png", "a:b/c.md"] {
+            assert!(!is_relative_link(bad), "{bad}");
+        }
     }
 
     #[test]

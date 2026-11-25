@@ -1,0 +1,1 @@
+Security update: newer markdown-it and mermaid, absolute and network paths in image and file links are refused, and stricter checks for links, update downloads and Open with.
