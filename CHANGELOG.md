@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.2 (2026-11-24)
+
+### Fixed
+- The selection color is checked for every theme. Where the official selection was too close to the background to be seen (mostly light themes, and a few dark ones), contrast mode moves it away from the background until it can be seen, keeping the hue and keeping text on it at 4.5:1. Selected text in code blocks and in the reader is shown in the main text color. A test now covers every built-in theme.
+
 ## 0.31.1 (2026-11-24)
 
 ### Added

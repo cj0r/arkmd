@@ -113,8 +113,34 @@ export function withAA(t) {
   const hl = {};
   for (const [k, v] of Object.entries(t.hljs)) { const m = meet(v, alt); if (m !== v) hl[k] = m; }
   if (Object.keys(hl).length) aa.hljs = hl;
+  const sel = selectionAA(t, eff, { ...t.hljs, ...hl });
+  if (sel !== t.selection) aa.selection = sel;
   t.aa = aa;
   return t;
+}
+
+const SELECTION_SEEN = 1.5;      // contrast the selection needs against the page and the code-block background, to be seen
+const SELECTION_SYNTAX = 3.0;    // contrast code colours keep on the selection (text itself stays at AA)
+/** The selection colour as in gen_themes.py: the theme's own when text stays readable on it and it can be seen; otherwise
+ *  moved in OKLab lightness away from the background until it can be seen or the text on it would drop below its limit. */
+function selectionAA(t, eff, hljs) {
+  const { bg, bgAlt: alt } = t, fg = eff.fg, codes = Object.values(hljs);
+  const readable = (c) => contrast(fg, c) >= AA && codes.every((k) => contrast(k, c) >= SELECTION_SYNTAX);
+  const seen = (c) => Math.min(contrast(c, bg), contrast(c, alt));
+  const cur = t.selection;
+  if (seen(cur) >= SELECTION_SEEN && readable(cur)) return cur;
+  let [L, A, B] = toOklab(cur);
+  const step = luminance(bg) > 0.18 ? -0.004 : 0.004;
+  let best = cur;
+  for (let i = 0; i < 300; i++) {
+    L = Math.max(0, Math.min(1, L + step));
+    const shrink = L > 0.02 && L < 0.98 ? 1 : 0.5;
+    const cand = fromOklab(L, A * shrink, B * shrink);
+    if (!readable(cand)) break;
+    best = cand;
+    if (seen(best) >= SELECTION_SEEN) break;
+  }
+  return best;
 }
 
 // ---------------------------------------------------------------- reading CSS colours

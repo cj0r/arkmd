@@ -489,6 +489,41 @@ def meet_all(color, bgs, target=AA):
     return color
 
 
+SELECTION_SEEN = 1.5      # contrast the selection needs against the page and the code-block background, to be seen
+SELECTION_SYNTAX = 3.0    # contrast code colours keep on the selection (text itself stays at AA)
+
+
+def selection_aa(t, eff, hljs):
+    """The selection colour: the theme's own when text stays readable on it and it can be seen; otherwise moved in OKLab
+    lightness away from the background (lighter on dark themes, darker on light ones), keeping hue and chroma, until
+    it can be seen or the text on it would drop below AA (body text) or SELECTION_SYNTAX (code colours)."""
+    bg, alt, fg = t["bg"], t["bgAlt"], eff["fg"]
+    codes = list(hljs.values())
+
+    def readable(c):
+        return contrast(fg, c) >= AA and all(contrast(k, c) >= SELECTION_SYNTAX for k in codes)
+
+    def seen(c):
+        return min(contrast(c, bg), contrast(c, alt))
+
+    cur = t["selection"]
+    if seen(cur) >= SELECTION_SEEN and readable(cur):
+        return cur
+    L, A, B = _to_oklab(cur)
+    step = -0.004 if luminance(bg) > 0.18 else 0.004
+    best = cur
+    for _ in range(300):
+        L = max(0.0, min(1.0, L + step))
+        shrink = 1.0 if 0.02 < L < 0.98 else 0.5
+        cand = _from_oklab(L, A * shrink, B * shrink)
+        if not readable(cand):
+            break
+        best = cand
+        if seen(best) >= SELECTION_SEEN:
+            break
+    return best
+
+
 def with_aa(t):
     """WCAG AA overrides. Each text role is checked against every surface it is drawn on in the reader/editor,
     using the displayed (already adjusted) colours for tinted surfaces: callout titles on a 10% tint of their
@@ -517,6 +552,9 @@ def with_aa(t):
     hl = {k: meet(v, alt) for k, v in t["hljs"].items() if meet(v, alt) != v}
     if hl:
         aa["hljs"] = hl
+    sel = selection_aa(t, eff, {**t["hljs"], **hl})
+    if sel != t["selection"]:
+        aa["selection"] = sel
     t["aa"] = aa
     return t
 

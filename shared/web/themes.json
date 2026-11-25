@@ -53,7 +53,8 @@
       "fgMuted": "#8692be",
       "hljs": {
         "comment": "#747eaa"
-      }
+      },
+      "selection": "#293558"
     }
   },
   "tokyo-night-storm": {
@@ -114,7 +115,8 @@
       "soft": "#99a2c5",
       "hljs": {
         "comment": "#7e88b5"
-      }
+      },
+      "selection": "#303e66"
     }
   },
   "tokyo-night-moon": {
@@ -242,7 +244,8 @@
         "regexp": "#3b6665",
         "deletion": "#8e4951",
         "addition": "#006876"
-      }
+      },
+      "selection": "#b0b1ba"
     }
   },
   "catppuccin-mocha": {
@@ -504,7 +507,8 @@
         "regexp": "#ab3c90",
         "deletion": "#d00a38",
         "addition": "#0c7900"
-      }
+      },
+      "selection": "#bdc0c8"
     }
   },
   "dracula": {
@@ -631,7 +635,8 @@
         "string": "#806a0d",
         "regexp": "#c73627",
         "deletion": "#c73627"
-      }
+      },
+      "selection": "#c3c3d2"
     }
   },
   "github-dark": {
@@ -688,7 +693,8 @@
       "accent": "#3385fb",
       "link": "#3385fb",
       "checkbox": "#3385fb",
-      "tag": "#3385fb"
+      "tag": "#3385fb",
+      "selection": "#343a41"
     }
   },
   "github-dark-dimmed": {
@@ -758,7 +764,8 @@
       "hljs": {
         "keyword": "#f67268",
         "comment": "#8f9daa"
-      }
+      },
+      "selection": "#464e58"
     }
   },
   "github-light": {
@@ -822,7 +829,8 @@
       "purple": "#7e4bda",
       "hljs": {
         "comment": "#6a737d"
-      }
+      },
+      "selection": "#bccfe5"
     }
   },
   "monokai": {
@@ -1091,7 +1099,8 @@
         "comment": "#918dab",
         "operator": "#928eac",
         "punctuation": "#928eac"
-      }
+      },
+      "selection": "#45425b"
     }
   },
   "rose-pine-dawn": {
@@ -1177,7 +1186,8 @@
         "punctuation": "#736f8d",
         "regexp": "#ab6200",
         "deletion": "#aa5a71"
-      }
+      },
+      "selection": "#d4cecd"
     }
   },
   "one-dark-pro": {
@@ -1373,7 +1383,8 @@
         "meta": "#8cb1de",
         "operator": "#90b1d1",
         "deletion": "#f6929a"
-      }
+      },
+      "selection": "#525b6e"
     }
   },
   "gruvbox-dark": {
@@ -1519,7 +1530,8 @@
         "punctuation": "#6b5e53",
         "regexp": "#336c4a",
         "addition": "#686200"
-      }
+      },
+      "selection": "#c4b391"
     }
   },
   "solarized-dark": {
@@ -1696,7 +1708,8 @@
         "regexp": "#00756d",
         "deletion": "#cc1d20",
         "addition": "#5e7000"
-      }
+      },
+      "selection": "#c8c2b0"
     }
   },
   "everforest-dark": {
@@ -1856,7 +1869,8 @@
         "regexp": "#007d55",
         "deletion": "#ce2a2f",
         "addition": "#637400"
-      }
+      },
+      "selection": "#cbc7b1"
     }
   },
   "ayu-dark": {
@@ -1915,7 +1929,8 @@
       "hljs": {
         "comment": "#757d86",
         "punctuation": "#757d86"
-      }
+      },
+      "selection": "#273443"
     }
   },
   "ayu-mirage": {
@@ -2067,7 +2082,8 @@
         "regexp": "#007f5d",
         "deletion": "#cd373c",
         "addition": "#527b00"
-      }
+      },
+      "selection": "#bacddc"
     }
   },
   "one-light": {
@@ -2155,7 +2171,8 @@
         "regexp": "#0070a7",
         "deletion": "#c2362c",
         "addition": "#257927"
-      }
+      },
+      "selection": "#c1c1c2"
     }
   },
   "night-owl": {
@@ -2308,7 +2325,8 @@
         "regexp": "#00797e",
         "deletion": "#ce2b2d",
         "addition": "#007d58"
-      }
+      },
+      "selection": "#c1c8cb"
     }
   },
   "synthwave-84": {
@@ -2363,7 +2381,8 @@
     "soft": "#bab9be",
     "aa": {
       "fgMuted": "#969ed0",
-      "red": "#ff757a"
+      "red": "#ff757a",
+      "selection": "#493769"
     }
   },
   "panda": {
@@ -2569,7 +2588,8 @@
         "operator": "#156c73",
         "punctuation": "#696058",
         "regexp": "#156c73"
-      }
+      },
+      "selection": "#c8b3a0"
     }
   },
   "vscode-dark": {
@@ -2700,7 +2720,8 @@
         "type": "#1b7891",
         "builtin": "#1b7891",
         "addition": "#007e51"
-      }
+      },
+      "selection": "#a3ccf4"
     }
   },
   "material-palenight": {
@@ -2827,7 +2848,8 @@
       "hljs": {
         "comment": "#747a8d",
         "punctuation": "#747a8d"
-      }
+      },
+      "selection": "#2d3143"
     }
   },
   "material-lighter": {
@@ -2921,7 +2943,8 @@
         "regexp": "#007c84",
         "deletion": "#d62828",
         "addition": "#577a13"
-      }
+      },
+      "selection": "#b8cecc"
     }
   },
   "basic-light": {
@@ -2979,7 +3002,8 @@
         "number": "#008154",
         "type": "#1e7993",
         "builtin": "#1e7993"
-      }
+      },
+      "selection": "#bacde1"
     }
   },
   "basic-dark": {

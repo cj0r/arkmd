@@ -93,7 +93,7 @@ function themeExtensions(theme, font, size) {
     ".cm-ark-front": { color: soft(theme), fontFamily: "ArkMono, monospace", fontSize: ".9em" },
     ".cm-ark-codeblock": { backgroundColor: theme.bgAlt, fontFamily: "ArkMono, monospace", fontSize: ".92em" },
     // The drawn selection sits behind the lines, so a line with its own background hides it: code lines show the browser's.
-    ".cm-line.cm-ark-codeblock ::selection, .cm-line.cm-ark-codeblock::selection": { backgroundColor: theme.selection + " !important" },
+    ".cm-line.cm-ark-codeblock ::selection, .cm-line.cm-ark-codeblock::selection": { backgroundColor: theme.selection + " !important", color: theme.fg + " !important" },
   }, { dark: !!theme.dark });
   return [view, syntaxHighlighting(style)];
 }

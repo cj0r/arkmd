@@ -14,6 +14,16 @@ test("the AA algorithm gives the same result as gen_themes.py for every built-in
   }
 });
 
+test("the selection in every built-in theme keeps text readable and can be seen", () => {
+  for (const [key, t] of Object.entries(themes)) {
+    const eff = { ...t, ...t.aa };
+    const sel = eff.selection;
+    assert.ok(contrast(eff.fg, sel) >= 4.5, `${key}: text on the selection ${contrast(eff.fg, sel).toFixed(2)}`);
+    const seen = Math.min(contrast(sel, t.bg), contrast(sel, t.bgAlt));
+    assert.ok(seen >= 1.35, `${key}: selection against the background ${seen.toFixed(2)}`);
+  }
+});
+
 test("parseColor reads the supported notations", () => {
   assert.deepEqual(parseColor("#1a2b3c"), [26, 43, 60, 1]);
   assert.deepEqual(parseColor("#fff"), [255, 255, 255, 1]);

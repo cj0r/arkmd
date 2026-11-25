@@ -1,0 +1,1 @@
+Selection colors are checked for contrast in every theme.
