@@ -7,6 +7,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { codeLanguages } from "./languages.js";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { html as htmlLanguageSupport } from "@codemirror/lang-html";
 import { renumber, markerLabels } from "./format.js";
 import { lineSeparatorFor, docText, withLineBreak } from "./eol.js";
 
@@ -84,7 +85,10 @@ function themeExtensions(theme, font, size) {
     "&": { backgroundColor: theme.bg, color: theme.fg, fontSize: `${size}px` },
     ".cm-content": { fontFamily: font, lineHeight: "1.6", caretColor: theme.accent },
     ".cm-cursor, .cm-dropCursor": { borderLeftColor: theme.accent, borderLeftWidth: "2px" },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: theme.selection + " !important" },
+    // The selection is the page's colors inverted: the main text color as the fill and the page color for the selected text,
+    // which every theme already keeps readable (contrast mode checks the text against the page) and so always stands out.
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: theme.fg + " !important" },
+    "::selection": { color: theme.bg },
     ".cm-activeLine": { backgroundColor: "transparent" },
     ".cm-ark-mark": { backgroundColor: theme.yellow + "55", borderRadius: "3px" },
     ".cm-ark-wiki": { color: theme.accent },
@@ -92,9 +96,9 @@ function themeExtensions(theme, font, size) {
     ".cm-ark-callout": { color: theme.accent, fontWeight: "700" },
     ".cm-ark-front": { color: soft(theme), fontFamily: "ArkMono, monospace", fontSize: ".9em" },
     ".cm-ark-codeblock": { backgroundColor: theme.bgAlt, fontFamily: "ArkMono, monospace", fontSize: ".92em" },
-    // The drawn selection sits behind the lines, so a code line (which has its own background) hides it: the selected part of
-    // a code line is marked instead (see codeSelection), in the selection colour with the main text colour.
-    ".cm-ark-selected, .cm-ark-selected span": { backgroundColor: theme.selection, color: theme.fg + " !important" },
+    // The drawn selection sits behind the lines, so a code line (which has its own background) hides it, and its text would
+    // keep its own colors over the inverted fill: the selected text is marked instead (see selectedText) and painted here.
+    ".cm-ark-selected, .cm-ark-selected span": { backgroundColor: theme.fg, color: theme.bg + " !important" },
   }, { dark: !!theme.dark });
   return [view, syntaxHighlighting(style)];
 }
@@ -138,24 +142,23 @@ const extras = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations });
 
-/** Marks the selected text inside code blocks so it can be painted over the block's background (see the theme above). */
+/** Marks the selected text (in the text and in code blocks alike) so it can be painted in the page color over the inverted fill. */
 const codeSelection = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = this.build(view); }
   update(u) { if (u.selectionSet || u.docChanged || u.viewportChanged) this.decorations = this.build(u.view); }
   build(view) {
-    const sel = view.state.selection.main;
-    const lines = view.plugin(extras)?.decorations;
-    if (sel.empty || !lines) return Decoration.none;
     const doc = view.state.doc, b = new RangeSetBuilder(), mark = Decoration.mark({ class: "cm-ark-selected" });
-    for (const { from, to } of view.visibleRanges) {
-      const a = Math.max(from, sel.from), z = Math.min(to, sel.to);
-      if (a >= z) continue;
-      for (let n = doc.lineAt(a).number, last = doc.lineAt(z).number; n <= last; n++) {
-        const line = doc.line(n);
-        let isCode = false;
-        lines.between(line.from, line.from, (_f, _t, v) => { if (v.spec.class === "cm-ark-codeblock") isCode = true; });
-        const s = Math.max(line.from, a), e = Math.min(line.to, z);
-        if (isCode && e > s) b.add(s, e, mark);
+    const ranges = view.state.selection.ranges.filter((r) => !r.empty);
+    if (!ranges.length) return Decoration.none;
+    for (const r of ranges) {
+      for (const { from, to } of view.visibleRanges) {
+        const a = Math.max(from, r.from), z = Math.min(to, r.to);
+        if (a >= z) continue;
+        for (let n = doc.lineAt(a).number, last = doc.lineAt(z).number; n <= last; n++) {
+          const line = doc.line(n);
+          const s = Math.max(line.from, a), e = Math.min(line.to, z);
+          if (e > s) b.add(s, e, mark);
+        }
       }
     }
     return b.finish();
@@ -231,7 +234,9 @@ export function createEditor(parent, { onChange, onCursor = () => {}, extraKeys 
         findField,
         findTheme,
         EditorView.lineWrapping,
-        markdown({ base: markdownLanguage, codeLanguages }),
+        // The Markdown package adds HTML support of its own for tags in the text, and that support closes tags by default; with
+        // closing turned off here, the Settings switch (the tagClose compartment below) is the only thing that closes them.
+        markdown({ base: markdownLanguage, codeLanguages, htmlTagLanguage: htmlLanguageSupport({ matchClosingTags: false, autoCloseTags: false }) }),
         extras,
         codeSelection,
         EditorView.contentAttributes.of({ "aria-label": "Markdown editor", "aria-multiline": "true", tabindex: "0" }),

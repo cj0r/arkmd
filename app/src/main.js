@@ -357,13 +357,19 @@ function snapshot() {
 }
 
 /** Make the active tab visible: load its state into the editor and render or focus it. */
+/** Let go of what the hidden reader holds: the temporary picture addresses and, for a large document, its rendered page. */
+function releaseReader() {
+  imageUrls.forEach((u) => URL.revokeObjectURL(u)); imageUrls = []; imageBlobs.clear();
+  if (readerReady) $("reader").contentWindow.releaseDocument?.();
+}
+
 function show() {
   const t = cur();
-  if (!t) { editor.setText(""); renderRecents(); updateChrome(); return; }
+  if (!t) { editor.setText(""); releaseReader(); renderRecents(); updateChrome(); return; }
   editor.setState(t.state);
   updateChrome();
   if (t.mode === "read") render(t.scroll);
-  else { editor.scrollToFraction(t.scroll); editor.view.focus(); refreshFindSoon(); }
+  else { releaseReader(); editor.scrollToFraction(t.scroll); editor.view.focus(); refreshFindSoon(); }
 }
 
 function openTab(props) {
@@ -695,6 +701,7 @@ function toggleMode() {
   if (t.mode === "read") {
     const f = readerReady ? $("reader").contentWindow.scrollFraction() : 0;
     t.mode = "edit";
+    releaseReader();
     updateChrome();
     editor.scrollToFraction(f);
     editor.view.focus();
@@ -1715,7 +1722,18 @@ function selectedTextHere() {
   if (a && $("editor").contains(a)) return editor.selectedText();
   return document.getSelection()?.toString() || $("reader").contentWindow?.getSelection?.()?.toString() || "";
 }
-/** Ctrl+Shift+C: copy like Ctrl+C. (Ctrl+Shift+V needs no code: the web views paste as plain text, which pastes like Ctrl+V.) */
+/** Ctrl+Shift+V: the web view pastes text as plain text and, on Windows, a picture too. The Linux web view fires no paste event
+ *  for a picture alone, so when no paste event arrives shortly after the key, the system clipboard is asked for a picture. */
+let lastPasteEvent = 0;
+function pastePictureIfNothingPasted() {
+  const started = performance.now();
+  setTimeout(() => {
+    if (lastPasteEvent >= started || !cur()?.ref || mode() !== "edit") return;
+    placeImages([(base) => platform.pasteClipboardImage(base, pastedStem())]);
+  }, 250);
+}
+
+/** Ctrl+Shift+C: copy like Ctrl+C. (Ctrl+Shift+V is the web view's own paste as plain text; see pastePictureIfNothingPasted.) */
 function copySelection() {
   const text = selectedTextHere();
   if (text) platform.copyText(text).catch((err) => failed("copy", err));
@@ -1909,6 +1927,7 @@ function wire() {
   // Pasting a picture (and no text) saves it next to the document and links it. Some web views (WebKitGTK on Linux)
   // send a paste event with no data for a picture, so when the event is empty the clipboard is asked directly.
   $("editor").addEventListener("paste", (e) => {
+    lastPasteEvent = performance.now();
     if (!platform.savePastedImage) return;
     const data = e.clipboardData;
     const file = pastesAsImage(data?.items) ? Array.from(data.files).find((f) => extensionForType(f.type)) : null;
@@ -2011,6 +2030,7 @@ function onKey(e) {
   if (!mod) return;
   if (e.shiftKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moveTab(e.key === "PageUp" ? -1 : 1); return; }
   if (e.shiftKey && !e.altKey && k === "c") { e.preventDefault(); copySelection(); return; }
+  if (e.shiftKey && !e.altKey && k === "v" && platform.pasteClipboardImage && $("editor").contains(document.activeElement)) pastePictureIfNothingPasted();
   if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
     e.preventDefault(); cycleTab(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1); return;
   }

@@ -2,6 +2,17 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.7 (2026-11-25)
+
+### Changed
+- Selected text is shown in inverted colors, in the editor (text and code blocks) and in the reader: the theme's text color is the fill and the selected text takes the page color. The old selection colors were too close to the page color in many themes; the new pair is at least 7.5:1 in every built-in theme.
+
+### Fixed
+- Settings > Close tags in code now turns tag closing off. The HTML language used for code blocks and the Markdown package's own HTML support closed tags whatever the switch said.
+- Ctrl+Shift+V pastes a picture on Linux when only a picture is on the clipboard. When the web view sends no paste event, the app asks the system clipboard for a picture.
+- A large document's rendered page is released while the reader is hidden (editing, or no tab open), so closing a large document gives its memory back.
+- Hovering a row in a Settings dialog no longer lowers the contrast of its description and value text below 4.5:1. A hovered row keeps the dialog's background and shows an accent bar on the left.
+
 ## 0.31.6 (2026-11-25)
 
 ### Added

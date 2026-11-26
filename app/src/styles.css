@@ -128,7 +128,9 @@ body.short #statusbar, body.short #formatbar { display: none; }
 #dialog h2 { font-size: 17px; margin: 8px 22px 14px; }
 #dialog .section { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); margin: 14px 22px 8px; }
 #dialog .opt { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; text-align: left; padding: 9px 22px; cursor: pointer; }
-#dialog .opt:hover { background: var(--surface); }
+/* A hovered row keeps the dialog's background, because the muted description and value text are checked against it (on the
+   surface color they fell under 4.5:1 in many themes); an accent bar on the left shows the hover instead. */
+#dialog .opt:hover { background: var(--bg-alt); box-shadow: inset 3px 0 0 var(--accent); }
 #dialog .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--fg-muted); flex: none; }
 #dialog .opt.sel .dot { border-color: var(--accent); background: radial-gradient(var(--accent) 40%, transparent 46%); }
 #dialog .label { font-size: 15px; }

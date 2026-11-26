@@ -551,6 +551,74 @@ await step("Ctrl+Shift+C copies the selection like Ctrl+C: in the reader, the ed
   await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
 });
 
+await step("Settings > Close tags in code: off adds no closing tag in an html block, on adds it", async () => {
+  await page.evaluate(() => { window.__mock.files["/docs/tags.md"] = "```html\n\n```\n"; window.__mock.next = "/docs/tags.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "tags.md" }).waitFor({ timeout: 15000 });
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(500);
+  const text = () => page.evaluate(() => document.querySelector(".cm-content")?.innerText ?? "");
+  const setTags = async (want) => {
+    await openMenu(); await menuItem("Settings").click();
+    const row = page.locator("#dialog .row", { hasText: "Close tags in code" });
+    await row.waitFor();
+    if ((await row.getAttribute("aria-checked")) !== String(want)) await row.click();
+    expect((await row.getAttribute("aria-checked")) === String(want), "the switch did not change");
+    await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  };
+  await page.keyboard.press("Control+Home"); await page.keyboard.press("ArrowDown");
+  await page.keyboard.type("<div>"); await page.waitForTimeout(300);
+  expect((await text()).includes("</div>"), "with the switch on, <div> did not get its closing tag: " + JSON.stringify(await text()));
+  await setTags(false);
+  await page.locator(".cm-content").click(); await page.keyboard.press("Control+Home"); await page.keyboard.press("ArrowDown"); await page.keyboard.press("End");
+  await page.keyboard.press("Enter"); await page.keyboard.type("<q>"); await page.waitForTimeout(300);
+  let t = await text();
+  expect(t.includes("<q>") && !t.includes("</q>"), "with the switch off, <q> still got a closing tag: " + JSON.stringify(t));
+  await setTags(true);
+  await page.locator(".cm-content").click(); await page.keyboard.press("Control+Home"); await page.keyboard.press("ArrowDown"); await page.keyboard.press("End");
+  await page.keyboard.press("Enter"); await page.keyboard.type("<b>"); await page.waitForTimeout(300);
+  t = await text();
+  expect(t.includes("<b></b>"), "with the switch back on, <b> did not get its closing tag: " + JSON.stringify(t));
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+});
+
+await step("a large document's rendered page is released while the reader is hidden", async () => {
+  await page.evaluate(() => { window.__mock.files["/docs/mid.md"] = "# Mid\n\n" + "A paragraph of text.\n\n".repeat(3000); window.__mock.next = "/docs/mid.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "mid.md" }).waitFor({ timeout: 15000 });
+  const blocks = () => page.evaluate(() => document.querySelector("#reader").contentDocument.querySelectorAll("#doc > *").length);
+  if (await page.locator("#editor .cm-content").isVisible().catch(() => false)) await page.keyboard.press("Control+e");   // into reading mode
+  await reader().locator("h1", { hasText: "Mid" }).waitFor({ timeout: 15000 });
+  expect(await blocks() > 3000, "the document was not rendered: " + await blocks());
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(400);                        // editing: the reader is hidden
+  expect(await blocks() < 10, "the reader still holds the page while editing: " + await blocks());
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(800);                        // reading again renders it again
+  expect(await blocks() > 3000, "the page was not rendered again after editing: " + await blocks());
+  await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+});
+
+await step("Ctrl+Shift+V: with no paste event the clipboard is asked for a picture; a text paste does not ask", async () => {
+  await ctx.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
+  await page.evaluate(() => { window.__mock.files["/docs/paste.md"] = "# Paste\n\n"; window.__mock.next = "/docs/paste.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "paste.md" }).waitFor({ timeout: 15000 });
+  if (!(await page.locator("#editor .cm-content").isVisible().catch(() => false))) await page.keyboard.press("Control+e");
+  await page.waitForTimeout(400);
+  const asked = async () => (await call("paste_clipboard_image")).length;
+  const before = await asked();
+  await page.evaluate(() => document.querySelector(".cm-content").dispatchEvent(new KeyboardEvent("keydown", { key: "V", ctrlKey: true, shiftKey: true, bubbles: true })));
+  await page.waitForTimeout(600);
+  expect(await asked() === before + 1, "no picture request after Ctrl+Shift+V without a paste event");
+  const wrote = await page.evaluate(() => navigator.clipboard.writeText("some text").then(() => true, () => false));
+  if (wrote) {
+    await page.locator(".cm-content").click();
+    await page.keyboard.press("Control+Shift+V"); await page.waitForTimeout(700);
+    expect(await asked() === before + 1, "a text paste also asked for a picture");
+  }
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
+  await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+});
+
 await step("no script errors or blocked requests", async () => {
   expect(problems.length === 0, problems.join("\n"));
 });

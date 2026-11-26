@@ -319,6 +319,15 @@
     }
   };
 
+  // The reader is hidden while a document is edited or no tab is open; a large rendered page (hundreds of thousands of
+  // elements for a big file) would otherwise stay in memory until the next render.
+  window.releaseDocument = function () {
+    var doc = document.getElementById("doc");
+    if (!doc || doc.childElementCount < 200) return;
+    doc.classList.remove("big");
+    doc.textContent = "";
+  };
+
   // Reading font: dir under assets/fonts/ (null = system). kind: static | mono (no italic files) | variable.
   window.setFont = function (dir, kind) {
     var css = "";

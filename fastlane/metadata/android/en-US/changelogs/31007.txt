@@ -1,0 +1,1 @@
+Selected text is shown in inverted colors so it stands out in every theme. Fixes: Close tags in code switch, Ctrl+Shift+V pictures on Linux, memory after closing large documents, Settings hover contrast.
