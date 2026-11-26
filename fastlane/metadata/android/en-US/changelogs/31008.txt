@@ -1,0 +1,1 @@
+Fixes pasting a picture with Ctrl+Shift+V on Linux.

@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.31.8 (2026-11-25)
+
+### Fixed
+- Ctrl+Shift+V pastes a picture on Linux when only a picture is on the clipboard. The Linux web view sends a paste event with an empty text item for this shortcut, which 0.31.7 treated as an ordinary text paste; a paste that carries no text and no files now asks the system clipboard for a picture.
+
 ## 0.31.7 (2026-11-25)
 
 ### Changed

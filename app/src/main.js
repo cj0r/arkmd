@@ -1934,7 +1934,7 @@ function wire() {
     if (file) {
       e.preventDefault(); e.stopPropagation();
       placeImages([async (base) => platform.savePastedImage(base, extensionForType(file.type), pastedStem(), await file.arrayBuffer())]);
-    } else if (platform.pasteClipboardImage && (!data || data.items.length === 0)) {
+    } else if (platform.pasteClipboardImage && (!data || data.items.length === 0 || (data.files.length === 0 && !data.getData("text/plain")))) {   // Linux sends an empty text item for Ctrl+Shift+V
       platform.logEvent("info", "paste event without data; asking the system clipboard for a picture");
       placeImages([(base) => platform.pasteClipboardImage(base, pastedStem())]);
     }
