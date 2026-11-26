@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir apks
           count=0
-          for tag in $(gh release list --limit 30 --json tagName --jq '.[].tagName'); do
+          for tag in $(gh release list --limit 30 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease | not) | .tagName'); do
             version=${tag#v}
             # only 0.14.1 and later: earlier Android builds asked Android for the permission to install apps
             if [ "$(printf '%s\n0.14.1\n' "$version" | sort -V | head -n1)" = "0.14.1" ]; then

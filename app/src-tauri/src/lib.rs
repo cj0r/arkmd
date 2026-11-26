@@ -589,6 +589,67 @@ fn list_folder(app: tauri::AppHandle, root: String, rel: String) -> Result<Folde
     list_folder_inner(&root_path, &rel, MAX_FOLDER_ENTRIES)
 }
 
+/// The beta update address: the configured stable one with "latest" swapped for the rolling "beta" release, which holds
+/// the manifest of the newest build (stable or beta). None for an address that isn't a GitHub "latest" download, so a
+/// test build with a placeholder update address has no beta channel.
+fn beta_url(stable: &str) -> Option<String> {
+    const LATEST: &str = "/releases/latest/download/";
+    stable.contains(LATEST).then(|| stable.replacen(LATEST, "/releases/download/beta/", 1))
+}
+
+#[cfg(desktop)]
+struct PendingBeta(Mutex<Option<tauri_plugin_updater::Update>>);
+
+#[cfg(desktop)]
+#[derive(serde::Serialize)]
+struct BetaFound { version: String, notes: String }
+
+#[cfg(desktop)]
+#[derive(Clone, serde::Serialize)]
+struct BetaProgress { done: u64, total: Option<u64> }
+
+/// Check the beta channel (Windows and Linux). The JS updater can't change its address, so this does the check;
+/// the found update is kept for install_beta_update. Signatures are verified exactly as for a stable update.
+#[cfg(desktop)]
+#[tauri::command]
+async fn check_beta_update(app: tauri::AppHandle) -> Result<Option<BetaFound>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let stable = app.config().plugins.0.get("updater")
+        .and_then(|u| u.get("endpoints")).and_then(|e| e.get(0)).and_then(|e| e.as_str())
+        .map(str::to_owned).ok_or("no update address is configured")?;
+    let url: tauri::Url = beta_url(&stable).ok_or("this build has no beta channel")?
+        .parse().map_err(|_| "the beta update address is not valid")?;
+    let updater = app.updater_builder()
+        .endpoints(vec![url]).map_err(|e| e.to_string())?
+        .timeout(std::time::Duration::from_secs(15))
+        .build().map_err(|e| e.to_string())?;
+    let found = updater.check().await.map_err(|e| e.to_string())?;
+    let out = found.as_ref().map(|u| BetaFound { version: u.version.clone(), notes: u.body.clone().unwrap_or_default() });
+    *app.state::<PendingBeta>().0.lock().unwrap_or_else(|e| e.into_inner()) = found;
+    Ok(out)
+}
+
+/// Download and install the update found by check_beta_update, reporting progress; the page restarts the app after.
+#[cfg(desktop)]
+#[tauri::command]
+async fn install_beta_update(app: tauri::AppHandle, on_progress: tauri::ipc::Channel<BetaProgress>) -> Result<(), String> {
+    let update = app.state::<PendingBeta>().0.lock().unwrap_or_else(|e| e.into_inner()).take()
+        .ok_or("The update is no longer available")?;
+    let mut done = 0u64;
+    update.download_and_install(|chunk, total| {
+        done += chunk as u64;
+        let _ = on_progress.send(BetaProgress { done, total });
+    }, || {}).await.map_err(|e| e.to_string())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn check_beta_update() -> Result<Option<String>, String> { Err("not available on this platform".into()) }
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn install_beta_update() -> Result<(), String> { Err("not available on this platform".into()) }
+
 /// The size in tauri.conf.json is for a large screen; on a smaller one (a 1080p screen with a taskbar, a laptop) it
 /// would run off the bottom. Shrink the window to fit the screen it opens on, and centre it.
 #[cfg(desktop)]
@@ -684,7 +745,8 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .manage(PendingBeta(Mutex::new(None)));
     builder
         .setup(|app| {
             let mut launch = None;
@@ -715,7 +777,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }
@@ -869,7 +931,15 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
-    #[test]
+        #[test]
+    fn beta_url_swaps_the_latest_download_for_the_beta_release() {
+        assert_eq!(beta_url("https://github.com/o/r/releases/latest/download/latest.json").as_deref(),
+            Some("https://github.com/o/r/releases/download/beta/latest.json"));
+        assert_eq!(beta_url("https://example.invalid/latest.json"), None);
+    }
+
+
+#[test]
     fn list_folder_caps_entries_and_reports_truncation() {
         let dir = std::env::temp_dir().join(format!("arkmd-list-cap-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);

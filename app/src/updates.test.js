@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { parseVersion, compareVersions, isNewer, androidRelease, shouldAutoCheck, summarizeNotes, describeDownload, DAY_MS } from "./updates.js";
 
 test("parseVersion reads plain and v-prefixed versions", () => {
-  assert.deepEqual(parseVersion("1.2.3"), [1, 2, 3]);
-  assert.deepEqual(parseVersion("v0.10.0"), [0, 10, 0]);
-  assert.deepEqual(parseVersion(" 2.0.1 "), [2, 0, 1]);
-  assert.deepEqual(parseVersion("1.2.3-beta.1"), [1, 2, 3]);
+  assert.deepEqual(parseVersion("1.2.3"), [1, 2, 3, Infinity]);      // the 4th number is the beta: Infinity for a final release
+  assert.deepEqual(parseVersion("v0.10.0"), [0, 10, 0, Infinity]);
+  assert.deepEqual(parseVersion(" 2.0.1 "), [2, 0, 1, Infinity]);
+  assert.deepEqual(parseVersion("1.2.3-4"), [1, 2, 3, 4]);
+  assert.deepEqual(parseVersion("1.2.3-beta.1"), [1, 2, 3, Infinity]);
 });
 
 test("parseVersion rejects things that are not versions", () => {
@@ -110,4 +111,23 @@ test("restorePending rejects malformed or unsafe saved data", () => {
   assert.equal(restorePending({ version: "0.2.0" }, ""), null);
   assert.equal(restorePending({ version: "0.2.0", downloadUrl: "http://evil.example/x.apk" }, "0.1.0").downloadUrl, undefined);
   assert.equal(restorePending({ version: "0.2.0", downloadUrl: "javascript:alert(1)" }, "0.1.0").downloadUrl, undefined);
+});
+
+test("betaManifestUrl points the latest download at the rolling beta release", async () => {
+  const { betaManifestUrl } = await import("./updates.js");
+  assert.equal(betaManifestUrl("https://github.com/cj0r/arkmd/releases/latest/download/android.json"),
+    "https://github.com/cj0r/arkmd/releases/download/beta/android.json");
+  assert.equal(betaManifestUrl("https://example.invalid/android.json"), null);
+  assert.equal(betaManifestUrl(undefined), null);
+});
+
+test("a beta version (1.2.3-4) is older than its final release and newer than an earlier beta", () => {
+  assert.equal(isNewer("0.33.0", "0.33.0-1"), true);        // the final release is offered to a beta
+  assert.equal(isNewer("0.33.0-2", "0.33.0-1"), true);      // the next beta
+  assert.equal(isNewer("0.33.0-1", "0.33.0"), false);       // a beta is never offered over the final release
+  assert.equal(isNewer("0.33.0-1", "0.32.9"), true);
+  assert.equal(isNewer("0.33.0-1", "0.33.0-1"), false);
+  assert.equal(isNewer("0.33.1", "0.33.0-5"), true);
+  assert.equal(parseVersion("1.2.3-beta.1") !== null, true);  // other suffixes still read as before
+  assert.equal(compareVersions("1.2.3-beta.1", "1.2.3"), 0);
 });

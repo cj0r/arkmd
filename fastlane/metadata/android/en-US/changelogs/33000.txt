@@ -1,0 +1,1 @@
+Settings > Updates > Include beta versions offers test versions before they are released.

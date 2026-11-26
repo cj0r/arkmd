@@ -9,7 +9,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { decodeBytes, notUtf8Error, NotTextError } from "./encoding.js";
-import { androidRelease, isNewer, ANDROID_MANIFEST_URL } from "./updates.js";
+import { androidRelease, isNewer, betaManifestUrl, ANDROID_MANIFEST_URL } from "./updates.js";
 
 const android = typeof window !== "undefined" && window.ArkAndroid;
 
@@ -74,8 +74,10 @@ const androidImpl = {
   window: null,                                                              // no window chrome on a phone
   /** Updates: the bridge reads android.json; a newer release is downloaded through the browser, never installed by ArkMD itself. */
   update: {
-    async check() {
-      const reply = await call("updateManifest", ANDROID_MANIFEST_URL);
+    async check({ beta = false } = {}) {
+      const url = beta ? betaManifestUrl(ANDROID_MANIFEST_URL) : ANDROID_MANIFEST_URL;
+      if (!url) throw new Error("This build has no beta channel");
+      const reply = await call("updateManifest", url);
       const release = androidRelease(JSON.parse(reply.manifest), reply.abis);
       if (!release || !isNewer(release.version, await version())) return null;
       return { version: release.version, notes: release.notes, downloadUrl: release.url, sha256: release.sha256 };
@@ -226,14 +228,30 @@ const desktopImpl = {
   },
   /** Updates: Tauri's updater checks latest.json, verifies the signature, installs, and the app restarts. */
   update: {
-    async check() {
+    async check({ beta = false } = {}) {
+      this._beta = beta;
+      this._found = null;
+      if (beta) { const f = (await invoke("check_beta_update")) || null; this._betaFound = !!f; return f; }   // the address is built in Rust: see check_beta_update
       const { check } = await import("@tauri-apps/plugin-updater");
       const found = await check({ timeout: 15000 });
       if (!found) return null;
       this._found = found;
       return { version: found.version, notes: found.body || "" };
     },
-    async install(onProgress) {
+    async install(onProgress, { beta = false } = {}) {
+      if (this._beta || beta) {
+        if (!this._betaFound) {           // after a restart the update is known only from what was saved: find it again
+          if (!(await invoke("check_beta_update"))) throw new Error("The update is no longer available");
+          this._betaFound = true;
+        }
+        const { Channel } = await import("@tauri-apps/api/core");
+        const progress = new Channel();
+        progress.onmessage = (p) => onProgress(p.done, p.total ?? null);
+        await invoke("install_beta_update", { onProgress: progress });
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+        return { needsPermission: false };
+      }
       // After a restart the update is known only from what was saved, so fetch the handle that installs it.
       if (!this._found) await this.check();
       if (!this._found) throw new Error("The update is no longer available");

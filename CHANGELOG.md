@@ -2,6 +2,11 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.33.0 (2026-11-26)
+
+### Added
+- **Beta versions.** Settings > Updates > Include beta versions (off by default) makes the update check also offer test versions published before a release, and the final release when it ships. It applies to Windows, Linux and Android. Beta versions are numbered 0.33.0-1, 0.33.0-2 and so on, and are older than the release they lead up to. Betas are published as pre-releases and never appear as the latest release or in the F-Droid repository. Android cannot install an older version over a newer one, so going back from a beta there means uninstalling ArkMD first.
+
 ## 0.32.0 (2026-11-26)
 
 ### Added

@@ -39,7 +39,10 @@ jobs:
           want="$(python3 tools/version.py)"
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             test "v$want" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME but the app's version is $want"; exit 1; }
-            grep -q "^## $want " CHANGELOG.md || { echo "CHANGELOG.md has no '## $want' section"; exit 1; }
+            case "$want" in
+              *-*) test -s BETA_NOTES.md || { echo "A beta needs BETA_NOTES.md"; exit 1; } ;;     # a beta (1.2.3-4) has no changelog entry
+              *) grep -q "^## $want " CHANGELOG.md || { echo "CHANGELOG.md has no '## $want' section"; exit 1; } ;;
+            esac
           fi
           echo "version=$want" >> "$GITHUB_OUTPUT"
       - name: Tests
@@ -315,8 +318,11 @@ jobs:
           # each platform's files arrive in their own folders: put them side by side
           find files -mindepth 2 -type f -exec mv -t files {} +
           find files -mindepth 1 -type d -empty -delete
-          awk -v v="$VERSION" '$0 ~ "^## "v" " || $0 == "## "v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
-          test -s notes.md || { echo "No release notes for $VERSION in CHANGELOG.md"; exit 1; }
+          case "$VERSION" in
+            *-*) cp BETA_NOTES.md notes.md ;;     # a beta: the notes written when it was published
+            *) awk -v v="$VERSION" '$0 ~ "^## "v" " || $0 == "## "v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md ;;
+          esac
+          test -s notes.md || { echo "No release notes for $VERSION"; exit 1; }
           # latest.json (Windows and Linux) and android.json (Android) tell the in-app updater what is current
           python3 tools/make_update_manifest.py --files files --version "$VERSION" --notes notes.md --repo "$GITHUB_REPOSITORY"
           (cd files && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
@@ -326,6 +332,18 @@ jobs:
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: ArkMD ${{ needs.test.outputs.version }}
+          name: ArkMD ${{ needs.test.outputs.version }}${{ contains(needs.test.outputs.version, '-') && ' (beta)' || '' }}
           body_path: notes.md
           files: files/*
+          prerelease: ${{ contains(needs.test.outputs.version, '-') }}
+          make_latest: ${{ !contains(needs.test.outputs.version, '-') }}
+      # The in-app updater's "Include beta versions" reads the manifests of the rolling "beta" release. They always
+      # describe the newest build, beta or final, so a beta tester also gets the final release when it ships.
+      - name: Point the beta channel at this release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view beta >/dev/null 2>&1 || gh release create beta --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "Beta channel" --notes "Update manifests for the in-app Include beta versions setting. There is nothing to download here: the builds are in the releases above."
+          gh release upload beta files/latest.json files/android.json --clobber

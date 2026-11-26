@@ -4,17 +4,18 @@
 // Desktop updates use Tauri's updater with latest.json (see tools/make_update_manifest.py). Android has no Tauri
 // updater, so the Kotlin bridge reads android.json, downloads the APK and hands it to the system installer.
 
-/** [major, minor, patch] from "1.2.3" or "v1.2.3" (a pre-release suffix is ignored), or null. */
+/** [major, minor, patch, beta] from "1.2.3" or "v1.2.3" (a final release: beta is Infinity) or "1.2.3-4" (the 4th beta
+ *  of 1.2.3), or null. Any other suffix is ignored, as before. */
 export function parseVersion(v) {
-  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(String(v ?? "").trim());
-  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-(\d+)(?![\w.-])|[-+].*)?$/.exec(String(v ?? "").trim());
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? Infinity : Number(m[4])] : null;
 }
 
-/** -1, 0 or 1 like a comparator; null when either version can't be read. */
+/** -1, 0 or 1 like a comparator; null when either version can't be read. A final release is newer than its betas. */
 export function compareVersions(a, b) {
   const x = parseVersion(a), y = parseVersion(b);
   if (!x || !y) return null;
-  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+  for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
   return 0;
 }
 
@@ -26,6 +27,13 @@ export function isNewer(remote, local) {
 /** Where the Android updater reads the release (the desktop updater's endpoint is in tauri.conf.json). */
 export const ANDROID_MANIFEST_URL =
   import.meta.env?.VITE_ANDROID_UPDATE_URL || "https://github.com/cj0r/arkmd/releases/latest/download/android.json";
+
+/** The beta channel's copy of a manifest address: the rolling "beta" release instead of "latest". It holds the manifest of
+ *  the newest build, stable or beta. Null for an address that isn't a GitHub "latest" download (a test build's placeholder). */
+export function betaManifestUrl(url) {
+  const LATEST = "/releases/latest/download/";
+  return typeof url === "string" && url.includes(LATEST) ? url.replace(LATEST, "/releases/download/beta/") : null;
+}
 
 /** Only test builds (VITE_ALLOW_INSECURE_UPDATES=1) may read an update from plain http; releases never do. */
 const URL_PATTERN = import.meta.env?.VITE_ALLOW_INSECURE_UPDATES === "1" ? /^https?:\/\// : /^https:\/\//;

@@ -1603,7 +1603,7 @@ async function checkForUpdates(quiet = false) {
   checking = true;
   if (!quiet) toast("Checking for updates…");
   try {
-    const found = await platform.update.check();
+    const found = await platform.update.check({ beta: !!store.get("betaUpdates", false) });
     store.set("updateChecked", Date.now());
     pendingUpdate = found;
     store.set("pendingUpdate", found);          // remembered, so a restart doesn't forget that an update is waiting
@@ -1714,7 +1714,7 @@ async function installUpdate(status, buttons) {
   try {
     const result = await platform.update.install((done, total) => {
       status.textContent = total ? `Downloading… ${Math.min(100, Math.round((done / total) * 100))}%` : `Downloading… ${(done / 1048576).toFixed(1)} MB`;
-    });
+    }, { beta: !!store.get("betaUpdates", false) });
     if (result.needsPermission) {
       status.textContent = "Allow ArkMD to install updates in the settings that just opened, then choose Update now again.";
       buttons.forEach((b) => (b.disabled = false));
@@ -1885,6 +1885,7 @@ function openSettings() {
   if (platform.update) {
     section("Updates");
     toggle("Check for updates automatically", "Once a day, a few seconds after ArkMD starts. Off by default.", "autoUpdate", false);
+    toggle("Include beta versions", "Also offer test versions before they are released. A beta can have bugs, and on Android it can't be replaced by an older version without uninstalling ArkMD. Off by default.", "betaUpdates", false);
     row("Check for updates now", shownVersion ? `Version ${shownVersion}` : "", () => checkForUpdates());
   }
 

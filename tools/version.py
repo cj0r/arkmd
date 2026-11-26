@@ -15,7 +15,7 @@ PKG = ROOT / "app/package.json"
 LOCK = ROOT / "app/package-lock.json"
 CARGO = ROOT / "app/src-tauri/Cargo.toml"
 CARGO_LOCK = ROOT / "app/src-tauri/Cargo.lock"
-SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
+SEMVER = re.compile(r"^\d+\.\d+\.\d+(-\d+)?$")   # 1.2.3, or 1.2.3-4 for the 4th beta of 1.2.3 (numeric: the Windows MSI needs that)
 
 
 def read():
