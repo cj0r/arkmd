@@ -43,13 +43,26 @@ jobs:
         run: |
           mkdir apks
           count=0
+          newest=""
           for tag in $(gh release list --limit 30 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease | not) | .tagName'); do
             version=${tag#v}
             # only 0.14.1 and later: earlier Android builds asked Android for the permission to install apps
             if [ "$(printf '%s\n0.14.1\n' "$version" | sort -V | head -n1)" = "0.14.1" ]; then
+              [ -n "$newest" ] || newest=$version
               gh release download "$tag" --pattern 'ArkMD-*-android-arm64.apk' --dir apks
               count=$((count + 1))
               [ "$count" -ge 3 ] && break
+            fi
+          done
+          # Betas (1.2.3-4) newer than the newest final release, at most two. Their version codes are above the
+          # recommended version's, so the F-Droid client offers them only to people who allow beta updates.
+          betas=0
+          for tag in $(gh release list --limit 30 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease) | .tagName' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$'); do
+            version=${tag#v}
+            if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$newest" "${version%-*}" | sort -V | tail -n1)" = "${version%-*}" ] && [ "${version%-*}" != "$newest" ]; then
+              gh release download "$tag" --pattern 'ArkMD-*-android-arm64.apk' --dir apks
+              betas=$((betas + 1))
+              [ "$betas" -ge 2 ] && break
             fi
           done
           ls -l apks

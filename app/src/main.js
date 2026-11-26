@@ -927,7 +927,7 @@ function treeRowElement(row, activeRef, isTabStop) {
     el.onclick = () => {
       treeActiveKey = row.key;
       closeFiles();
-      openRef(row.path, row.name);
+      openRef(row.ref || row.path, row.name);
     };
   } else {
     el.className = `tree-row tree-msg tree-msg-${row.messageKind || "info"}`;
@@ -1002,8 +1002,8 @@ function renderFoldersSection() {
 }
 
 async function addUserFolder() {
-  if (!platform.pickFolder || !platform.listFolder) return;
-  const picked = await platform.pickFolder(true).catch((e) => (toast(String(e.message || e)), null));
+  if (!(platform.pickTree || platform.pickFolder) || !platform.listFolder) return;
+  const picked = await (platform.pickTree ? platform.pickTree() : platform.pickFolder(true)).catch((e) => (toast(String(e.message || e)), null));
   if (!picked) return;
   const res = FL.addFolder(savedFolders(), picked);
   if (res.status === "duplicate") return;
@@ -1013,6 +1013,7 @@ async function addUserFolder() {
 
 function removeAddedFolder(path) {
   const actionsHadFocus = $("folders-actions").contains(document.activeElement);
+  if (platform.forgetFolder) platform.forgetFolder(path).catch(() => {});   // Android: give back the saved access
   const nextFolders = FL.removeFolder(savedFolders(), path);
   store.set("folders", nextFolders);
   saveExpanded(savedExpanded(nextFolders), nextFolders);

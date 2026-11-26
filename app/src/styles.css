@@ -288,6 +288,7 @@ body.short #statusbar, body.short #formatbar { display: none; }
 .file-act[aria-pressed="true"] svg { fill: var(--accent); }
 .file-act:hover { background: var(--bg-alt); }
 @media (hover: none) { .file-act { opacity: 1; } }
+@media (pointer: coarse) { .tree-row { min-height: 44px; } .tree-label { font-size: 15px; } }   /* a finger needs a bigger row than a mouse */
 .files-foot { flex: none; border-top: 1px solid var(--surface); padding: 6px 8px; text-align: center; }
 .recent-head > span { display: inline-flex; gap: 2px; }
 

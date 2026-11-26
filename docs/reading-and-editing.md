@@ -67,11 +67,12 @@ Text fields (the find bar, dialogs) keep the system menu. On Android, press and 
 
 ## Folders in the recent files list
 
-On Windows and Linux, you can add commonly used folders to the Recent files flyout (**Ctrl+Shift+R**) and browse their Markdown files in an expandable tree without opening the system file picker each time.
+On all platforms, you can add commonly used folders to the Recent files flyout (**Ctrl+Shift+R**) and browse their Markdown files in an expandable tree without opening the system file picker each time.
 
 - **Add a folder:** open the Recent files flyout and choose **Add a folder**. You can keep up to 20 folders; adding the same folder again does nothing.
 - **Expand and open:** click a folder row or its arrow to expand or collapse it in place. Subfolders appear first, followed by Markdown files (`.md`, `.markdown`, `.mdown`, `.mkd`, `.txt`), sorted by name with hidden entries (starting with `.`) skipped. Subfolders expand the same way to any depth, and clicking a file opens it as a tab and marks it in the tree. Expanded folders are remembered across restarts.
 - **Keyboard navigation:** tab into the folder tree and use **Up** / **Down** to move between visible rows, **Right** to expand a folder or move to its first child, **Left** to collapse a folder or move to its parent, **Home** / **End** to jump to the top or bottom, and **Enter** or **Space** to toggle a folder or open a file.
+- **On Android:** **Add a folder** opens the system folder picker, and ArkMD keeps the access you give it until you remove the folder. Rows are larger for touch, and keyboard navigation doesn't apply.
 - **Remove a folder:** choose the **✕** button on a top-level folder's row. Removing a folder only forgets it from ArkMD; nothing on disk is changed.
 - **Restricted access, nothing indexed:** ArkMD can list and read only inside the folders you explicitly add. Folders are read one level at a time only when you expand them or reopen the flyout with them expanded; nothing is indexed, watched or scanned in the background.
 - Desktop only; this section does not appear on Android.

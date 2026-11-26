@@ -65,7 +65,11 @@ const androidImpl = {
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
-  listFolder: null,                                                          // added folders in the recent files flyout are desktop only
+  /** Added folders: the system folder picker keeps its access across restarts. Paths are content:// tree addresses and
+   *  the listing gives each Markdown file its own document address ({ entries: [{ name, is_dir, ref }], truncated }). */
+  async pickTree() { return call("pickFolder"); },                           // -> tree address | null (not pickFolder: that one means "Folder for new files", desktop only)
+  async listFolder(root, rel = "") { return call("listFolder", root, rel); },
+  async forgetFolder(root) { await call("forgetFolder", root); },
   setTitle() {},
   onCloseRequested() {},
   onBack(handler) { window.arkBack = () => handler(); },                    // returns true if handled

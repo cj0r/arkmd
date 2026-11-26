@@ -279,3 +279,23 @@ test("parentRowIndex and firstChildRowIndex support ArrowLeft and ArrowRight nav
   assert.equal(firstChildRowIndex(rows, 2), -1);
   assert.equal(firstChildRowIndex(rows, 3), -1);
 });
+
+test("folderName reads the folder name out of an Android tree address", () => {
+  assert.equal(folderName("content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FNotes"), "Notes");
+  assert.equal(folderName("content://com.android.externalstorage.documents/tree/primary%3ANotes"), "Notes");
+  assert.equal(folderName("content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A"), "1A2B-3C4D");
+  assert.equal(folderName("content://x/tree/%E0%A4%A"), "%E0%A4%A");   // an invalid escape keeps the raw text
+});
+
+test("file rows carry the document address the listing gave them", () => {
+  const root = "content://com.android.externalstorage.documents/tree/primary%3ANotes";
+  const ref = root + "/document/primary%3ANotes%2Fa.md";
+  const folders = [{ path: root, name: "Notes" }];
+  const key = folderKey(root, "");
+  const rows = buildTreeRows(folders, [key], new Map([[key, {
+    entries: [{ name: "a.md", is_dir: false, ref }, { name: "b.md", is_dir: false }],
+  }]]));
+  const files = rows.filter((r) => r.kind === "file");
+  assert.equal(files[0].ref, ref);
+  assert.equal(files[1].ref, null);          // desktop listings have no address: the path is used
+});
