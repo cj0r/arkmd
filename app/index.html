@@ -86,7 +86,19 @@
         <button id="files-pinned" class="pill" aria-pressed="false">Pinned</button>
       </div>
       <input id="files-q" type="search" placeholder="Search recent files" aria-label="Search recent files" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <div id="files-list" role="list"></div>
+      <div id="files-body">
+        <div id="files-folders" hidden>
+          <div class="folders-head">
+            <span class="files-group-label">Folders</span>
+            <button id="files-add-folder" class="link" aria-label="Add a folder">Add a folder</button>
+          </div>
+          <div id="folders-tree-wrap" hidden>
+            <div id="folders-tree" role="tree" aria-label="Folders"></div>
+            <div id="folders-actions"></div>
+          </div>
+        </div>
+        <div id="files-list" role="list"></div>
+      </div>
       <div class="files-foot"><button id="files-clear" class="link">Clear recent files</button></div>
     </nav>
     <nav id="outline" aria-label="Outline" hidden></nav>

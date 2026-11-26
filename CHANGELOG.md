@@ -2,6 +2,12 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.32.0 (2026-11-26)
+
+### Added
+- **Folders in the recent files list (Windows and Linux).** "Add a folder" in the recent files panel adds a folder you use often. Each added folder is a tree that expands and collapses in place, to any depth, and a Markdown file at any level opens with one click. Subfolders come first, then files, both sorted by name with numbers in natural order; hidden entries and files that are not Markdown are not shown. The tree works with the keyboard (Up, Down, Left, Right, Enter, Home, End). Which folders are expanded is remembered after a restart, and a folder is forgotten with its remove button without touching anything on disk.
+- Nothing is indexed or watched: a folder is read only when you expand it, one level at a time. Only folders you added can be read, and the listing refuses paths that lead outside them, including through symbolic links. Up to 20 folders. The phone shows no Folders section.
+
 ## 0.31.8 (2026-11-25)
 
 ### Fixed

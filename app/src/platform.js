@@ -65,6 +65,7 @@ const androidImpl = {
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
+  listFolder: null,                                                          // added folders in the recent files flyout are desktop only
   setTitle() {},
   onCloseRequested() {},
   onBack(handler) { window.arkBack = () => handler(); },                    // returns true if handled
@@ -122,11 +123,17 @@ const desktopImpl = {
   },
   /** Settings > Allow multiple windows: recorded for the next start, since the single-instance check runs before the page. */
   async setMultipleInstances(allow) { await invoke("set_multiple_instances", { allow }); },
-  /** Choose a folder (Settings > Folder for new files). Returns its path or null. */
-  async pickFolder() {
+  /** Choose a folder (Settings > Folder for new files, or Add a folder in the recent files flyout).
+   *  When recursive is true, tauri-plugin-dialog 2.8.4 grants fs_scope.allow_directory(path, true), which
+   *  tauri-plugin-persisted-scope 2.4.3 restores across restarts so files inside the folder open normally. */
+  async pickFolder(recursive = false) {
     const { open } = await import("@tauri-apps/plugin-dialog");
-    const ref = await open({ multiple: false, directory: true });
+    const ref = await open({ multiple: false, directory: true, recursive });
     return ref || null;
+  },
+  /** List one level of a folder the user added ({ entries: [{ name, is_dir }], truncated }). */
+  async listFolder(root, rel = "") {
+    return invoke("list_folder", { root, rel });
   },
   async saveAs(name, text, filters = this.filters, folder = "") {
     const { save } = await import("@tauri-apps/plugin-dialog");

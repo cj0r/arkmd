@@ -463,6 +463,132 @@ fn read_linked_image(app: tauri::AppHandle, base: String, rel: String) -> Result
     std::fs::read(&target).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
 }
 
+// ---- Added folders in the recent files flyout -----------------------------------------------------------
+// Folders are picked via tauri-plugin-dialog `open({ directory: true, recursive: true })`. In
+// tauri-plugin-dialog 2.8.4 that calls `fs_scope.allow_directory(&path, true)`, allowing both `path` itself
+// and `path/**`, and tauri-plugin-persisted-scope 2.4.3 saves and restores `path/**` across restarts, so
+// opening any Markdown file inside an added folder works through the normal read/save path without a second
+// grant command.
+
+const MAX_FOLDER_ENTRIES: usize = 5000;
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+struct FolderEntry {
+    name: String,
+    is_dir: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+struct FolderListing {
+    entries: Vec<FolderEntry>,
+    truncated: bool,
+}
+
+/// Whether `rel` stays strictly within an added folder root (empty for the root itself, otherwise relative
+/// with no rooted/drive/UNC prefixes and no `..` segments under either `/` or `\`).
+fn is_safe_folder_rel(rel: &str) -> bool {
+    use std::path::Component;
+    if rel.is_empty() {
+        return true;
+    }
+    if rel.contains('\0') || !is_relative_link(rel) {
+        return false;
+    }
+    if Path::new(rel)
+        .components()
+        .any(|c| matches!(c, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return false;
+    }
+    !rel.split(['/', '\\']).any(|seg| seg == "..")
+}
+
+/// List one level of `root/rel`, keeping only subfolders and Markdown files, skipping hidden entries and
+/// symlinks whose target escapes `canon_root`, and capping at `max_entries`.
+fn list_folder_inner(root: &Path, rel: &str, max_entries: usize) -> Result<FolderListing, String> {
+    if !is_safe_folder_rel(rel) {
+        return Err("only subfolders inside the added folder can be listed".into());
+    }
+    let canon_root = root.canonicalize().map_err(|_| "folder not found".to_string())?;
+    if !canon_root.is_dir() {
+        return Err("not a folder".into());
+    }
+    let mut target_raw = canon_root.clone();
+    if !rel.is_empty() {
+        for seg in rel.split(['/', '\\']) {
+            if !seg.is_empty() && seg != "." {
+                target_raw.push(seg);
+            }
+        }
+    }
+    let canon_target = target_raw.canonicalize().map_err(|_| "folder not found".to_string())?;
+    if !canon_target.starts_with(&canon_root) {
+        return Err("folder is outside the added folder".into());
+    }
+    if !canon_target.is_dir() {
+        return Err("not a folder".into());
+    }
+
+    let mut entries = Vec::new();
+    let mut truncated = false;
+    for item in std::fs::read_dir(&canon_target).map_err(|e| e.to_string())? {
+        let Ok(entry) = item else { continue };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        let Ok(ft) = entry.file_type() else { continue };
+        let is_dir = if ft.is_symlink() {
+            // Never follow or expose a symlink pointing outside the added folder root.
+            let Ok(resolved) = entry.path().canonicalize() else { continue };
+            if !resolved.starts_with(&canon_root) {
+                continue;
+            }
+            if resolved.is_dir() {
+                true
+            } else if resolved.is_file() {
+                false
+            } else {
+                continue;
+            }
+        } else if ft.is_dir() {
+            true
+        } else if ft.is_file() {
+            false
+        } else {
+            continue;
+        };
+
+        if !is_dir {
+            let ext = Path::new(&name)
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase())
+                .unwrap_or_default();
+            if !MARKDOWN_EXT.contains(&ext.as_str()) {
+                continue;
+            }
+        }
+
+        if entries.len() >= max_entries {
+            truncated = true;
+            break;
+        }
+        entries.push(FolderEntry { name, is_dir });
+    }
+    Ok(FolderListing { entries, truncated })
+}
+
+/// List one level of a folder the user added to the recent files flyout (desktop only).
+#[tauri::command]
+fn list_folder(app: tauri::AppHandle, root: String, rel: String) -> Result<FolderListing, String> {
+    let root_path = PathBuf::from(&root);
+    if !app.fs_scope().is_allowed(&root_path) {
+        return Err("the folder was not added in ArkMD".into());
+    }
+    list_folder_inner(&root_path, &rel, MAX_FOLDER_ENTRIES)
+}
+
 /// The size in tauri.conf.json is for a large screen; on a smaller one (a 1080p screen with a taskbar, a laptop) it
 /// would run off the bottom. Shrink the window to fit the screen it opens on, and centre it.
 #[cfg(desktop)]
@@ -589,7 +715,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }
@@ -654,6 +780,112 @@ mod tests {
         assert!(within_document_folder(&doc, &canon("notes/c.md")));
         assert!(!within_document_folder(&doc, &canon("other.md")));
         assert!(!within_document_folder(&doc, &canon("notes-x/d.md")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_folder_reads_inside_root_and_skips_hidden_and_non_markdown() {
+        let dir = std::env::temp_dir().join(format!("arkmd-list-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("sub/deep")).unwrap();
+        std::fs::create_dir_all(dir.join(".hidden-dir")).unwrap();
+        std::fs::write(dir.join("note.md"), "# hi").unwrap();
+        std::fs::write(dir.join("README.TXT"), "hi").unwrap();
+        std::fs::write(dir.join("photo.png"), "x").unwrap();
+        std::fs::write(dir.join(".secret.md"), "no").unwrap();
+        std::fs::write(dir.join("sub/nested.markdown"), "ok").unwrap();
+        std::fs::write(dir.join("sub/.dot.md"), "no").unwrap();
+
+        let top = list_folder_inner(&dir, "", 5000).unwrap();
+        assert!(!top.truncated);
+        let mut names: Vec<(String, bool)> = top.entries.into_iter().map(|e| (e.name, e.is_dir)).collect();
+        names.sort();
+        assert_eq!(
+            names,
+            vec![
+                ("README.TXT".to_string(), false),
+                ("note.md".to_string(), false),
+                ("sub".to_string(), true),
+            ]
+        );
+
+        let sub = list_folder_inner(&dir, "sub", 5000).unwrap();
+        assert!(!sub.truncated);
+        let mut sub_names: Vec<(String, bool)> = sub.entries.into_iter().map(|e| (e.name, e.is_dir)).collect();
+        sub_names.sort();
+        assert_eq!(
+            sub_names,
+            vec![("deep".to_string(), true), ("nested.markdown".to_string(), false)]
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_folder_rejects_parent_and_absolute_rel() {
+        let dir = std::env::temp_dir().join(format!("arkmd-list-bad-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        for bad in [
+            "..",
+            "../other",
+            "sub/..",
+            "sub/../sub",
+            "sub\\..\\sub",
+            "/etc",
+            "\\windows",
+            "//server/share",
+            "\\\\server\\share",
+            "C:\\Windows",
+            "c:/Users",
+        ] {
+            assert!(list_folder_inner(&dir, bad, 5000).is_err(), "expected err for {bad}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn list_folder_refuses_symlinks_outside_root() {
+        use std::os::unix::fs::symlink;
+        let base = std::env::temp_dir().join(format!("arkmd-list-sym-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("root");
+        let outside = base.join("outside");
+        std::fs::create_dir_all(root.join("inner")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("secret.md"), "nope").unwrap();
+        std::fs::write(root.join("inner/ok.md"), "yes").unwrap();
+        symlink(&outside, root.join("escape-dir")).unwrap();
+        symlink(outside.join("secret.md"), root.join("escape-file.md")).unwrap();
+        symlink(root.join("inner"), root.join("inner-link")).unwrap();
+
+        let listed = list_folder_inner(&root, "", 5000).unwrap();
+        let mut names: Vec<String> = listed.entries.into_iter().map(|e| e.name).collect();
+        names.sort();
+        assert_eq!(names, vec!["inner".to_string(), "inner-link".to_string()]);
+        assert!(list_folder_inner(&root, "escape-dir", 5000).is_err());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn list_folder_caps_entries_and_reports_truncation() {
+        let dir = std::env::temp_dir().join(format!("arkmd-list-cap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for i in 0..3 {
+            std::fs::write(dir.join(format!("f{i}.md")), "x").unwrap();
+        }
+        let exact = list_folder_inner(&dir, "", 3).unwrap();
+        assert_eq!(exact.entries.len(), 3);
+        assert!(!exact.truncated);
+
+        std::fs::write(dir.join("f3.md"), "x").unwrap();
+        let capped = list_folder_inner(&dir, "", 3).unwrap();
+        assert_eq!(capped.entries.len(), 3);
+        assert!(capped.truncated);
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

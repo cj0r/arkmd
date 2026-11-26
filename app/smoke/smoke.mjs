@@ -31,9 +31,26 @@ const NOTE = "# Smoke test\n\nSome **bold** text.\n\n## Second heading\n\n- [ ] 
 
 /** Stands in for Tauri's IPC. Files live in `files`; every call is recorded in `calls`. */
 function installMock({ note }) {
-  const files = { "/docs/notes.md": note, "/docs/other.md": "# Other\n", "/docs/hostile.md": "# Hostile\n\n<script>window.__pwned = 1</script>\n\n<img src=x onerror=\"window.__pwned = 2\">\n\n[js link](javascript:window.__pwned=3)\n\n[data link](data:text/html,<script>parent.__pwned=4</script>)\n\n```\nunclosed fence\n\n> > > > > > > > > > nested\n\n![remote](http://127.0.0.1:1/track.png)\n\n```mermaid\ngraph TD; A-->\n```\n\n\u202e bidi text\n", "/docs/big.md": "# Big\n\n" + "A line of text in a very large file.\n\n".repeat(250000) };
+  const files = { "/docs/notes.md": note, "/docs/other.md": "# Other\n", "/docs/hostile.md": "# Hostile\n\n<script>window.__pwned = 1</script>\n\n<img src=x onerror=\"window.__pwned = 2\">\n\n[js link](javascript:window.__pwned=3)\n\n[data link](data:text/html,<script>parent.__pwned=4</script>)\n\n```\nunclosed fence\n\n> > > > > > > > > > nested\n\n![remote](http://127.0.0.1:1/track.png)\n\n```mermaid\ngraph TD; A-->\n```\n\n\u202e bidi text\n", "/docs/big.md": "# Big\n\n" + "A line of text in a very large file.\n\n".repeat(250000), "/notes/readme.md": "# Folder Note\n\nOpened from an added folder.\n", "/notes/sub/child.md": "# Subfolder Note\n\nInside a subfolder.\n" };
+  const folders = {
+    "/notes|": {
+      entries: [
+        { name: ".hidden.md", is_dir: false },
+        { name: "photo.png", is_dir: false },
+        { name: "readme.md", is_dir: false },
+        { name: "sub", is_dir: true },
+      ],
+      truncated: false,
+    },
+    "/notes|sub": {
+      entries: [
+        { name: "child.md", is_dir: false },
+      ],
+      truncated: false,
+    },
+  };
   const calls = [];
-  window.__mock = { files, calls };
+  window.__mock = { files, folders, calls };
   const enc = new TextEncoder();
   let id = 1;
   const handlers = {
@@ -42,7 +59,8 @@ function installMock({ note }) {
     save_text_file: ({ path, text }) => { files[path] = text; },
     rename_file: ({ path, name }) => { const to = path.replace(/[^/]*$/, name); if (to in files) throw new Error("a file with that name already exists"); files[to] = files[path]; delete files[path]; return to; },
     open_linked: ({ rel, outside }) => { if (rel === "other.md" && !outside) throw new Error("outside:/docs/other.md"); return "/docs/" + rel; },
-    "plugin:dialog|open": () => window.__mock.next || "/docs/big.md",
+    list_folder: ({ root, rel }) => { const key = `${root}|${rel || ""}`; if (!(key in folders)) throw new Error("folder not found: " + key); return folders[key]; },
+    "plugin:dialog|open": ({ options } = {}) => (options?.directory ? (window.__mock.nextDir || "/notes") : (window.__mock.next || "/docs/big.md")),
     "plugin:app|version": () => "9.9.9",
     "plugin:window|is_decorated": () => true,
     "plugin:window|is_maximized": () => false,
@@ -404,6 +422,80 @@ await step("recent files flyout lists the opened files", async () => {
   expect(await page.locator("#files-list").innerText().then((t) => t.includes("renamed")), "renamed file missing from recent list");
   await axe("recent files flyout", "#files");
   await page.keyboard.press("Escape");
+});
+
+await step("added folders tree: add, expand, subfolder, open nested file, collapse, keyboard navigation, remove", async () => {
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  await page.click("#files-add-folder");
+  const rootItem = page.locator('#folders-tree [role="treeitem"].tree-root', { hasText: "notes" });
+  await rootItem.waitFor();
+  expect(await rootItem.getAttribute("aria-expanded") === "false", "root folder should start collapsed");
+  const openCalls = await call("plugin:dialog|open");
+  expect(openCalls.at(-1)?.args?.options?.directory === true && openCalls.at(-1)?.args?.options?.recursive === true, "folder pick did not request recursive scope");
+  await axe("recent files flyout with collapsed folder", "#files");
+
+  // Expand root folder in place.
+  await rootItem.click();
+  const subItem = page.locator('#folders-tree [role="treeitem"].tree-folder[aria-level="2"]', { hasText: "sub" });
+  await subItem.waitFor();
+  expect(await rootItem.getAttribute("aria-expanded") === "true", "root folder did not expand");
+  const level2Names = await page.locator('#folders-tree [role="treeitem"][aria-level="2"] .tree-label').allInnerTexts();
+  expect(JSON.stringify(level2Names) === JSON.stringify(["sub", "readme.md"]), "unexpected root entries: " + JSON.stringify(level2Names));
+
+  // Expand subfolder in place and see nested file.
+  await subItem.click();
+  const childFile = page.locator('#folders-tree [role="treeitem"].tree-file[aria-level="3"]', { hasText: "child.md" });
+  await childFile.waitFor();
+  expect(await subItem.getAttribute("aria-expanded") === "true", "subfolder did not expand");
+  await axe("expanded multi-level folder tree", "#files");
+
+  // Open the nested file and verify its full path is read.
+  await childFile.click();
+  await page.locator("#files[hidden]").waitFor({ state: "attached" });
+  await page.locator(".tab.active", { hasText: "child.md" }).waitFor({ timeout: 5000 });
+  await reader().locator("h1", { hasText: "Subfolder Note" }).waitFor({ timeout: 5000 });
+  const reads = await call("plugin:fs|read_text_file");
+  expect(reads.some((c) => c.args?.path === "/notes/sub/child.md"), "opening nested file did not read /notes/sub/child.md");
+
+  // Reopen flyout: expanded state is remembered and open file is marked.
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  await childFile.waitFor();
+  expect(await childFile.evaluate((el) => el.classList.contains("current")), "currently open file not marked in tree");
+
+  // Collapse the subfolder and verify its children disappear.
+  await subItem.click();
+  await page.waitForFunction(() => document.querySelectorAll('#folders-tree [aria-level="3"]').length === 0);
+  expect(await subItem.getAttribute("aria-expanded") === "false", "subfolder did not collapse");
+
+  // Keyboard navigation: ArrowRight expands, ArrowRight again moves to first child, ArrowLeft returns to parent and collapses.
+  await subItem.focus();
+  await page.keyboard.press("ArrowRight");
+  await childFile.waitFor();
+  expect(await subItem.getAttribute("aria-expanded") === "true", "ArrowRight did not expand subfolder");
+  await page.keyboard.press("ArrowRight");
+  expect(await page.evaluate(() => document.activeElement?.textContent?.trim()) === "child.md", "ArrowRight on expanded folder did not focus first child");
+  await page.keyboard.press("ArrowLeft");
+  expect(await page.evaluate(() => document.activeElement?.textContent?.trim()) === "sub", "ArrowLeft on child did not focus parent folder");
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForFunction(() => document.querySelectorAll('#folders-tree [aria-level="3"]').length === 0);
+  expect(await subItem.getAttribute("aria-expanded") === "false", "ArrowLeft on expanded subfolder did not collapse it");
+  await page.keyboard.press("ArrowLeft");
+  expect(await page.evaluate(() => document.activeElement?.textContent?.trim()) === "notes", "ArrowLeft on collapsed subfolder did not focus root");
+
+  // Collapse the root with ArrowLeft.
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForFunction(() => document.querySelectorAll('#folders-tree [aria-level="2"]').length === 0);
+  expect(await rootItem.getAttribute("aria-expanded") === "false", "ArrowLeft did not collapse root folder");
+
+  // Remove the folder and restore previous tab.
+  await page.locator('#folders-actions button[aria-label="Remove folder notes from the list"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#folders-tree [role="treeitem"]').length === 0);
+  await page.keyboard.press("Escape");
+  await page.locator("#files[hidden]").waitFor({ state: "attached" });
+  await page.keyboard.press("Control+w");
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
 });
 
 await step("a hostile document renders as text and runs nothing", async () => {

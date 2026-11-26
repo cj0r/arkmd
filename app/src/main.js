@@ -12,6 +12,7 @@ import { SHORTCUTS, KEY } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
 import { stats, formatStats } from "./stats.js";
 import * as R from "./recent.js";
+import * as FL from "./folders.js";
 import { swipeDirection } from "./swipe.js";
 import { NotTextError } from "./encoding.js";
 import { parseLink, wikilinkTarget, imageType } from "./links.js";
@@ -774,6 +775,259 @@ function togglePinCurrent() {
 let filesQuery = "";
 let filesPinnedOnly = store.get("filesPinnedOnly", false);
 const filesFailed = new Set();       // files that couldn't be read for a preview this session
+const folderLoaded = new Map();      // folderKey -> { entries?, truncated?, loading?, error? }
+const folderLoadSeq = new Map();     // folderKey -> monotonic counter guarding against stale async reads
+let treeRows = [];                   // flat list of visible rows rendered in #folders-tree
+let treeActiveKey = null;            // active treeitem key for roving tabindex
+
+function savedFolders() { return FL.normalizeFolders(store.get("folders", [])); }
+function savedExpanded(folders = savedFolders()) { return FL.pruneExpanded(store.get("foldersExpanded", []), folders); }
+function saveExpanded(keys, folders = savedFolders()) {
+  const pruned = FL.pruneExpanded(keys, folders);
+  store.set("foldersExpanded", pruned);
+  return pruned;
+}
+
+function setActiveTreeItem(key) {
+  treeActiveKey = key;
+  for (const el of $("folders-tree").querySelectorAll('[role="treeitem"]')) {
+    el.tabIndex = el.dataset.key === key ? 0 : -1;
+  }
+}
+
+function focusTreeKey(key, preventScroll = false) {
+  setActiveTreeItem(key);
+  for (const el of $("folders-tree").querySelectorAll('[role="treeitem"]')) {
+    if (el.dataset.key === key) { el.focus({ preventScroll }); return true; }
+  }
+  return false;
+}
+
+/** Align sibling remove buttons with their root rows (kept outside role="tree" to satisfy ARIA tree rules). */
+function positionFolderActions() {
+  const tree = $("folders-tree");
+  const actions = $("folders-actions");
+  if (!tree || !actions || $("files").hidden) return;
+  const rootsByKey = new Map();
+  for (const el of tree.querySelectorAll(".tree-root")) rootsByKey.set(el.dataset.key, el);
+  for (const btn of actions.querySelectorAll(".folder-remove")) {
+    const el = rootsByKey.get(btn.dataset.key);
+    if (!el) continue;
+    btn.style.top = `${el.offsetTop + el.offsetHeight / 2}px`;
+  }
+}
+
+async function loadFolder(folder, rel = "", cascade = true) {
+  if (!platform.listFolder) return;
+  const cleanRel = FL.normalizeRel(rel);
+  if (cleanRel === null) return;
+  const key = FL.folderKey(folder.path, cleanRel);
+  if (!key) return;
+  const seq = (folderLoadSeq.get(key) || 0) + 1;
+  folderLoadSeq.set(key, seq);
+
+  const prev = folderLoaded.get(key);
+  // Keep previous children visible while re-reading so expanding does not flicker.
+  folderLoaded.set(key, prev && Array.isArray(prev.entries) ? { ...prev, loading: true } : { loading: true });
+
+  try {
+    const listing = await platform.listFolder(folder.path, cleanRel);
+    if (folderLoadSeq.get(key) !== seq) return;
+    if (!savedFolders().some((f) => FL.samePath(f.path, folder.path))) return;
+    const entries = FL.sortEntries(listing?.entries ?? []);
+    folderLoaded.set(key, { entries, truncated: !!listing?.truncated, loading: false });
+    if (!$("files").hidden) renderFoldersSection();
+    if (cascade && !$("files").hidden) {
+      const expSet = new Set(savedExpanded());
+      if (expSet.has(key)) {
+        for (const entry of entries) {
+          if (!entry.is_dir) continue;
+          const childRel = FL.joinRel(cleanRel, entry.name);
+          const childKey = childRel !== null ? FL.folderKey(folder.path, childRel) : null;
+          if (childKey && expSet.has(childKey)) loadFolder(folder, childRel, true);
+        }
+      }
+    }
+  } catch (e) {
+    if (folderLoadSeq.get(key) !== seq) return;
+    if (!savedFolders().some((f) => FL.samePath(f.path, folder.path))) return;
+    logError("List folder", e);
+    folderLoaded.set(key, {
+      error: "This folder could not be opened. It may have been moved or removed.",
+      loading: false,
+    });
+    if (!$("files").hidden) renderFoldersSection();
+  }
+}
+
+function expandFolder(row) {
+  if (!row || row.kind !== "folder") return;
+  const folders = savedFolders();
+  const folder = folders.find((f) => FL.samePath(f.path, row.rootPath));
+  if (!folder) return;
+  treeActiveKey = row.key;
+  saveExpanded(FL.setFolderExpanded(savedExpanded(folders), row.key, true), folders);
+  loadFolder(folder, row.rel, true);
+  renderFoldersSection();
+}
+
+function collapseFolder(row) {
+  if (!row || row.kind !== "folder") return;
+  const folders = savedFolders();
+  folderLoadSeq.set(row.key, (folderLoadSeq.get(row.key) || 0) + 1);
+  treeActiveKey = row.key;
+  saveExpanded(FL.setFolderExpanded(savedExpanded(folders), row.key, false), folders);
+  renderFoldersSection();
+}
+
+function refreshExpandedRoots() {
+  if (!platform.listFolder) return;
+  const folders = savedFolders();
+  const expSet = new Set(savedExpanded(folders));
+  for (const folder of folders) {
+    const key = FL.folderKey(folder.path, "");
+    if (key && expSet.has(key)) loadFolder(folder, "", true);
+  }
+}
+
+function treeRowElement(row, activeRef, isTabStop) {
+  const el = document.createElement("div");
+  el.setAttribute("role", "treeitem");
+  el.setAttribute("aria-level", String(row.level));
+  el.tabIndex = isTabStop ? 0 : -1;
+  el.dataset.key = row.key;
+  el.style.setProperty("--level", String(row.level));
+
+  if (row.kind === "folder") {
+    el.className = "tree-row tree-folder" + (row.isRoot ? " tree-root" : "");
+    el.setAttribute("aria-expanded", String(!!row.expanded));
+    el.title = row.path;
+    const chev = document.createElement("span");
+    chev.className = "tree-chevron"; chev.setAttribute("aria-hidden", "true");
+    chev.innerHTML = svg("chevronRight");
+    const label = document.createElement("span");
+    label.className = "tree-label"; label.textContent = row.name;
+    el.append(chev, label);
+    el.onclick = () => {
+      treeActiveKey = row.key;
+      if (row.expanded) collapseFolder(row);
+      else expandFolder(row);
+      focusTreeKey(row.key, true);
+    };
+  } else if (row.kind === "file") {
+    const isCurrent = !!activeRef && FL.samePath(row.path, activeRef);
+    el.className = "tree-row tree-file" + (isCurrent ? " current is-open" : "");
+    if (isCurrent) el.setAttribute("aria-current", "true");
+    el.title = row.path;
+    const spacer = document.createElement("span");
+    spacer.className = "tree-spacer"; spacer.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "tree-label"; label.textContent = row.name;
+    el.append(spacer, label);
+    el.onclick = () => {
+      treeActiveKey = row.key;
+      closeFiles();
+      openRef(row.path, row.name);
+    };
+  } else {
+    el.className = `tree-row tree-msg tree-msg-${row.messageKind || "info"}`;
+    el.title = row.text;
+    const label = document.createElement("span");
+    label.className = "tree-label"; label.textContent = row.text;
+    el.append(label);
+  }
+
+  el.onfocus = () => setActiveTreeItem(row.key);
+  return el;
+}
+
+function renderFoldersSection() {
+  const section = $("files-folders");
+  if (!platform.listFolder) { section.hidden = true; return; }
+  const tree = $("folders-tree");
+  const actions = $("folders-actions");
+  const wrap = $("folders-tree-wrap");
+  const scroller = $("files-body");
+  const keepScroll = scroller.scrollTop;
+  const hadFocus = tree.contains(document.activeElement);
+  const focusedKey = hadFocus ? document.activeElement.dataset.key : null;
+
+  const list = savedFolders();
+  const q = filesQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const visible = q.length ? list.filter((f) => q.every((w) => `${f.name}\n${f.path}`.toLowerCase().includes(w))) : list;
+  // While searching recent files, hide the Folders section if no added folder matches the query.
+  section.hidden = q.length > 0 && visible.length === 0;
+
+  const expanded = savedExpanded(list);
+  treeRows = FL.buildTreeRows(visible, expanded, folderLoaded);
+  if (!treeRows.some((r) => r.key === treeActiveKey)) treeActiveKey = treeRows[0]?.key ?? null;
+
+  tree.replaceChildren();
+  actions.replaceChildren();
+  wrap.hidden = treeRows.length === 0;
+
+  if (treeRows.length) {
+    const activeRef = cur()?.ref ?? null;
+    const stack = [{ level: 1, el: tree }];
+    for (const row of treeRows) {
+      while (stack.length > 1 && stack[stack.length - 1].level > row.level) stack.pop();
+      while (stack[stack.length - 1].level < row.level) {
+        const grp = document.createElement("div");
+        grp.className = "tree-group";
+        grp.setAttribute("role", "group");
+        stack[stack.length - 1].el.append(grp);
+        stack.push({ level: stack[stack.length - 1].level + 1, el: grp });
+      }
+      stack[stack.length - 1].el.append(treeRowElement(row, activeRef, row.key === treeActiveKey));
+
+      if (row.isRoot) {
+        const x = document.createElement("button");
+        x.className = "file-act file-x folder-remove";
+        x.dataset.key = row.key;
+        x.innerHTML = svg("close");
+        x.setAttribute("aria-label", `Remove folder ${row.name} from the list`);
+        x.title = "Remove from the list (the folder isn't touched)";
+        x.onclick = () => removeAddedFolder(row.rootPath);
+        actions.append(x);
+      }
+    }
+    positionFolderActions();
+  }
+
+  scroller.scrollTop = keepScroll;
+  if (hadFocus && treeRows.length) {
+    const target = focusedKey && treeRows.some((r) => r.key === focusedKey) ? focusedKey : treeActiveKey;
+    if (target) focusTreeKey(target, true);
+  }
+}
+
+async function addUserFolder() {
+  if (!platform.pickFolder || !platform.listFolder) return;
+  const picked = await platform.pickFolder(true).catch((e) => (toast(String(e.message || e)), null));
+  if (!picked) return;
+  const res = FL.addFolder(savedFolders(), picked);
+  if (res.status === "duplicate") return;
+  if (res.status === "limit") { toast(`You can add up to ${FL.MAX_FOLDERS} folders. Remove one to add another.`); return; }
+  if (res.status === "added") { store.set("folders", res.list); renderFoldersSection(); }
+}
+
+function removeAddedFolder(path) {
+  const actionsHadFocus = $("folders-actions").contains(document.activeElement);
+  const nextFolders = FL.removeFolder(savedFolders(), path);
+  store.set("folders", nextFolders);
+  saveExpanded(savedExpanded(nextFolders), nextFolders);
+  const rk = FL.pathKey(path);
+  for (const k of [...folderLoaded.keys()]) {
+    if (k === `${rk}|` || k.startsWith(`${rk}|`)) folderLoaded.delete(k);
+  }
+  for (const k of [...folderLoadSeq.keys()]) {
+    if (k === `${rk}|` || k.startsWith(`${rk}|`)) folderLoadSeq.set(k, (folderLoadSeq.get(k) || 0) + 1);
+  }
+  renderFoldersSection();
+  if (actionsHadFocus) {
+    ($("folders-actions").querySelector(".folder-remove") || $("folders-tree").querySelector('[tabindex="0"]') || $("files-add-folder")).focus({ preventScroll: true });
+  }
+}
 
 function fileRow(r, isOpen) {
   const row = document.createElement("div");
@@ -801,7 +1055,8 @@ function fileRow(r, isOpen) {
 
 function renderFilesList() {
   const box = $("files-list");
-  const keep = box.scrollTop;
+  const scroller = $("files-body");
+  const keep = scroller.scrollTop;
   box.replaceChildren();
   const note = (text) => { const p = document.createElement("p"); p.className = "files-note"; p.textContent = text; box.append(p); };
   if (!recentOn()) { note("The recent files list is switched off in Settings."); $("files-clear").hidden = true; return; }
@@ -824,7 +1079,7 @@ function renderFilesList() {
     box.append(head);
     for (const r of g.items) box.append(fileRow(r, open.has(r.ref)));
   }
-  box.scrollTop = keep;
+  scroller.scrollTop = keep;
 }
 
 /** Older entries have no title or preview: read a few of those files in the background to fill them in. */
@@ -843,8 +1098,11 @@ async function backfillRecents() {
 function openFiles() {
   closeMenu(); closeOutline();
   filesQuery = ""; $("files-q").value = "";
+  renderFoldersSection();
   renderFilesList();
   $("files").hidden = false;
+  positionFolderActions();
+  refreshExpandedRoots();
   $("btn-files").setAttribute("aria-expanded", "true"); $("btn-files").classList.add("on");
   if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
   else $("files-q").focus();
@@ -866,17 +1124,70 @@ function wireFiles() {
   const filter = (pinnedOnly) => { filesPinnedOnly = pinnedOnly; store.set("filesPinnedOnly", pinnedOnly); renderFilesList(); };
   $("files-all").onclick = () => filter(false);
   $("files-pinned").onclick = () => filter(true);
-  $("files-q").oninput = () => { filesQuery = $("files-q").value; renderFilesList(); };
+  $("files-q").oninput = () => { filesQuery = $("files-q").value; renderFoldersSection(); renderFilesList(); };
   $("files-open").onclick = () => { closeFiles(); openFile(); };
   $("files-new").onclick = () => { closeFiles(); newFile(); };
+  $("files-add-folder").onclick = addUserFolder;
   $("files-clear").onclick = async () => {
     if ((await ask("Clear recent files", "Remove every file from the recent list? Your files aren't touched.", ["Clear the list", "Cancel"])) !== 0) return;
     store.set("recent", []); renderFilesList(); renderRecents();
   };
   $("see-all").onclick = openFiles;
+  new ResizeObserver(() => positionFolderActions()).observe($("folders-tree"));
+  $("folders-tree").addEventListener("keydown", (e) => {
+    const item = e.target.closest?.('[role="treeitem"]');
+    if (!item || !$("folders-tree").contains(item)) return;
+    const idx = treeRows.findIndex((r) => r.key === item.dataset.key);
+    if (idx < 0) return;
+    const row = treeRows[idx];
+    if (e.key === "ArrowDown") {
+      e.preventDefault(); e.stopPropagation();
+      if (idx < treeRows.length - 1) focusTreeKey(treeRows[idx + 1].key);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault(); e.stopPropagation();
+      if (idx > 0) focusTreeKey(treeRows[idx - 1].key);
+    } else if (e.key === "Home") {
+      e.preventDefault(); e.stopPropagation();
+      if (treeRows.length) focusTreeKey(treeRows[0].key);
+    } else if (e.key === "End") {
+      e.preventDefault(); e.stopPropagation();
+      if (treeRows.length) focusTreeKey(treeRows[treeRows.length - 1].key);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault(); e.stopPropagation();
+      if (row.kind === "folder") {
+        if (!row.expanded) {
+          expandFolder(row);
+          focusTreeKey(row.key, true);
+        } else {
+          const childIdx = FL.firstChildRowIndex(treeRows, idx);
+          if (childIdx >= 0) focusTreeKey(treeRows[childIdx].key);
+        }
+      }
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault(); e.stopPropagation();
+      if (row.kind === "folder" && row.expanded) {
+        collapseFolder(row);
+        focusTreeKey(row.key, true);
+      } else {
+        const parentIdx = FL.parentRowIndex(treeRows, idx);
+        if (parentIdx >= 0) focusTreeKey(treeRows[parentIdx].key);
+      }
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault(); e.stopPropagation();
+      if (row.kind === "folder") {
+        if (row.expanded) collapseFolder(row);
+        else expandFolder(row);
+        focusTreeKey(row.key, true);
+      } else if (row.kind === "file") {
+        closeFiles();
+        openRef(row.path, row.name);
+      }
+    }
+  });
   $("files").addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFiles(true); return; }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    if ($("folders-tree").contains(document.activeElement)) return;
     const stops = [$("files-q"), ...$("files-list").querySelectorAll(".file-main")];
     const at = stops.indexOf(document.activeElement);
     if (at < 0) return;
