@@ -21,6 +21,11 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/repo" "$work/metadata/app.arkmd"
 cp "$root/fdroid/config.yml" "$work/config.yml"
 cp "$root/fdroid/metadata/app.arkmd.yml" "$work/metadata/app.arkmd.yml"
+# The recommended version is the newest final release. A beta (ArkMD-1.2.3-4-android-arm64.apk) has a higher version code
+# than it, so the F-Droid client offers it only to people who allow beta updates; without this line the highest code wins.
+cvc=$(for f in "$apks"/ArkMD-*-android-arm64.apk; do v=${f##*/ArkMD-}; v=${v%-android-arm64.apk}; case $v in *-*) ;; *) echo "$v" ;; esac; done \
+  | sort -V | tail -n1 | awk -F. 'NF==3 {print $1*1000000+$2*1000+$3}')
+[ -n "$cvc" ] && printf 'CurrentVersionCode: %s\n' "$cvc" >> "$work/metadata/app.arkmd.yml"
 cp -r "$root/fastlane/metadata/android/en-US" "$work/metadata/app.arkmd/en-US"
 cp "$root/docs/logo/icon.png" "$work/icon.png"
 cp "$apks"/ArkMD-*-android-arm64.apk "$work/repo/"
