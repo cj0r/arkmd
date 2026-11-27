@@ -141,6 +141,10 @@ fn rename_file(app: tauri::AppHandle, path: String, name: String) -> Result<Stri
     if !app.fs_scope().is_allowed(&file) {
         return Err("the file was not chosen in ArkMD".into());
     }
+    // a folder (an added folder is in scope, with everything below it) is not renamed from here
+    if std::fs::symlink_metadata(&file).map(|m| m.is_dir()).unwrap_or(false) {
+        return Err("not a file".into());
+    }
     let dest = rename_in_place(&file, &name)?;
     app.fs_scope().allow_file(&dest).map_err(|e| e.to_string())?;
     Ok(dest.to_string_lossy().into_owned())
@@ -589,6 +593,71 @@ fn list_folder(app: tauri::AppHandle, root: String, rel: String) -> Result<Folde
     list_folder_inner(&root_path, &rel, MAX_FOLDER_ENTRIES)
 }
 
+/// Files this window has claimed (see claim_file), each held open with an exclusive lock.
+#[cfg(desktop)]
+struct FileClaims(Mutex<std::collections::HashMap<String, std::fs::File>>);
+
+/// Most files one window claims at a time (more tabs than this open without a claim).
+#[cfg(desktop)]
+const MAX_CLAIMS: usize = 256;
+
+/// Remove lock files nobody holds any more (a window held them; the system dropped the lock when it exited).
+#[cfg(desktop)]
+fn clean_stale_claims(app: &tauri::AppHandle) {
+    let Ok(dir) = app.path().app_data_dir().map(|d| d.join("open-files")) else { return };
+    let Ok(entries) = std::fs::read_dir(&dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("lock") { continue; }
+        if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&path) {
+            if file.try_lock().is_ok() { drop(file); let _ = std::fs::remove_file(&path); }
+        }
+    }
+}
+
+/// A stable name for a file's lock: the same file gives the same name in every ArkMD process.
+#[cfg(desktop)]
+fn claim_name(path: &str) -> String {
+    let key = if cfg!(windows) { path.replace('/', "\\").to_lowercase() } else { path.to_string() };
+    let mut h: u64 = 0xcbf29ce484222325;          // FNV-1a
+    for b in key.bytes() { h ^= b as u64; h = h.wrapping_mul(0x100000001b3); }
+    format!("{h:016x}.lock")
+}
+
+/// Claim a file this window has open, so another ArkMD window can tell. Returns false when another window already has
+/// it claimed, true otherwise (also when claiming is not possible: then nothing is warned). The claim is an exclusive
+/// lock on a small file in the app's data folder; the system drops it when the app exits, however it exits.
+#[cfg(desktop)]
+#[tauri::command]
+fn claim_file(app: tauri::AppHandle, claims: tauri::State<FileClaims>, path: String) -> bool {
+    let mut held = claims.0.lock().unwrap_or_else(|e| e.into_inner());
+    if held.contains_key(&path) { return true; }
+    if held.len() >= MAX_CLAIMS { return true; }          // a page cannot make this window hold unlimited files
+    let Ok(dir) = app.path().app_data_dir().map(|d| d.join("open-files")) else { return true };
+    if std::fs::create_dir_all(&dir).is_err() { return true; }
+    let Ok(file) = std::fs::OpenOptions::new().create(true).write(true).truncate(false).open(dir.join(claim_name(&path))) else { return true };
+    match file.try_lock() {
+        Ok(()) => { held.insert(path, file); true }
+        Err(std::fs::TryLockError::WouldBlock) => false,
+        Err(_) => true,
+    }
+}
+
+/// Give a claimed file back (its tab closed or it was renamed).
+#[cfg(desktop)]
+#[tauri::command]
+fn release_file(claims: tauri::State<FileClaims>, path: String) {
+    claims.0.lock().unwrap_or_else(|e| e.into_inner()).remove(&path);
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn claim_file() -> bool { true }
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn release_file() {}
+
 /// Whether a path names a file type ArkMD deletes on request: the Markdown types it opens, nothing else.
 fn is_trashable_name(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).map(|e| MARKDOWN_EXT.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
@@ -817,9 +886,12 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .manage(PendingBeta(Mutex::new(None)));
+        .manage(PendingBeta(Mutex::new(None)))
+        .manage(FileClaims(Mutex::new(std::collections::HashMap::new())));
     builder
         .setup(|app| {
+            #[cfg(desktop)]
+            clean_stale_claims(app.handle());
             let mut launch = None;
             if let Some(path) = file_arg(std::env::args_os().skip(1).map(PathBuf::from)) {
                 // Files chosen in the dialog are added to the fs scope automatically; a file the app was
@@ -848,7 +920,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update, trash_file])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update, trash_file, claim_file, release_file])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }
@@ -1006,6 +1078,24 @@ mod tests {
     fn only_markdown_types_can_be_trashed() {
         for ok in ["/a/b.md", "/a/b.MD", "/a/b.markdown", "/a/b.txt", "C:\\a\\b.mkd"] { assert!(is_trashable_name(Path::new(ok)), "{ok}"); }
         for no in ["/a/b.png", "/a/b", "/a/.md", "/a/b.md.exe", "/a/b.sh"] { assert!(!is_trashable_name(Path::new(no)), "{no}"); }
+    }
+
+    #[test]
+    #[cfg(desktop)]
+    fn a_file_claim_is_exclusive_across_handles_and_named_the_same_for_the_same_path() {
+        assert_eq!(claim_name("/a/b.md"), claim_name("/a/b.md"));
+        assert_ne!(claim_name("/a/b.md"), claim_name("/a/c.md"));
+        let dir = std::env::temp_dir().join(format!("arkmd-claim-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(claim_name("/a/b.md"));
+        let open = || std::fs::OpenOptions::new().create(true).write(true).truncate(false).open(&path).unwrap();
+        let first = open();
+        assert!(first.try_lock().is_ok());
+        let second = open();
+        assert!(matches!(second.try_lock(), Err(std::fs::TryLockError::WouldBlock)), "a second holder must be refused");
+        drop(first);
+        assert!(second.try_lock().is_ok(), "the lock is free once the first holder is gone");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

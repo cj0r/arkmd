@@ -9,7 +9,7 @@
 
 ## Recent files
 
-The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files flyout, the way back to notes you've already used without searching your folders.
+The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files pane, the way back to notes you've already used without searching your folders. It also shows folders you add as trees, and on Windows and Linux it can be pinned open beside the document, has right-click menus and can move a file to the Recycle Bin or Trash; see [Folders in the recent files list](reading-and-editing.md#folders-in-the-recent-files-list). On Android, files reached through two different addresses (same name and same text) are listed once.
 
 - **Cards with a preview.** Each file shows its title (its first heading, or its first line), its file name and folder, the first lines of its text, when you last opened or saved it, and its word count. Files that are open in a tab are marked **Open**.
 - **Newest first,** grouped as Today, Yesterday, the previous 7 and 30 days, and Older.
@@ -25,11 +25,11 @@ The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files fl
 
 - **Save** (the button in the top bar, or Ctrl+S) writes the document over the file it came from. Nothing is saved automatically unless you turn on Autosave (below). ArkMD keeps the text being replaced as an earlier version (see [History and recovery](#history-and-recovery)), but that is not a backup, so keep your own.
 - **Open file location** (**More** menu, Windows and Linux; **Show in File Explorer** on Windows, **Reveal in Finder** on macOS) shows the saved file in your file manager, selected in its folder where the system supports it, and otherwise opens the folder. It's hidden for a document with no file behind it yet, such as a new one or the welcome tour, and on Android, where documents have no folder to show.
-- **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time. On Windows and Linux, **Settings** > **Folder for new files** makes that first Save dialog start in a folder you choose; the dialog still lets you pick any other place.
-- **Several windows.** By default a second launch of ArkMD adds its file as a tab in the window that is already open. On Windows and Linux, turn on **Settings** > **Allow multiple windows** to open each launch in its own window; it applies the next time ArkMD starts.
+- **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time. On Windows and Linux, **Settings** > **Files** > **Folder for new files** makes that first Save dialog start in a folder you choose; the dialog still lets you pick any other place.
+- **Several windows.** By default a second launch of ArkMD adds its file as a tab in the window that is already open. On Windows and Linux, turn on **Settings** > **Files** > **Allow multiple windows** to open each launch in its own window; it applies the next time ArkMD starts.
 - A dot on a tab means it has changes that aren't saved. Closing a tab, or the window, with unsaved changes asks first.
-- **Autosave** is off by default. **Settings** > **Autosave** saves a file after you pause typing, when you leave the window (switch to another app, or the app goes to the background on Android), and at least every two minutes of continuous typing. **Autosave delay** sets how long the pause is: 3 seconds, 10 seconds (the default), 30 seconds or 1 minute; a longer delay means fewer rewrites of the file, which suits folders that a sync app watches. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.
-- Saving rewrites the whole file. If the app, the device or the connection to a synced or network folder fails in the middle, the file can be left incomplete.
+- **Autosave** is off by default. **Settings** > **Editing and saving** > **Autosave** saves a file after you pause typing, when you leave the window (switch to another app, or the app goes to the background on Android), and at least every two minutes of continuous typing. **Autosave delay** sets how long the pause is: 3 seconds, 10 seconds (the default), 30 seconds or 1 minute; a longer delay means fewer rewrites of the file, which suits folders that a sync app watches. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.
+- Saving rewrites the whole file. On Windows and Linux it is written to a temporary file and moved into place (see below), so a crash leaves the old file; on Android, and if the connection to a synced or network folder fails in the middle, the file can be left incomplete.
 - Some places can't be written, for example a read-only folder or a document provider that only allows reading. ArkMD then says "Could not save"; use **Save as…** to write a copy somewhere else.
 
 ## Pictures
@@ -43,6 +43,10 @@ ArkMD checks when you return to its window or to a tab. If the file was changed 
 ## Renaming a file
 
 **More** > **Rename file…** gives the open file a new name in its own folder. The extension stays unless you type another. ArkMD does not replace a file that already exists under the new name, and a name that Windows would refuse (for example one with `:` or `*`) is refused everywhere. The tab, the Recent files entry (and its pin) and the file history follow the file. On Android, renaming works only where the document provider allows it; otherwise ArkMD says so.
+
+## Deleting a file
+
+On Windows and Linux, a file can be moved to the Recycle Bin (Windows) or Trash (Linux) from the recent files pane or a tab's right-click menu, after a confirmation; see [Folders in the recent files list](reading-and-editing.md#folders-in-the-recent-files-list). ArkMD refuses to delete a file in a location that has no Recycle Bin or Trash, such as a network share, so nothing is erased for good, and on Windows it checks the Recycle Bin afterwards and puts the file back if the system erased it instead. On Android, a file in a folder you added can be deleted after a confirmation that says it cannot be undone.
 
 ## Printing and exporting
 

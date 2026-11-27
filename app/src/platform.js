@@ -168,6 +168,9 @@ const desktopImpl = {
   },
   /** Move a Markdown file to the Recycle Bin or Trash (it is never erased; see trash_file in lib.rs). */
   async trashFile(path) { await invoke("trash_file", { path }); },
+  /** Claim a file this window has open; false when another ArkMD window already has it (see claim_file in lib.rs). */
+  async claimFile(path) { return invoke("claim_file", { path }); },
+  async releaseFile(path) { await invoke("release_file", { path }); },
   async openUrl(url) { await invoke("open_external", { url }); },     // the host's own opener; see host.rs
   async copyText(text) {
     // The web view on Linux gives the page no clipboard access, so the system clipboard is set natively first.

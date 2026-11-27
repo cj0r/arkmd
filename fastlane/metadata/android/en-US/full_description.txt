@@ -1,25 +1,33 @@
 ArkMD opens a Markdown file, shows it with Obsidian-style rendering, and switches to an editor with one tap. There is no vault, no plugin system and no account. "Ark" is Danish and Norwegian for "a sheet of paper".
 
 <b>Reading</b>
-• Colored headings, callouts (including foldable ones), highlights, wikilinks, tags, task lists, tables, footnotes, front matter and syntax-highlighted code blocks.
+• Colored headings, callouts (including foldable ones), highlights, wikilinks, tags, task lists, tables, footnotes, front matter, syntax-highlighted code blocks and Mermaid diagrams that follow the theme.
 • Tick task checkboxes right in the reader.
 • Find in the page, and an outline of the headings to jump between sections.
+• Web images are hidden until you tap Load images, with an option in Settings to always or never load them.
 
 <b>Editing</b>
-• A CodeMirror editor with live Markdown highlighting, a formatting panel, keyboard shortcuts for headings, lists and styles, and find and replace.
-• Several files open in tabs, each with its own undo history.
-• Earlier versions of a file are kept each time you save, and unsaved work is restored after a crash. Everything stays on the device.
+• CodeMirror 6 editor with live Markdown and fenced-code highlighting, a formatting panel, keyboard shortcuts, line numbers, status bar, find and replace, and optional bracket and tag closing in code blocks.
+• Several files open in tabs, each with its own undo history, cursor and scroll position. Line endings are kept, and non-UTF-8 files open safely as a copy instead of overwriting the original.
+• Optional autosave with a configurable delay (3 seconds, 10 seconds, 30 seconds or 1 minute), saving when you leave the app and at least every 2 minutes of continuous typing.
+• Earlier versions of a file are kept each time you save, unsaved work is restored after a crash, and closed tabs can be reopened. Everything stays on the device.
+
+<b>Files and folders</b>
+• Open with and Share from other apps, or browse through the system file picker (including cloud storage apps such as Google Drive and OneDrive) with no storage permission.
+• Recent files pane with previews, search, pinned favorites and swipe gestures.
+• Add folders to the Recent files pane as expandable folder trees to browse, open, save and delete Markdown files (with confirmation) without reopening the file picker.
+• Rename files, share text, and print or save as PDF through the system print dialog.
 
 <b>Looks</b>
-• 46 dark and light themes, including plain Basic Light and Basic Dark, separate reading and editing fonts, and your own theme from a CSS file of color variables.
+• 46 dark and light themes, including plain Basic Light and Basic Dark, optional system light/dark matching, separate reading and editing fonts, system font size support, and your own theme from a CSS file of color variables.
 • Text colors meet WCAG 2.2 AA contrast by default.
 
 <b>Private and small</b>
-• Works offline, has no account and collects no data. It contacts GitHub only when you check for updates.
+• Works offline, has no account, no analytics and collects no data. Contacts GitHub only when you check for updates (manual, optional daily check, and optional beta versions).
 • About 9 MB.
 
 <b>Please note</b>
-ArkMD opens, edits and saves your Markdown files in place. Saving overwrites the original, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose. ArkMD is provided without warranty.
+ArkMD opens, edits and saves your Markdown files in place. Saving overwrites the original, deleting a file inside an added folder cannot be undone, and the earlier versions ArkMD keeps are a convenience on one device, not a backup. Keep backups of anything you can't afford to lose. ArkMD is provided without warranty.
 
 ArkMD is developed with the help of AI coding tools (Claude). The code, tests and documentation are reviewed and tested by the maintainer, who is responsible for each release.
 

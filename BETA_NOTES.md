@@ -1,0 +1,3 @@
+Release candidate for 1.0. Windows installer: file associations are repaired on update and removed on uninstall. Windows and Linux: opening a file that another ArkMD window has open shows a warning. A document over 4 MB is shown in parts in the reading view. Android: the update check reads only ArkMD's releases. rename_file refuses folders. Documentation and support statement updated.
+
+This is a beta build, published for testing: it can have bugs. To go back, turn off Settings > Updates > Include beta versions and install the latest release. Android cannot install an older version over a newer one without uninstalling ArkMD first.

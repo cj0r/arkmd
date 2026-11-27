@@ -15,7 +15,7 @@ The reader renders CommonMark and the usual GitHub extensions, plus several feat
 
 ## Diagrams
 
-A fenced code block tagged `mermaid` is drawn as a diagram with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and the other types Mermaid supports (version 11). The diagram follows the theme's colors and is redrawn when you switch themes. It prints and exports with the page. A diagram with a mistake shows Mermaid's error message above its source, so you can fix it in the editor. Diagrams are drawn with Mermaid's strict security level: no scripts, and no click actions. The Mermaid library is only loaded when a document contains a diagram, each diagram is drawn when you scroll near it (and remembered after that), and everything works offline.
+A fenced code block tagged `mermaid` is drawn as a diagram with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state, entity-relationship, Gantt, pie, mind map, timeline and the other types Mermaid supports (version 12). The diagram follows the theme's colors and is redrawn when you switch themes. It prints and exports with the page. A diagram with a mistake shows Mermaid's error message above its source, so you can fix it in the editor. Diagrams are drawn with Mermaid's strict security level: no scripts, and no click actions. The Mermaid library is only loaded when a document contains a diagram, each diagram is drawn when you scroll near it (and remembered after that), and everything works offline.
 
 ````markdown
 ```mermaid
@@ -37,9 +37,9 @@ Raw HTML (it's shown as text, not run), math, note embeds (`![[Note]]`), comment
 
 ## Images
 
-Images from the web (`![](https://example.com/picture.png)`) are shown, which means ArkMD loads them from that server, as any browser would.
+Images from the web (`![](https://example.com/picture.png)`) are hidden by default until you tap **Load images**, because loading them contacts their server like any browser would. **Settings** > **Privacy and history** > **Remote images** changes this to always load or never load.
 
-On Windows and Linux, images next to the document are shown too: `![](picture.png)` or `![](images/diagram.svg)`, relative to the folder of the saved file (PNG, JPEG, GIF, WebP, AVIF, BMP and SVG, up to 25 MB each). An image that can't be found shows its description in a dashed box. To add one without typing the path, see Pictures under [Reading and editing](reading-and-editing.md#pictures-windows-and-linux). Absolute paths aren't loaded, and neither is anything on Android, where the system file picker gives ArkMD one file at a time.
+On Windows and Linux, images next to the document are shown too: `![](picture.png)` or `![](images/diagram.svg)`, relative to the folder of the saved file (PNG, JPEG, GIF, WebP, AVIF, BMP and SVG, up to 25 MB each). An image that can't be found shows its description in a dashed box. To add one without typing the path, see Pictures under [Reading and editing](reading-and-editing.md#pictures-windows-and-linux). Absolute paths aren't loaded, and local images are not loaded on Android.
 
 ## Links
 
