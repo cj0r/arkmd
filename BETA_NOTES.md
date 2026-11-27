@@ -1,0 +1,3 @@
+Fix: deleting a file on a Linux mount other than the home folder no longer reports a failure and leaves the file in place; it goes to that mount's trash. Includes the share fix (a location without a Recycle Bin is refused and nothing is erased), Android delete in added folders, Android recent-file de-duplication, the pinned recent files pane and delete to the Recycle Bin or Trash.
+
+This is a beta build, published for testing: it can have bugs. To go back, turn off Settings > Updates > Include beta versions and install the latest release. Android cannot install an older version over a newer one without uninstalling ArkMD first.

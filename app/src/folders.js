@@ -30,6 +30,12 @@ export function normalizeFolderPath(path) {
 export function folderName(path) {
   const clean = normalizeFolderPath(path);
   if (!clean) return "";
+  if (clean.startsWith("content://")) {       // Android folder address: .../tree/primary%3ADocuments%2FNotes
+    const last = clean.split("/").pop() || "";
+    let id = last;
+    try { id = decodeURIComponent(last); } catch { /* keep the raw segment */ }
+    return id.split(/[:/]/).filter(Boolean).pop() || "Folder";
+  }
   if (/^[a-zA-Z]:[\\/]$/.test(clean)) return clean;
   const parts = clean.split(/[\\/]/).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : clean;
@@ -90,7 +96,7 @@ export function sortEntries(entries) {
   for (const e of entries) {
     if (!e || typeof e.name !== "string" || !e.name || isHiddenName(e.name)) continue;
     if (e.is_dir) dirs.push({ name: e.name, is_dir: true });
-    else if (isMarkdownFile(e.name)) files.push({ name: e.name, is_dir: false });
+    else if (isMarkdownFile(e.name)) files.push(typeof e.ref === "string" && e.ref ? { name: e.name, is_dir: false, ref: e.ref } : { name: e.name, is_dir: false });
   }
   const byName = (a, b) => naturalCompare.compare(a.name, b.name) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   dirs.sort(byName);
@@ -279,6 +285,7 @@ export function buildTreeRows(folders, expanded, loaded) {
           rel,
           name: entry.name,
           path: fullPath,
+          ref: typeof entry.ref === "string" && entry.ref ? entry.ref : null,   // Android lists real document addresses
           level,
           parentKey,
         });

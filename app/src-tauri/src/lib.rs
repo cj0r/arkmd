@@ -589,6 +589,77 @@ fn list_folder(app: tauri::AppHandle, root: String, rel: String) -> Result<Folde
     list_folder_inner(&root_path, &rel, MAX_FOLDER_ENTRIES)
 }
 
+/// Whether a path names a file type ArkMD deletes on request: the Markdown types it opens, nothing else.
+fn is_trashable_name(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).map(|e| MARKDOWN_EXT.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
+}
+
+/// Whether the file is somewhere that has a Recycle Bin or Trash. On Windows only a fixed local drive has a Recycle
+/// Bin: on a network share or a removable drive the system deletes for good instead, so those are refused.
+#[cfg(windows)]
+fn on_recyclable_volume(p: &Path) -> bool {
+    let s = p.to_string_lossy();
+    let b = s.as_bytes();
+    if b.len() < 3 || !b[0].is_ascii_alphabetic() || b[1] != b':' { return false; }   // a \\server\share or \\?\ path
+    let root: Vec<u16> = format!("{}:\\", b[0] as char).encode_utf16().chain(std::iter::once(0)).collect();
+    // 3 is DRIVE_FIXED
+    unsafe { windows_sys::Win32::Storage::FileSystem::GetDriveTypeW(root.as_ptr()) == 3 }
+}
+#[cfg(all(desktop, not(windows)))]
+fn on_recyclable_volume(_p: &Path) -> bool { true }
+
+/// How many entries in the Recycle Bin were deleted from this path (None if the bin can't be listed). Windows only:
+/// on Linux the library moves a file to a trash folder or fails, and the listing leaves out some mounts.
+#[cfg(windows)]
+fn trashed_count(p: &Path) -> Option<usize> {
+    let items = trash::os_limited::list().ok()?;
+    let want = p.to_string_lossy().to_lowercase();
+    Some(items.iter().filter(|i| i.original_path().to_string_lossy().to_lowercase() == want).count())
+}
+
+/// Largest file that is held in memory while it is moved, so that it can be put back if the system erased it instead.
+#[cfg(windows)]
+const MAX_TRASH_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Move a Markdown file to the Recycle Bin or Trash (desktop only), from the recent files list or a folder tree.
+/// It never loses the file: a location without a bin is refused, and after the move the bin is checked for the file;
+/// if the system erased it instead (a bin switched off, a file too big for the bin), the file is written back and the
+/// call fails. Only a file ArkMD was given access to (opened in a dialog, with Open with, or inside an added folder)
+/// can be moved; a symbolic link is removed, not the file it points to.
+#[cfg(desktop)]
+#[tauri::command]
+fn trash_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.is_absolute() { return Err("not a full path".into()); }
+    if !is_trashable_name(&p) { return Err("only Markdown files can be deleted here".into()); }
+    if !app.fs_scope().is_allowed(&p) { return Err("this file was not opened or added in ArkMD".into()); }
+    let meta = std::fs::symlink_metadata(&p).map_err(|e| e.to_string())?;
+    if meta.is_dir() { return Err("not a file".into()); }
+    if !on_recyclable_volume(&p) { return Err("this location has no Recycle Bin or Trash".into()); }
+    #[cfg(windows)]
+    {
+        // The Windows shell erases a file for good when it cannot recycle it (a bin switched off, a file too big for the
+        // bin), so the file is held in memory, the bin is checked for it afterwards, and it is written back if missing.
+        if meta.len() > MAX_TRASH_BYTES { return Err("the file is too large to delete safely from ArkMD".into()); }
+        let backup = if meta.file_type().is_symlink() { None } else { Some(std::fs::read(&p).map_err(|e| e.to_string())?) };
+        let before = trashed_count(&p);
+        trash::delete(&p).map_err(|e| e.to_string())?;
+        if let (Some(before), Some(bytes)) = (before, backup) {
+            if trashed_count(&p).map_or(false, |after| after <= before) && !p.exists() {
+                std::fs::write(&p, bytes).map_err(|e| format!("the file was erased and could not be restored: {e}"))?;
+                return Err("the system did not move the file to the Recycle Bin, so it was put back".into());
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    trash::delete(&p).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn trash_file(_path: String) -> Result<(), String> { Err("not available on this platform".into()) }
+
 /// The beta update address: the configured stable one with "latest" swapped for the rolling "beta" release, which holds
 /// the manifest of the newest build (stable or beta). None for an address that isn't a GitHub "latest" download, so a
 /// test build with a placeholder update address has no beta channel.
@@ -777,7 +848,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update, trash_file])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }
@@ -932,6 +1003,12 @@ mod tests {
     }
 
         #[test]
+    fn only_markdown_types_can_be_trashed() {
+        for ok in ["/a/b.md", "/a/b.MD", "/a/b.markdown", "/a/b.txt", "C:\\a\\b.mkd"] { assert!(is_trashable_name(Path::new(ok)), "{ok}"); }
+        for no in ["/a/b.png", "/a/b", "/a/.md", "/a/b.md.exe", "/a/b.sh"] { assert!(!is_trashable_name(Path::new(no)), "{no}"); }
+    }
+
+    #[test]
     fn beta_url_swaps_the_latest_download_for_the_beta_release() {
         assert_eq!(beta_url("https://github.com/o/r/releases/latest/download/latest.json").as_deref(),
             Some("https://github.com/o/r/releases/download/beta/latest.json"));

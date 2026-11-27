@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarize, normalize, touch, setPinned, rename, remove, folderOf, search, group, ago } from "./recent.js";
+import { summarize, normalize, touch, mergeAliases, setPinned, rename, remove, folderOf, search, group, ago } from "./recent.js";
 
 test("summarize takes the first heading as the title and the opening text as the preview", () => {
   const s = summarize("---\ntags: x\n---\n# Trip plan\n\nBook the **ferry** and [hotel](https://x.y).\n\n## Day one\n\n- [ ] Pack\n- Passports\n");
@@ -131,4 +131,28 @@ test("rename keeps the place, pin and preview of the entry", () => {
 test("rename onto an existing entry leaves one entry", () => {
   const list = [{ ref: "/a/one.md", name: "one.md" }, { ref: "/a/two.md", name: "two.md" }];
   assert.deepEqual(rename(list, "/a/one.md", "/a/two.md", "two.md").map((r) => r.ref), ["/a/two.md"]);
+});
+
+test("touch with aliases merges the same file reached under another address", () => {
+  const a = { ref: "content://x/document/1", name: "Untitled2.md", t: 1, title: "Testing 2", preview: "two words", words: 2 };
+  const b = { ref: "content://y/document/9", name: "Untitled2.md", t: 2, title: "Testing 2", preview: "two words", words: 2 };
+  let list = touch([], a);
+  assert.equal(touch(list, b).length, 2, "without aliases the two addresses stay two entries");
+  list = touch(setPinned(list, a.ref, true), b, 50, true);
+  assert.deepEqual(list.map((r) => r.ref), [b.ref]);
+  assert.equal(list[0].pinned, true, "the pin of the merged entry is kept");
+  const other = { ...b, ref: "content://y/document/10", title: "Different", preview: "other", words: 5 };
+  assert.equal(touch(list, other, 50, true).length, 2, "a different text is a different file");
+  const empty = { ref: "e1", name: "Untitled.md", t: 3, words: 0 };
+  assert.equal(touch(touch([], empty, 50, true), { ...empty, ref: "e2" }, 50, true).length, 2, "files with no text are never merged");
+});
+
+test("mergeAliases cleans a stored list of same-file entries and leaves other lists alone", () => {
+  const base = { name: "T.md", title: "T", preview: "p", words: 1, t: 1 };
+  const list = [{ ...base, ref: "a" }, { ...base, ref: "b", pinned: true }, { ...base, name: "U.md", ref: "c" }];
+  const merged = mergeAliases(list);
+  assert.deepEqual(merged.map((r) => r.ref), ["a", "c"]);
+  assert.equal(merged[0].pinned, true);
+  const plain = [{ ...base, ref: "a" }, { ...base, name: "U.md", ref: "c" }];
+  assert.equal(mergeAliases(plain), plain);
 });

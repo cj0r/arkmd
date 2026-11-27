@@ -55,6 +55,12 @@ class MainActivity : TauriActivity() {
     private val openDoc = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) reply(openId, null) else { persist(uri); reply(openId, fileInfo(uri)) }
     }
+    private var treeId = 0
+    private val openTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) { reply(treeId, null); return@registerForActivityResult }
+        persist(uri)
+        reply(treeId, uri.toString())
+    }
     private val createDoc = registerForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
         if (uri == null) { reply(createId, null); return@registerForActivityResult }
         persist(uri)
@@ -296,6 +302,75 @@ class MainActivity : TauriActivity() {
             createDoc.launch(name)
         }.let { }
 
+        /** The folder picker for "Add a folder": the answer is a tree address whose access the system keeps across restarts. */
+        @JavascriptInterface fun pickFolder(id: Int) = main.post {
+            treeId = id
+            openTree.launch(null)
+        }.let { }
+
+        /** One level of an added folder: Markdown files (with their own document address) and subfolders, hidden ones left out.
+         *  rel is "/"-separated folder names below the added folder; each is found by name among the real children,
+         *  so a path can never leave the folder. Only a tree ArkMD still holds access to can be read. */
+        @JavascriptInterface fun listFolder(id: Int, root: String, rel: String) = io.execute {
+            runCatching { listTree(treeUri(root), rel) }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        /** Give back the saved access when an added folder is removed. */
+        @JavascriptInterface fun forgetFolder(id: Int, root: String) = io.execute {
+            runCatching {
+                val uri = Uri.parse(root)
+                contentResolver.persistedUriPermissions.filter { it.uri == uri }.forEach {
+                    val flags = (if (it.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                        (if (it.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+                    contentResolver.releasePersistableUriPermission(uri, flags)
+                }
+                true
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
+
+        private fun treeUri(ref: String): Uri = Uri.parse(ref).also { uri ->
+            require(uri.scheme == "content" && DocumentsContract.isTreeUri(uri)) { "not a folder address" }
+            require(contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }) { "no access to this folder" }
+        }
+
+        private val folderExtensions = setOf("md", "markdown", "mdown", "mkd", "txt")
+        private val maxFolderEntries = 5000
+
+        private fun children(tree: Uri, parentDocId: String): List<Triple<String, String, String>> {
+            val uri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentDocId)
+            val cols = arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE)
+            val out = ArrayList<Triple<String, String, String>>()
+            contentResolver.query(uri, cols, null, null, null)?.use { c ->
+                while (c.moveToNext()) {
+                    val docId = c.getString(0)
+                    val name = c.getString(1)
+                    if (docId != null && name != null) out.add(Triple(docId, name, c.getString(2) ?: ""))
+                }
+            }
+            return out
+        }
+
+        private fun listTree(tree: Uri, rel: String): JSONObject {
+            val dir = DocumentsContract.Document.MIME_TYPE_DIR
+            var docId = DocumentsContract.getTreeDocumentId(tree)
+            for (seg in rel.split('/').filter { it.isNotEmpty() }) {
+                require(seg != "." && seg != "..") { "not a folder name" }
+                docId = children(tree, docId).firstOrNull { it.third == dir && it.second == seg }?.first ?: error("folder not found")
+            }
+            val entries = JSONArray()
+            var truncated = false
+            for ((childId, name, mime) in children(tree, docId)) {
+                if (name.startsWith(".")) continue
+                val isDir = mime == dir
+                if (!isDir && name.substringAfterLast('.', "").lowercase() !in folderExtensions) continue
+                if (entries.length() >= maxFolderEntries) { truncated = true; break }
+                val e = JSONObject().put("name", name).put("is_dir", isDir)
+                if (!isDir) e.put("ref", DocumentsContract.buildDocumentUriUsingTree(tree, childId).toString())
+                entries.put(e)
+            }
+            return JSONObject().put("entries", entries).put("truncated", truncated)
+        }
+
         /** Documents come from the system picker or an Open with intent, so they are always content:// addresses. */
         private fun documentUri(ref: String): Uri = Uri.parse(ref).also { require(it.scheme == "content") { "not a document address" } }
 
@@ -383,6 +458,31 @@ class MainActivity : TauriActivity() {
                 .setOnCancelListener { reply(id, false) }
                 .show()
         }.let { }
+
+        /** The same question with the positive button named (Delete, rather than Discard). */
+        @JavascriptInterface fun confirmWith(id: Int, title: String, message: String, ok: String) = main.post {
+            AlertDialog.Builder(this@MainActivity).setTitle(title).setMessage(message)
+                .setPositiveButton(ok) { _, _ -> reply(id, true) }
+                .setNegativeButton("Cancel") { _, _ -> reply(id, false) }
+                .setOnCancelListener { reply(id, false) }
+                .show()
+        }.let { }
+
+        /** Delete a Markdown file inside a folder the user added. Android has no trash, so it is erased: the page asks first.
+         *  Only a file below a folder ArkMD still holds write access to can be deleted, never a folder. */
+        @JavascriptInterface fun deleteDocument(id: Int, ref: String) = io.execute {
+            runCatching {
+                val uri = documentUri(ref)
+                require(DocumentsContract.isTreeUri(uri) && DocumentsContract.isDocumentUri(this@MainActivity, uri)) { "only a file in an added folder can be deleted" }
+                val tree = DocumentsContract.buildTreeDocumentUri(uri.authority!!, DocumentsContract.getTreeDocumentId(uri))
+                require(contentResolver.persistedUriPermissions.any { it.uri == tree && it.isWritePermission }) { "ArkMD can only read this folder, so it can't delete from it" }
+                val mime = contentResolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_MIME_TYPE), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+                require(mime != null && mime != DocumentsContract.Document.MIME_TYPE_DIR) { "not a file" }
+                require(displayName(uri).substringAfterLast('.', "").lowercase() in folderExtensions) { "only Markdown files can be deleted here" }
+                require(DocumentsContract.deleteDocument(contentResolver, uri)) { "the file could not be deleted" }
+                true
+            }.onSuccess { reply(id, it) }.onFailure { fail(id, it) }
+        }
 
         @JavascriptInterface fun openUrl(url: String) = main.post {
             runCatching {
