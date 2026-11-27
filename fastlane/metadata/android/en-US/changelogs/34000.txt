@@ -1,0 +1,1 @@
+Folders in the recent files pane, delete files in added folders, autosave delay setting, and recent files no longer listed twice.

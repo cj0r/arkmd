@@ -2,6 +2,23 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.34.0 (2026-11-27)
+
+### Added
+- **Folders on Android.** "Add a folder" in the recent files pane opens the system folder picker and keeps the access you give it. A folder is a tree that expands in place; Markdown files in it open and save through the folder. The folder list and which folders are open are remembered. Removing a folder gives the access back and touches no files.
+- **Pin the recent files pane (Windows and Linux).** A pin button in the pane's header, or Settings > Recent files > Keep the recent files pane open, docks the pane beside the document and keeps it open, including at start. In a window under 760 pixels wide the pane floats as before.
+- **Delete a file from the recent files pane.** On Windows and Linux, the bin button on a file in the recent list or a folder tree, the Delete key on a file in a tree, or the right-click menu moves the file to the Recycle Bin or Trash after a confirmation. On Android, a file in an added folder can be deleted after a confirmation that says it cannot be undone. The confirmation names an open tab, which closes, and warns about unsaved changes.
+- **Right-click menus for files.** A file in the recent list or a folder tree has the same menu as a tab for a saved file, in the same order: Pin to recent files, Copy file path, Show in File Explorer (Open file location on Linux), Rename file and Move to the Recycle Bin or Trash, with Open first and Remove from recent files last in the recent list. They work whether or not the file is open. A tab's menu gains the Move to the Recycle Bin or Trash entry.
+- **Autosave delay.** Settings > Autosave delay sets how long ArkMD waits after you stop typing: 3 seconds, 10 seconds (default), 30 seconds or 1 minute. It was a fixed 2.5 seconds. A file is also saved when you leave the window or the app, and at least every 2 minutes of continuous typing.
+
+### Changed
+- On Android, recent files that are the same file reached through two different addresses (same name and same text) are listed once, and entries already stored that way are merged at start.
+- The Settings dialog gains a Recent files section.
+
+### Fixed
+- Deleting a file from a location without a Recycle Bin, such as a network share, is refused with a message instead of erasing the file. On Windows the Recycle Bin is checked after a delete and the file is put back if the system erased it.
+- Choosing an item in a pane's right-click menu, or pressing Escape on it, no longer closes an unpinned pane.
+
 ## 0.33.0 (2026-11-26)
 
 ### Added
