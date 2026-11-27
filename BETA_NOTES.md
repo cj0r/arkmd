@@ -1,0 +1,3 @@
+Fixes: deleting from a network share or other location without a Recycle Bin no longer erases the file (it is refused, and a file the system erased is put back); Android recent files no longer list one file twice; Android can delete files in an added folder. Includes folders on Android, the pinned recent files pane and delete to the Recycle Bin or Trash (Windows and Linux).
+
+This is a beta build, published for testing: it can have bugs. To go back, turn off Settings > Updates > Include beta versions and install the latest release. Android cannot install an older version over a newer one without uninstalling ArkMD first.
