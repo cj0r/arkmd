@@ -57,10 +57,24 @@ function installMock({ note }) {
     take_launch_file: () => "/docs/notes.md",
     "plugin:fs|read_text_file": ({ path }) => { if (!(path in files)) throw new Error("missing " + path); return enc.encode(files[path]).buffer; },
     save_text_file: ({ path, text }) => { files[path] = text; },
-    rename_file: ({ path, name }) => { const to = path.replace(/[^/]*$/, name); if (to in files) throw new Error("a file with that name already exists"); files[to] = files[path]; delete files[path]; return to; },
+    rename_file: ({ path, name }) => { const to = path.replace(/[^/]*$/, name); if (to in files) throw new Error("a file with that name already exists"); files[to] = files[path]; delete files[path];
+      const dir = path.replace(/\/[^/]*$/, ""), old = path.replace(/^.*\//, "");
+      for (const [key, listing] of Object.entries(folders)) { const [root, rel] = key.split("|"); if ((rel ? root + "/" + rel : root) === dir) listing.entries = listing.entries.map((e) => (e.name === old ? { ...e, name } : e)); }
+      return to; },
     open_linked: ({ rel, outside }) => { if (rel === "other.md" && !outside) throw new Error("outside:/docs/other.md"); return "/docs/" + rel; },
     list_folder: ({ root, rel }) => { const key = `${root}|${rel || ""}`; if (!(key in folders)) throw new Error("folder not found: " + key); return folders[key]; },
     "plugin:dialog|open": ({ options } = {}) => (options?.directory ? (window.__mock.nextDir || "/notes") : (window.__mock.next || "/docs/big.md")),
+    "plugin:dialog|message": ({ buttons } = {}) => (window.__mock.ask ? (buttons?.OkCancelCustom?.[0] ?? "Yes") : "Cancel"),   // confirm dialogs answer no unless a step sets __mock.ask
+    trash_file: ({ path }) => {
+      if (window.__mock.trashFail) throw new Error("no trash is available here");
+      (window.__mock.trashed ||= []).push(path);
+      delete files[path];
+      const dir = path.replace(/\/[^/]*$/, ""), name = path.replace(/^.*\//, "");
+      for (const [key, listing] of Object.entries(folders)) {
+        const [root, rel] = key.split("|");
+        if ((rel ? root + "/" + rel : root) === dir) listing.entries = listing.entries.filter((e) => e.name !== name);
+      }
+    },
     "plugin:app|version": () => "9.9.9",
     "plugin:window|is_decorated": () => true,
     "plugin:window|is_maximized": () => false,
@@ -498,6 +512,84 @@ await step("added folders tree: add, expand, subfolder, open nested file, collap
   await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
 });
 
+await step("pinned recent files pane stays open beside the document; a narrow window overlays it; the pin is remembered", async () => {
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  await page.click("#files-dock");
+  await page.locator("#content.docked").waitFor();
+  const pane = await page.locator("#files").boundingBox();
+  const doc = await page.locator("#reader:not([hidden]), #editor:not([hidden])").first().boundingBox();
+  expect(doc.x >= pane.x + pane.width - 1, `the document starts at ${doc.x}, under the pane that ends at ${pane.x + pane.width}`);
+  await axe("pinned recent files pane", "#files");
+  if (process.env.SMOKE_DOCK_SHOT) await page.screenshot({ path: process.env.SMOKE_DOCK_SHOT });
+  await page.keyboard.press("Escape");
+  await page.mouse.click(doc.x + doc.width / 2, doc.y + 150);
+  expect(await page.locator("#files:not([hidden])").count() === 1, "a pinned pane closed after Escape or a click in the document");
+  await page.locator("#files-list .file-row", { hasText: "renamed.md" }).locator(".file-main").click();
+  expect(await page.locator("#files:not([hidden])").count() === 1, "a pinned pane closed after opening a file from it");
+  await page.setViewportSize({ width: 700, height: 760 });
+  await page.waitForFunction(() => !document.querySelector("#content.docked"));
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.locator("#content.docked").waitFor();
+  const second = await ctx.newPage();                       // a second start of the app (same stored settings)
+  await second.addInitScript(installMock, { note: NOTE });
+  await second.goto(url);
+  await second.locator("#content.docked").waitFor({ timeout: 10000 });
+  expect(await second.locator("#files:not([hidden])").count() === 1, "a pinned pane was not open after a restart");
+  await second.close();
+  await page.click("#files-dock");
+  await page.waitForFunction(() => !document.querySelector("#content.docked"));
+  await page.keyboard.press("Escape");
+  await page.locator("#files[hidden]").waitFor({ state: "attached" });
+});
+
+await step("a file can be moved to the Recycle Bin or Trash from the folder tree (Delete key) and from the recent files list", async () => {
+  await page.evaluate(() => { window.__mock.ask = false; window.__mock.nextDir = "/notes"; });
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  await page.click("#files-add-folder");
+  const root = page.locator('#folders-tree [role="treeitem"].tree-root', { hasText: "notes" });
+  await root.waitFor();
+  await root.click();
+  const readme = page.locator('#folders-tree [role="treeitem"].tree-file', { hasText: "readme.md" });
+  await readme.waitFor();
+  await readme.focus();
+  await page.keyboard.press("Delete");                      // the confirm answers no: nothing happens
+  await page.waitForFunction(() => window.__mock.calls.some((c) => c.cmd === "plugin:dialog|message"), null, { timeout: 4000 })
+  expect(!(await page.evaluate(() => window.__mock.trashed))?.length, "a file was moved to the trash although the confirm was declined");
+  await page.evaluate(() => { window.__mock.ask = true; window.__mock.trashFail = true; });
+  await readme.focus();
+  await page.keyboard.press("Delete");                      // the system can't move it: the file stays and the page says so
+  await page.locator("#toast", { hasText: "was not deleted" }).waitFor({ timeout: 5000 })
+  expect(await readme.count() === 1, "the row disappeared although the trash failed");
+  await page.evaluate(() => { window.__mock.trashFail = false; });
+  await readme.focus();
+  await page.keyboard.press("Delete");
+  await readme.waitFor({ state: "detached", timeout: 5000 });
+  const trashed = await page.evaluate(() => window.__mock.trashed);
+  expect(trashed.length === 1 && trashed[0] === "/notes/readme.md", "the wrong path was moved to the trash: " + JSON.stringify(trashed));
+  const message = (await call("plugin:dialog|message")).at(-1).args;
+  expect(/readme\.md/.test(String(message.message ?? message)), "the confirm did not name the file");
+  // from the recent files list
+  await page.evaluate(() => { window.__mock.files["/docs/zzz-delete-me.md"] = "# Delete me\n"; window.__mock.next = "/docs/zzz-delete-me.md"; });
+  await page.click("#files-open");
+  await page.locator(".tab.active", { hasText: "zzz-delete-me.md" }).waitFor({ timeout: 5000 });
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  const row = page.locator("#files-list .file-row", { hasText: "zzz-delete-me.md" });
+  await row.hover();
+  if (process.env.SMOKE_DEL_SHOT) await page.screenshot({ path: process.env.SMOKE_DEL_SHOT });
+  await row.locator(".file-del").click();
+  await row.waitFor({ state: "detached", timeout: 5000 });
+  expect((await page.evaluate(() => window.__mock.trashed)).length === 2, "the recent files list's delete did not move the file");
+  expect(await page.locator(".tab", { hasText: "zzz-delete-me.md" }).count() === 0, "the deleted file's tab stayed open");
+  await page.locator('#folders-actions button[aria-label="Remove folder notes from the list"]').click();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => { window.__mock.ask = false; });
+  await page.locator(".tab", { hasText: "renamed.md" }).first().click();
+  await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
+});
+
 await step("a hostile document renders as text and runs nothing", async () => {
   await page.evaluate(() => { window.__mock.next = "/docs/hostile.md"; });
   await page.keyboard.press("Control+o");
@@ -523,6 +615,61 @@ await step("a very large file opens in the editor within seconds", async () => {
   expect(Date.now() - started < 15000, `took ${Date.now() - started} ms`);
   await page.keyboard.press("Control+w");
   await page.locator(".tab.active", { hasText: "renamed.md" }).waitFor({ timeout: 5000 });
+});
+
+await step("right-click menus: a tab and files in the pane offer Open file location and Delete", async () => {
+  const menuText = () => page.locator("#menu button").allTextContents();
+  await page.evaluate(() => { window.__mock.ask = false; window.__mock.trashed = []; window.__mock.nextDir = "/notes"; window.__mock.files["/notes/menu.md"] = "# Menu\n"; window.__mock.folders["/notes|"].entries.push({ name: "menu.md", is_dir: false }); });
+  // a tab
+  await page.locator(".tab", { hasText: "renamed.md" }).first().click({ button: "right" });
+  await page.locator("#menu:not([hidden])").waitFor();
+  let items = (await menuText()).join(" | ");
+  expect(/Open file location/.test(items) && /Move to (Trash|Recycle Bin)/.test(items), "the tab menu lacks Open file location or the delete entry: " + items);
+  await page.keyboard.press("Escape");
+  // a file in a folder tree
+  await page.keyboard.press("Control+Shift+R");
+  await page.locator("#files:not([hidden])").waitFor();
+  await page.click("#files-add-folder");
+  const root = page.locator('#folders-tree [role="treeitem"].tree-root', { hasText: "notes" });
+  await root.waitFor();
+  await root.click();
+  const file = page.locator('#folders-tree [role="treeitem"].tree-file', { hasText: "menu.md" });
+  await file.waitFor();
+  await file.click({ button: "right" });
+  await page.locator("#menu:not([hidden])").waitFor();
+  items = (await menuText()).join(" | ");
+  for (const want of ["Open", "Pin to recent files", "Copy file path", "Open file location", "Rename file", "Move to"]) expect(items.includes(want), `the tree file menu lacks "${want}": ${items}`);
+  const order = ["Pin to recent files", "Copy file path", "Open file location", "Rename file", "Move to"].map((w) => items.indexOf(w));
+  expect(order.every((v, k) => k === 0 || v > order[k - 1]), "the tree file menu is not in the same order as a tab's: " + items);
+  if (process.env.SMOKE_MENU_SHOT) await page.screenshot({ path: process.env.SMOKE_MENU_SHOT });
+  await page.locator("#menu button", { hasText: "Open file location" }).click();
+  await page.waitForFunction(() => window.__mock.calls.some((c) => c.cmd === "reveal_in_folder"), null, { timeout: 4000 });
+  // pin and rename work on a file that is not open
+  await file.click({ button: "right" });
+  await page.locator("#menu button", { hasText: "Pin to recent files" }).click();
+  await page.locator("#toast", { hasText: "Pinned menu.md" }).waitFor({ timeout: 4000 });
+  await file.click({ button: "right" });
+  await page.locator("#menu button", { hasText: "Rename file" }).click();
+  await page.locator("#dialog input").fill("menu-renamed.md");
+  await page.keyboard.press("Enter");
+  const renamed = page.locator('#folders-tree [role="treeitem"].tree-file', { hasText: "menu-renamed.md" });
+  await renamed.waitFor({ timeout: 5000 });
+  expect(await page.locator("#files-list .file-row", { hasText: "menu-renamed.md" }).count() === 1, "the renamed pinned file is missing from the recent list");
+  await page.evaluate(() => { window.__mock.ask = true; });
+  await renamed.click({ button: "right" });
+  await page.locator("#menu button", { hasText: "Move to" }).click();
+  await renamed.waitFor({ state: "detached", timeout: 5000 });
+  expect((await page.evaluate(() => window.__mock.trashed)).join() === "/notes/menu-renamed.md", "the tree menu's delete moved the wrong file");
+  // a file in the recent list
+  const row = page.locator("#files-list .file-row").first();
+  await row.click({ button: "right" });
+  await page.locator("#menu:not([hidden])").waitFor();
+  items = (await menuText()).join(" | ");
+  for (const want of ["Open", "Pin to recent files", "Copy file path", "Rename file", "Move to", "Remove from recent files"]) expect(items.includes(want), `the recent file menu lacks "${want}": ${items}`);
+  await page.keyboard.press("Escape");
+  await page.locator('#folders-actions button[aria-label="Remove folder notes from the list"]').click();
+  await page.evaluate(() => { window.__mock.ask = false; });
+  await page.keyboard.press("Escape");
 });
 
 await step("closing the tab returns to the home screen", async () => {
@@ -641,6 +788,48 @@ await step("Ctrl+Shift+C copies the selection like Ctrl+C: in the reader, the ed
   expect(now.length === start + 3 && now.at(-1) === "needle", "the text field selection was not copied: " + JSON.stringify(now.at(-1)));
   await page.keyboard.press("Escape"); await page.keyboard.press("Control+e"); await page.waitForTimeout(200);
   await page.keyboard.press("Control+w"); await page.waitForTimeout(300);
+});
+
+await step("Autosave: waits for the chosen pause, saves when the window is left, and the delay is a setting", async () => {
+  await page.evaluate(() => { window.__mock.files["/docs/auto.md"] = "# Auto\n"; window.__mock.next = "/docs/auto.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "auto.md" }).waitFor({ timeout: 15000 });
+  await page.keyboard.press("Control+e"); await page.waitForTimeout(500);
+  const setDelay = async (label) => {
+    await openMenu(); await menuItem("Settings").click();
+    const sw = page.locator('#dialog [role="switch"]', { hasText: "Saves a file after you pause" });
+    await sw.waitFor();
+    if ((await sw.getAttribute("aria-checked")) !== "true") await sw.click();
+    await page.locator('#dialog .row[data-label="Autosave delay"]').click();
+    await page.locator("#dialog .opt", { hasText: label }).first().click();
+    await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  };
+  const saves = () => page.evaluate(() => window.__mock.calls.filter((c) => c.cmd === "save_text_file" && c.args.path === "/docs/auto.md").length);
+  await setDelay("3 seconds");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("one");
+  await page.waitForTimeout(1500);
+  expect(await saves() === 0, "autosaved before the 3 second pause was over");
+  await page.waitForTimeout(3000);
+  expect(await saves() === 1, "no autosave after the 3 second pause");
+  // a longer delay waits longer, but leaving the window saves at once
+  await setDelay("1 minute");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("two");
+  await page.waitForTimeout(4000);
+  expect(await saves() === 1, "a 1 minute delay saved after 4 seconds");
+  await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true }); document.dispatchEvent(new Event("visibilitychange", { bubbles: true })); });
+  await page.waitForFunction(() => window.__mock.calls.filter((c) => c.cmd === "save_text_file" && c.args.path === "/docs/auto.md").length === 2, null, { timeout: 4000 });
+  await page.evaluate(() => { delete document.visibilityState; document.dispatchEvent(new Event("visibilitychange", { bubbles: true })); });
+  const body = await page.evaluate(() => window.__mock.files["/docs/auto.md"]);
+  expect(/onetwo|one.*two/s.test(body), "the saved text lacks the typing: " + JSON.stringify(body));
+  // restore: switch autosave off again
+  await openMenu(); await menuItem("Settings").click();
+  const sw = page.locator('#dialog [role="switch"]', { hasText: "Saves a file after you pause" }); await sw.waitFor();
+  if ((await sw.getAttribute("aria-checked")) === "true") await sw.click();
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
 });
 
 await step("Settings > Close tags in code: off adds no closing tag in an html block, on adds it", async () => {

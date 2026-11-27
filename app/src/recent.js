@@ -61,13 +61,36 @@ export function normalize(raw) {
     .filter((r) => typeof r.ref === "string" && r.ref && typeof r.name === "string");
 }
 
-/** The list with `entry` moved to the front. Pin state and an earlier preview are kept unless the entry brings new ones. */
-export function touch(list, entry, limit = LIMIT) {
+/** The same file can reach the app under different addresses (on Android, a file saved through one location and opened
+ *  through another gets two document addresses). Two entries with the same name and the same non-empty text summary
+ *  are taken to be that one file. */
+const sameContent = (a, b) => a.name === b.name && a.words > 0 && a.words === b.words && a.title === b.title && a.preview === b.preview;
+
+/** The list with `entry` moved to the front. Pin state and an earlier preview are kept unless the entry brings new ones.
+ *  With `aliases`, an entry that is the same file under another address is merged into it (keeping a pin). */
+export function touch(list, entry, limit = LIMIT, aliases = false) {
   const old = list.find((r) => r.ref === entry.ref);
   const merged = { title: "", preview: "", words: 0, pinned: false, ...old };
   for (const [k, v] of Object.entries(entry)) if (v !== undefined && v !== null) merged[k] = v;
+  let rest = list.filter((r) => r.ref !== entry.ref);
+  if (aliases) {
+    const twins = rest.filter((r) => sameContent(r, merged));
+    if (twins.some((r) => r.pinned)) merged.pinned = true;
+    rest = rest.filter((r) => !twins.includes(r));
+  }
   let others = 0;
-  return [merged, ...list.filter((r) => r.ref !== entry.ref)].filter((r) => r.pinned || ++others <= limit);
+  return [merged, ...rest].filter((r) => r.pinned || ++others <= limit);
+}
+
+/** The list with every group of same-file entries (see touch) reduced to its newest entry, which keeps any pin. */
+export function mergeAliases(list) {
+  const out = [];
+  for (const r of list) {
+    const twin = out.find((o) => sameContent(o, r));
+    if (!twin) out.push(r);
+    else if (r.pinned) twin.pinned = true;
+  }
+  return out.length === list.length ? list : out;
 }
 
 export const setPinned = (list, ref, pinned) => list.map((r) => (r.ref === ref ? { ...r, pinned: !!pinned } : r));

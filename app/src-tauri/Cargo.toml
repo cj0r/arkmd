@@ -1,6 +1,6 @@
 [package]
 name = "arkmd"
-version = "0.33.0"
+version = "0.34.0-7"
 description = "Lightweight Markdown viewer and editor"
 edition = "2021"
 
@@ -33,6 +33,13 @@ tauri-plugin-persisted-scope = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# Moves a deleted file to the Recycle Bin or Trash instead of erasing it.
+trash = "5"
+
 # Reads a picture from the clipboard when the web view can't (Paste in the editor on Linux).
 arboard = { version = "3", default-features = false, features = ["image-data", "wayland-data-control"] }
 png = "0.18"
+
+[target.'cfg(windows)'.dependencies]
+# Tells a fixed local drive (which has a Recycle Bin) from a network or removable one (which has none).
+windows-sys = { version = "0.52", features = ["Win32_Storage_FileSystem"] }

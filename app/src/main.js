@@ -7,6 +7,7 @@ import { svg } from "./icons.js";
 import { createTabs } from "./tabs.js";
 import { docText } from "./eol.js";
 import { shouldAutoCheck, summarizeNotes, describeDownload, restorePending } from "./updates.js";
+import { AUTOSAVE_DELAYS, AUTOSAVE_DEFAULT, normalizeDelay, autosaveWaitMs, delayLabel } from "./autosave.js";
 import { parseThemeCss, newThemeId } from "./usertheme.js";
 import { SHORTCUTS, KEY } from "./shortcuts.js";
 import { outline as parseOutline, currentIndex } from "./outline.js";
@@ -199,6 +200,7 @@ function updateStatus() {
 }
 
 function updateChrome() {
+  refreshDockedPane();
   const t = cur();
   const open = !!t;
   platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ${appTitle}` : appTitle);
@@ -646,6 +648,7 @@ async function save(as = false, quiet = false) {
       await platform.writeFile(t.ref, text);
     }
     t.saved = text;
+    t.autoSince = 0;                         // the autosave cap counts from the next unsaved change
     t.dirty = textOf(t) !== text;            // typing may have continued while a dialog was open
     addRecent(t.ref, t.name, text);
     if (!t.dirty) { hdb.deleteDraft(t.draftKey); t.hasDraft = false; }
@@ -685,15 +688,24 @@ async function checkExternal(t = cur()) {
 }
 
 let autosaveTimer;
+const autosaveSeconds = () => normalizeDelay(store.get("autosaveDelay", AUTOSAVE_DEFAULT));
+/** Wait for a pause in typing (the delay chosen in Settings), but never let continuous typing go unsaved for more than
+ *  a couple of minutes. A save also happens when the window is left (see autosaveNow). */
 function scheduleAutosave() {
   clearTimeout(autosaveTimer);
   const t = cur();
   if (!t || !t.ref || !t.dirty || !store.get("autosave", false)) return;
-  autosaveTimer = setTimeout(async () => {
-    if (cur() !== t || !t.dirty || !store.get("autosave", false)) return;
-    if (await changedOnDisk(t)) { if (!t.warnedDisk) { t.warnedDisk = true; toast(`${t.name} changed on disk, so it wasn't autosaved. Save to choose what to keep.`); } return; }
-    await save(false, true);
-  }, 2500);
+  if (!t.autoSince) t.autoSince = Date.now();         // when it first became unsaved: the cap counts from here
+  autosaveTimer = setTimeout(() => autosaveNow(t), autosaveWaitMs(autosaveSeconds(), t.autoSince, Date.now()));
+}
+
+/** Save the active tab now if autosave is on and it has unsaved changes (a pause in typing, or the window was left). */
+async function autosaveNow(t = cur()) {
+  clearTimeout(autosaveTimer);
+  if (!t || cur() !== t || !t.ref || !t.dirty || t.saving || !store.get("autosave", false)) return;
+  if (await changedOnDisk(t)) { if (!t.warnedDisk) { t.warnedDisk = true; toast(`${t.name} changed on disk, so it wasn't autosaved. Save to choose what to keep.`); } return; }
+  if (cur() !== t || !t.dirty) return;
+  await save(false, true);
 }
 
 function toggleMode() {
@@ -723,7 +735,7 @@ const recentOn = () => store.get("recentOn", true);
 function addRecent(ref, name, text) {
   if (!recentOn()) return;
   const summary = typeof text === "string" ? R.summarize(text) : {};
-  store.set("recent", R.touch(recents(), { ref, name, t: Date.now(), ...summary }));
+  store.set("recent", R.touch(recents(), { ref, name, t: Date.now(), ...summary }, undefined, !!platform.mobile));
   if (!$("files").hidden) renderFilesList();
 }
 function removeRecent(ref) { store.set("recent", R.remove(recents(), ref)); }
@@ -760,11 +772,16 @@ function togglePinCurrent() {
   const t = cur();
   if (!t) return;
   if (!t.ref) { toast("Save the file first: only saved files can be pinned."); return; }
+  togglePinRef(t.ref, t.name, textOf(t));
+}
+
+/** Pin or unpin a saved file by address; a file that isn't in the recent files list yet is added first. */
+function togglePinRef(ref, name, text) {
   if (!recentOn()) { toast("Turn on Remember recent files in Settings to pin files."); return; }
-  if (!recents().some((r) => r.ref === t.ref)) addRecent(t.ref, t.name, textOf(t));
-  const now = !R.isPinned(recents(), t.ref);
-  store.set("recent", R.setPinned(recents(), t.ref, now));
-  toast(now ? `Pinned ${t.name}` : `Unpinned ${t.name}`);
+  if (!recents().some((r) => r.ref === ref)) addRecent(ref, name, text);
+  const now = !R.isPinned(recents(), ref);
+  store.set("recent", R.setPinned(recents(), ref, now));
+  toast(now ? `Pinned ${name}` : `Unpinned ${name}`);
   renderRecents(); renderTabs();
   if (!$("files").hidden) renderFilesList();
 }
@@ -924,10 +941,17 @@ function treeRowElement(row, activeRef, isTabStop) {
     const label = document.createElement("span");
     label.className = "tree-label"; label.textContent = row.name;
     el.append(spacer, label);
+    if (platform.trashFile) {
+      const del = document.createElement("button");
+      del.className = "tree-del"; del.tabIndex = -1;       // the Delete key does this from the keyboard
+      del.innerHTML = svg("trash"); del.setAttribute("aria-label", `Move ${row.name} to the ${binName()}`); del.title = `Move the file to the ${binName()}`;
+      del.onclick = (e) => { e.stopPropagation(); deleteFile(row.ref || row.path, row.name); };
+      el.append(del);
+    }
     el.onclick = () => {
       treeActiveKey = row.key;
       closeFiles();
-      openRef(row.path, row.name);
+      openRef(row.ref || row.path, row.name);
     };
   } else {
     el.className = `tree-row tree-msg tree-msg-${row.messageKind || "info"}`;
@@ -1002,8 +1026,8 @@ function renderFoldersSection() {
 }
 
 async function addUserFolder() {
-  if (!platform.pickFolder || !platform.listFolder) return;
-  const picked = await platform.pickFolder(true).catch((e) => (toast(String(e.message || e)), null));
+  if (!(platform.pickTree || platform.pickFolder) || !platform.listFolder) return;
+  const picked = await (platform.pickTree ? platform.pickTree() : platform.pickFolder(true)).catch((e) => (toast(String(e.message || e)), null));
   if (!picked) return;
   const res = FL.addFolder(savedFolders(), picked);
   if (res.status === "duplicate") return;
@@ -1013,6 +1037,7 @@ async function addUserFolder() {
 
 function removeAddedFolder(path) {
   const actionsHadFocus = $("folders-actions").contains(document.activeElement);
+  if (platform.forgetFolder) platform.forgetFolder(path).catch(() => {});   // Android: give back the saved access
   const nextFolders = FL.removeFolder(savedFolders(), path);
   store.set("folders", nextFolders);
   saveExpanded(savedExpanded(nextFolders), nextFolders);
@@ -1032,6 +1057,7 @@ function removeAddedFolder(path) {
 function fileRow(r, isOpen) {
   const row = document.createElement("div");
   row.className = "file-row"; row.setAttribute("role", "listitem");
+  row.dataset.ref = r.ref; row.dataset.name = r.name;
   const main = document.createElement("button"); main.className = "file-main";
   const title = document.createElement("span"); title.className = "file-title"; title.textContent = R.displayName(r);
   main.append(title);
@@ -1049,8 +1075,43 @@ function fileRow(r, isOpen) {
   const x = document.createElement("button"); x.className = "file-act file-x";
   x.innerHTML = svg("close"); x.setAttribute("aria-label", `Remove ${r.name} from the list`); x.title = "Remove from the list (the file isn't touched)";
   x.onclick = () => { removeRecent(r.ref); renderFilesList(); };
-  row.append(main, pin, x);
+  if (canDeleteFile(r.ref)) {
+    row.classList.add("has-del");
+    const del = document.createElement("button"); del.className = "file-act file-del";
+    del.innerHTML = svg("trash"); del.setAttribute("aria-label", `Move ${r.name} to the ${binName()}`); del.title = `Move the file to the ${binName()}`;
+    del.onclick = () => deleteFile(r.ref, r.name);
+    row.append(main, del, pin, x);
+  } else row.append(main, pin, x);
   return row;
+}
+
+const binName = () => (/Windows/i.test(navigator.userAgent) ? "Recycle Bin" : "Trash");
+const canDeleteFile = (ref) => !!platform.trashFile && (platform.canDelete ? platform.canDelete(ref) : true);
+const deleteLabel = () => (platform.deletesForever ? "Delete file…" : `Move to ${binName()}…`);
+
+/** Move a file to the Recycle Bin or Trash after asking (Windows and Linux). The file is never erased: if the system
+ *  can't move it, nothing happens. An open tab for it is closed, and the lists are refreshed. */
+async function deleteFile(ref, name) {
+  if (!platform.trashFile) return;
+  const forever = !!platform.deletesForever;            // Android has no trash: the file is erased
+  const bin = binName();
+  const tab = tabs.findByRef(ref);
+  const note = tab ? (tab.dirty ? " The open tab has unsaved changes, which will be lost." : " Its open tab will be closed.") : "";
+  const asked = forever ? await platform.confirm(`Delete "${name}"? Android has no trash, so this can't be undone.${note}`, "Delete file", "Delete")
+    : await platform.confirm(`Move "${name}" to the ${bin}? You can restore it from there.${note}`, `Move to ${bin}`, `Move to ${bin}`);
+  if (!asked) return;
+  try {
+    await platform.trashFile(ref);
+  } catch (e) {
+    logError("Delete file", e);
+    toast(forever ? `Could not delete ${name}, so it is still there: ${e.message || e}` : `Could not move ${name} to the ${bin}, so it was not deleted: ${e.message || e}`);
+    return;
+  }
+  if (tab) { tab.dirty = false; await closeTab(tab.id); }
+  removeRecent(ref);
+  renderFilesList(); renderRecents(); renderTabs();
+  refreshExpandedRoots();
+  toast(forever ? `Deleted ${name}` : `Moved ${name} to the ${bin}`);
 }
 
 function renderFilesList() {
@@ -1095,32 +1156,67 @@ async function backfillRecents() {
   if (todo.length && !$("files").hidden) renderFilesList();
 }
 
-function openFiles() {
+// Windows and Linux: the pane can be pinned, so it stays open beside the document instead of closing after each use.
+// Under 760 px there is no room beside the document, so a pinned pane then overlays it and closes as usual.
+const DOCK_MIN_WIDTH = 760;
+const dockOn = () => !platform.mobile && !!store.get("filesDock", false);
+const dockActive = () => dockOn() && window.innerWidth >= DOCK_MIN_WIDTH;
+function applyDock() {
+  const on = dockActive() && !$("files").hidden;
+  $("content").classList.toggle("docked", on);
+  $("files").classList.toggle("docked", on);
+  const pinned = dockOn();
+  $("files-dock").setAttribute("aria-pressed", String(pinned)); $("files-dock").classList.toggle("on", pinned);
+  const label = pinned ? "Stop keeping this pane open" : "Keep this pane open";
+  $("files-dock").title = label; $("files-dock").setAttribute("aria-label", label);
+}
+let dockRefresh = 0;
+/** A pinned pane stays on screen while documents change: redraw its lists (not the folder listings) after a switch. */
+function refreshDockedPane() {
+  if (!dockActive() || $("files").hidden || dockRefresh) return;
+  dockRefresh = requestAnimationFrame(() => { dockRefresh = 0; renderFoldersSection(); renderFilesList(); });
+}
+
+function openFiles(focus = true) {
   closeMenu(); closeOutline();
   filesQuery = ""; $("files-q").value = "";
   renderFoldersSection();
   renderFilesList();
   $("files").hidden = false;
+  applyDock();
   positionFolderActions();
   refreshExpandedRoots();
   $("btn-files").setAttribute("aria-expanded", "true"); $("btn-files").classList.add("on");
-  if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
+  if (!focus) { /* opened at startup: leave the focus where it is */ }
+  else if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
   else $("files-q").focus();
   backfillRecents();
 }
 
-function closeFiles(restoreFocus = false) {
+/** Closes the pane, unless it is pinned: only the pane's own button (force) closes a pinned one. */
+function closeFiles(restoreFocus = false, force = false) {
   if ($("files").hidden) return;
+  if (dockActive() && !force) return;
   $("files").hidden = true;
+  applyDock();
   $("btn-files").setAttribute("aria-expanded", "false"); $("btn-files").classList.remove("on");
   if (restoreFocus) $("btn-files").focus({ preventScroll: true });
 }
 
-function toggleFiles() { if ($("files").hidden) openFiles(); else closeFiles(true); }
+function toggleFiles() { if ($("files").hidden) openFiles(); else closeFiles(true, true); }
 
 function wireFiles() {
   $("btn-files").innerHTML = svg("history");
   $("btn-files").onclick = toggleFiles;
+  if (!platform.mobile) {
+    $("files-dock").hidden = false; $("files-dock").innerHTML = svg("pin");
+    $("files-dock").onclick = () => { store.set("filesDock", !dockOn()); applyDock(); };
+    window.addEventListener("resize", () => applyDock());
+    if (dockOn()) openFiles(false);                  // a pinned pane is open from the start
+  } else {
+    const list = recents(), merged = R.mergeAliases(list);   // entries for one file under two addresses, from earlier versions
+    if (merged !== list) store.set("recent", merged);
+  }
   const filter = (pinnedOnly) => { filesPinnedOnly = pinnedOnly; store.set("filesPinnedOnly", pinnedOnly); renderFilesList(); };
   $("files-all").onclick = () => filter(false);
   $("files-pinned").onclick = () => filter(true);
@@ -1140,7 +1236,10 @@ function wireFiles() {
     const idx = treeRows.findIndex((r) => r.key === item.dataset.key);
     if (idx < 0) return;
     const row = treeRows[idx];
-    if (e.key === "ArrowDown") {
+    if (e.key === "Delete" && row.kind === "file" && platform.trashFile) {
+      e.preventDefault(); e.stopPropagation();
+      deleteFile(row.ref || row.path, row.name);
+    } else if (e.key === "ArrowDown") {
       e.preventDefault(); e.stopPropagation();
       if (idx < treeRows.length - 1) focusTreeKey(treeRows[idx + 1].key);
     } else if (e.key === "ArrowUp") {
@@ -1545,6 +1644,11 @@ function pickSize(after) {
   }, after);
 }
 
+function pickAutosaveDelay(after) {
+  choose("Autosave delay", [[null, AUTOSAVE_DELAYS.map((n) => ({ key: n, label: n === AUTOSAVE_DEFAULT ? `${delayLabel(n)} (default)` : delayLabel(n) }))]],
+    autosaveSeconds(), (n) => { store.set("autosaveDelay", n); scheduleAutosave(); }, after);
+}
+
 function addMenu() {
   const entries = [["New file", newFile, "", KEY.new], ["Open file…", openFile, "", KEY.open]];
   const all = recentOn() ? recents() : [];
@@ -1854,8 +1958,9 @@ function openSettings() {
   toggle("Close brackets in code", "Typing ( [ { or a quote inside a code block with a language, such as ```js, adds the closing one. Ordinary text is not affected.", "autoClose", true, (on) => editor.setAutoClose(on));
   toggle("Close tags in code", "Typing <div> or </ inside a code block with a language, such as ```html, adds or completes the closing tag. Ordinary text is not affected.", "autoCloseTags", true, (on) => editor.setTagClose(on));
   toggle("Spell check and suggestions", "Underlines misspelled words and lets the keyboard suggest and capitalize while you type in the editor. Off gives plain text entry, which suits code.", "spellcheck", true, (on) => editor.setTyping(on));
-  toggle("Autosave", "Saves a file a few seconds after you stop typing. Off by default. Earlier versions are still kept.", "autosave", false,
+  toggle("Autosave", "Saves a file after you pause typing (see Autosave delay), when you leave the window, and at least every two minutes of continuous typing. Off by default. Earlier versions are still kept.", "autosave", false,
     (on) => { if (on) scheduleAutosave(); });
+  row("Autosave delay", delayLabel(autosaveSeconds()), () => pickAutosaveDelay(back));
 
 
   section("Files");
@@ -1881,6 +1986,12 @@ function openSettings() {
     }
   });
 
+
+  if (!platform.mobile) {
+    section("Recent files");
+    toggle("Keep the recent files pane open", "Pins the pane beside the document, so files and folders are always one click away. You can also use the pin button in the pane. Off by default.", "filesDock", false,
+      (on) => { if (on && $("files").hidden) openFiles(false); applyDock(); });
+  }
 
   if (platform.update) {
     section("Updates");
@@ -1968,29 +2079,33 @@ async function shareDoc() {
 }
 
 /** Give the open file a new name in its own folder. Its history, recent-list entry and tab follow it. */
-async function renameFile() {
-  const t = cur();
-  if (!t?.ref || !platform.renameFile) return;
-  const typed = await askText("Rename file", "The file keeps its folder. Its extension stays unless you type another.", t.name, "Rename",
-    (v) => { const n = newFileName(v, t.name); return fileNameProblem(n) || (n === t.name ? "That is the current name." : null); });
+/** Rename a file: the current tab's by default, or any file by address (a file in the recent files pane). */
+async function renameFile(ref = cur()?.ref, oldName = cur()?.name) {
+  if (!ref || !platform.renameFile) return;
+  const t = tabs.findByRef(ref);                       // the open tab for it, if there is one
+  const typed = await askText("Rename file", "The file keeps its folder. Its extension stays unless you type another.", oldName, "Rename",
+    (v) => { const n = newFileName(v, oldName); return fileNameProblem(n) || (n === oldName ? "That is the current name." : null); });
   if (typed === null) return;
-  const name = newFileName(typed, t.name);
-  const old = t.ref;
+  const name = newFileName(typed, oldName);
+  const old = ref;
   try {
     const r = await platform.renameFile(old, name);
     if (r.access === false) {
       // Renamed, but the storage app gave the file an address ArkMD may not use. Keep the text open as an unsaved copy.
       store.set("recent", R.remove(recents(), old));
-      t.ref = null; t.name = r.name; t.saved = ""; t.dirty = true;
+      if (t) { t.ref = null; t.name = r.name; t.saved = ""; t.dirty = true; }
       if (!$("files").hidden) renderFilesList();
       updateChrome();
-      toast(`Renamed to ${r.name}. This storage app no longer lets ArkMD save to it, so the text is open as an unsaved copy; use Save as, or open the file again.`);
+      toast(t ? `Renamed to ${r.name}. This storage app no longer lets ArkMD save to it, so the text is open as an unsaved copy; use Save as, or open the file again.`
+        : `Renamed to ${r.name}. This storage app no longer lets ArkMD open it from here; use Open to find it again.`);
       return;
     }
     await withTimeout(hdb.moveVersions(fileKey(old), fileKey(r.ref), r.name)).catch(() => {});
-    t.ref = r.ref; t.name = r.name;
+    if (t) { t.ref = r.ref; t.name = r.name; }
     store.set("recent", R.rename(recents(), old, r.ref, r.name));
     if (!$("files").hidden) renderFilesList();
+    refreshExpandedRoots();                            // a folder tree shows the new name
+    renderRecents(); renderTabs();
     updateChrome();
     toast(`Renamed to ${r.name}`);
   } catch (e) { failed("rename the file", e); }
@@ -2076,7 +2191,21 @@ function tabEntries(t) {
   if (t.ref) entries.push(["Copy file path", () => platform.copyText(t.ref).then(() => toast("Path copied"), (e) => failed("copy the path", e))]);
   if (t.ref && platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(t.ref).catch((e) => failed("open the file location", e))]);
   if (t.ref && platform.renameFile) entries.push(["Rename file…", () => { activateTab(t.id); renameFile(); }]);
+  if (t.ref && canDeleteFile(t.ref)) entries.push([deleteLabel(), () => deleteFile(t.ref, t.name)]);
   if (closed.length) entries.push(["Reopen closed tab", reopenClosed, "", KEY.reopen]);
+  return entries;
+}
+
+/** The right-click menu of a file in the recent files pane (the recent list or a folder tree). It offers what a tab's
+ *  menu does for a saved file, in the same order and words, plus Open and (in the recent list) Remove from the list. */
+function paneFileEntries(ref, name, inRecents) {
+  const entries = [["Open", () => { closeFiles(); openRef(ref, name); }]];
+  if (recentOn()) entries.push([R.isPinned(recents(), ref) ? "Unpin from recent files" : "Pin to recent files", () => togglePinRef(ref, name)]);
+  entries.push(["Copy file path", () => platform.copyText(ref).then(() => toast("Path copied"), (e) => failed("copy the path", e))]);
+  if (platform.revealFile) entries.push([revealLabel(), () => platform.revealFile(ref).catch((e) => failed("open the file location", e))]);
+  if (platform.renameFile) entries.push(["Rename file…", () => renameFile(ref, name)]);
+  if (canDeleteFile(ref)) entries.push([deleteLabel(), () => deleteFile(ref, name)]);
+  if (inRecents) entries.push(["Remove from recent files", () => { removeRecent(ref); renderFilesList(); renderRecents(); }]);
   return entries;
 }
 
@@ -2132,11 +2261,19 @@ function onContextMenu(e, fromReader = false) {
   closeMenu();
   const frame = fromReader ? $("reader").getBoundingClientRect() : { left: 0, top: 0 };
   let at = { x: e.clientX + frame.left, y: e.clientY + frame.top };
-  const anchor = fromReader ? $("reader") : (target.closest?.("button, .tab, #bar, #editor") || document.body);
+  const anchor = fromReader ? $("reader") : (target.closest?.('button, .tab, #bar, #editor, #folders-tree [role="treeitem"], #files-list .file-row') || document.body);
   if (e.clientX === 0 && e.clientY === 0 && !fromReader) { const r = anchor.getBoundingClientRect(); at = { x: r.left + 12, y: r.bottom - 4 }; }
   const tabEl = target.closest?.(".tab");
+  const treeFileEl = !fromReader && target.closest?.('#folders-tree [role="treeitem"].tree-file');
+  const recentEl = !fromReader && target.closest?.("#files-list .file-row");
   let entries;
-  if (tabEl) {
+  if (treeFileEl) {
+    const row = treeRows.find((r) => r.key === treeFileEl.dataset.key);
+    if (!row) return;
+    entries = () => paneFileEntries(row.ref || row.path, row.name, false);
+  } else if (recentEl) {
+    entries = () => paneFileEntries(recentEl.dataset.ref, recentEl.dataset.name, true);
+  } else if (tabEl) {
     const tabId = tabEl.querySelector(".tab-main")?.dataset.tab, t = tabs.all.find((x) => String(x.id) === tabId);
     if (!t) return;
     entries = () => tabEntries(t);
@@ -2224,7 +2361,8 @@ function wire() {
   $("btn-save").onclick = () => save();
   $("btn-undo").onclick = () => editor.undo();
   $("btn-redo").onclick = () => editor.redo();
-  addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushDrafts(); });
+  addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { flushDrafts(); autosaveNow(); } });
+  platform.window?.onFocusChanged?.((focused) => { if (!focused) autosaveNow(); }).catch?.(() => {});     // desktop: another window took the focus
   addEventListener("pagehide", flushDrafts);
   addEventListener("focus", () => checkExternal());
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkExternal(); });
@@ -2261,7 +2399,7 @@ function wire() {
   document.addEventListener("pointerdown", (e) => { if (!$("menu").contains(e.target)) $("menu").hidden = true; });
   // The outline closes on a tap or click outside it (the toggle button handles its own click).
   document.addEventListener("pointerdown", (e) => { if (!$("outline").contains(e.target) && !$("btn-outline").contains(e.target)) closeOutline(); });
-  document.addEventListener("pointerdown", (e) => { if (!$("files").contains(e.target) && !$("btn-files").contains(e.target)) closeFiles(); });
+  document.addEventListener("pointerdown", (e) => { if (!$("files").contains(e.target) && !$("btn-files").contains(e.target) && !$("menu").contains(e.target)) closeFiles(); });   // a choice in a right-click menu of the pane is not a click outside it
 
   document.addEventListener("keydown", onKey);
   document.addEventListener("contextmenu", (e) => onContextMenu(e));
@@ -2317,7 +2455,7 @@ function wire() {
 
 function onKey(e) {
   const mod = e.ctrlKey || e.metaKey;
-  if (e.key === "Escape") { closeMenu(); dismissDialog(); closeOutline(); closeFiles(); }
+  if (e.key === "Escape") { const menuWasOpen = !$("menu").hidden; closeMenu(); dismissDialog(); closeOutline(); if (!menuWasOpen) closeFiles(); }   // Escape in a right-click menu of the pane closes the menu only
   // Arrow keys move between menu items / dialog options.
   if ((e.key === "ArrowDown" || e.key === "ArrowUp") && (!$("menu").hidden || !$("dialog-backdrop").hidden)) {
     const items = [...(!$("menu").hidden ? $("menu") : $("dialog")).querySelectorAll("button")];
