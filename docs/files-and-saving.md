@@ -9,7 +9,7 @@
 
 ## Recent files
 
-The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files flyout, the way back to notes you've already used without searching your folders.
+The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files pane, the way back to notes you've already used without searching your folders. It also shows folders you add as trees, and on Windows and Linux it can be pinned open beside the document, has right-click menus and can move a file to the Recycle Bin or Trash; see [Folders in the recent files list](reading-and-editing.md#folders-in-the-recent-files-list). On Android, files reached through two different addresses (same name and same text) are listed once.
 
 - **Cards with a preview.** Each file shows its title (its first heading, or its first line), its file name and folder, the first lines of its text, when you last opened or saved it, and its word count. Files that are open in a tab are marked **Open**.
 - **Newest first,** grouped as Today, Yesterday, the previous 7 and 30 days, and Older.
@@ -25,11 +25,11 @@ The clock button at the top left (or **Ctrl+Shift+R**) opens the Recent files fl
 
 - **Save** (the button in the top bar, or Ctrl+S) writes the document over the file it came from. Nothing is saved automatically unless you turn on Autosave (below). ArkMD keeps the text being replaced as an earlier version (see [History and recovery](#history-and-recovery)), but that is not a backup, so keep your own.
 - **Open file location** (**More** menu, Windows and Linux; **Show in File Explorer** on Windows, **Reveal in Finder** on macOS) shows the saved file in your file manager, selected in its folder where the system supports it, and otherwise opens the folder. It's hidden for a document with no file behind it yet, such as a new one or the welcome tour, and on Android, where documents have no folder to show.
-- **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time. On Windows and Linux, **Settings** > **Folder for new files** makes that first Save dialog start in a folder you choose; the dialog still lets you pick any other place.
-- **Several windows.** By default a second launch of ArkMD adds its file as a tab in the window that is already open. On Windows and Linux, turn on **Settings** > **Allow multiple windows** to open each launch in its own window; it applies the next time ArkMD starts.
+- **Save as…** (**More** menu, or Ctrl+Shift+S) writes the document to a new file you choose. The tab then belongs to the new file. A new, untitled document always uses Save as the first time. On Windows and Linux, **Settings** > **Files** > **Folder for new files** makes that first Save dialog start in a folder you choose; the dialog still lets you pick any other place.
+- **Several windows.** By default a second launch of ArkMD adds its file as a tab in the window that is already open. On Windows and Linux, turn on **Settings** > **Files** > **Allow multiple windows** to open each launch in its own window; it applies the next time ArkMD starts. If you open a file that another ArkMD window already has open, ArkMD shows a warning that saving from both can overwrite each other's changes.
 - A dot on a tab means it has changes that aren't saved. Closing a tab, or the window, with unsaved changes asks first.
-- **Autosave** is off by default. **Settings** > **Autosave** saves a file after you pause typing, when you leave the window (switch to another app, or the app goes to the background on Android), and at least every two minutes of continuous typing. **Autosave delay** sets how long the pause is: 3 seconds, 10 seconds (the default), 30 seconds or 1 minute; a longer delay means fewer rewrites of the file, which suits folders that a sync app watches. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.
-- Saving rewrites the whole file. If the app, the device or the connection to a synced or network folder fails in the middle, the file can be left incomplete.
+- **Autosave** is off by default. **Settings** > **Editing and saving** > **Autosave** saves a file after you pause typing, when you leave the window (switch to another app, or the app goes to the background on Android), and at least every two minutes of continuous typing. **Autosave delay** sets how long the pause is: 3 seconds, 10 seconds (the default), 30 seconds or 1 minute; a longer delay means fewer rewrites of the file, which suits folders that a sync app watches. It only applies to files that already exist (a new, untitled document still needs Save as), and it keeps an earlier version at most every few minutes so the file history isn't flooded.
+- Saving rewrites the whole file. On Windows and Linux it is written to a temporary file and moved into place (see below), so a crash leaves the old file; on Android, and if the connection to a synced or network folder fails in the middle, the file can be left incomplete.
 - Some places can't be written, for example a read-only folder or a document provider that only allows reading. ArkMD then says "Could not save"; use **Save as…** to write a copy somewhere else.
 
 ## Pictures
@@ -44,10 +44,13 @@ ArkMD checks when you return to its window or to a tab. If the file was changed 
 
 **More** > **Rename file…** gives the open file a new name in its own folder. The extension stays unless you type another. ArkMD does not replace a file that already exists under the new name, and a name that Windows would refuse (for example one with `:` or `*`) is refused everywhere. The tab, the Recent files entry (and its pin) and the file history follow the file. On Android, renaming works only where the document provider allows it; otherwise ArkMD says so.
 
+## Deleting a file
+
+On Windows and Linux, a file can be moved to the Recycle Bin (Windows) or Trash (Linux) from the recent files pane or a tab's right-click menu, after a confirmation; see [Folders in the recent files list](reading-and-editing.md#folders-in-the-recent-files-list). ArkMD refuses to delete a file in a location that has no Recycle Bin or Trash, such as a network share, so nothing is erased for good, and on Windows it checks the Recycle Bin afterwards and puts the file back if the system erased it instead. On Android, a file in a folder you added can be deleted after a confirmation that says it cannot be undone.
+
 ## Printing and exporting
 
-On desktop, 
-**More** > **Print…** (Ctrl+P) prints the rendered document in a light, ink-friendly style, and the print dialog can write a PDF. **More** > **Export as HTML…** saves a single page with your theme's colors, its text, tables and any local images embedded; links stay links, and it contains no scripts.
+On desktop, **More** > **Print…** (Ctrl+P) prints the rendered document in a light, ink-friendly style, and the print dialog can write a PDF. **More** > **Export as HTML…** saves a single page with your theme's colors, its text, tables and any local images embedded; links stay links, and it contains no scripts.
 
 On Android, **More** > **Print or save as PDF…** opens the system print dialog, which can also write a PDF, and **More** > **Share…** sends the document's text to another app (a very large document is too big to share this way; use Save as instead).
 
@@ -55,7 +58,7 @@ On Android, **More** > **Print or save as PDF…** opens the system print dialog
 
 - Files are read and saved as **UTF-8**. A byte-order mark at the start is dropped.
 - **Other encodings.** A file that isn't valid UTF-8 (Windows-1252 or Latin-1, UTF-16) is never opened for editing in place, because saving it as UTF-8 would change its characters. ArkMD says so and offers **Open a copy**: the text, decoded correctly, in a new unsaved tab named `… (copy).md`. **Save as** keeps it as UTF-8. The original file isn't changed.
-- **Size and type.** ArkMD opens files up to 20 MB and refuses ones that look like binary data, which would freeze the editor. A file over about 8 MB opens in the editor instead of the reading view, because drawing that much text takes many seconds (about 20 seconds for 20 MB on a desktop computer); switch to reading when you want it drawn. Between 1 and 8 MB the reading view skips drawing the parts that are off screen until you scroll to them.
+- **Size and type.** ArkMD opens files up to 20 MB and refuses ones that look like binary data, which would freeze the editor. A file over about 8 MB opens in the editor instead of the reading view, because drawing that much text takes many seconds (about 20 seconds for 20 MB on a desktop computer); switch to reading when you want it drawn. A document over 4 MB opens in the reading view in parts: the first 2 MB, cut at a heading, and a **Show the next part** bar adds the next part; the outline and Find in the reading view cover the parts shown so far, while the editor shows and searches the whole file. Between 1 and 4 MB the reading view skips drawing the parts that are off screen until you scroll to them.
 - **Saving is atomic** on Windows and Linux: the text goes to a temporary file in the same folder and replaces the original in one step, so a crash or a full disk during a save leaves the old file, never a half-written one. On Android, the system file provider does the write, and ArkMD builds the text before it opens the file, so a failure doesn't empty it.
 - A file's **line endings are kept**: a file that uses Windows line endings (CRLF) stays that way, and so does one that uses Unix endings (LF). A file that mixes the two is saved with Unix endings.
 - ArkMD doesn't otherwise rewrite your text: what you see in the editor is what is saved.

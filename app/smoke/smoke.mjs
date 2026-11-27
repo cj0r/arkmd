@@ -75,6 +75,7 @@ function installMock({ note }) {
         if ((rel ? root + "/" + rel : root) === dir) listing.entries = listing.entries.filter((e) => e.name !== name);
       }
     },
+    claim_file: () => !window.__mock.claimBusy,             // false: another window has the file open
     "plugin:app|version": () => "9.9.9",
     "plugin:window|is_decorated": () => true,
     "plugin:window|is_maximized": () => false,
@@ -830,6 +831,44 @@ await step("Autosave: waits for the chosen pause, saves when the window is left,
   const sw = page.locator('#dialog [role="switch"]', { hasText: "Saves a file after you pause" }); await sw.waitFor();
   if ((await sw.getAttribute("aria-checked")) === "true") await sw.click();
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+});
+
+await step("a file that another ArkMD window has open is opened with a warning; a free file is not", async () => {
+  await page.evaluate(() => { window.__mock.files["/docs/claim-a.md"] = "# A\n"; window.__mock.files["/docs/claim-b.md"] = "# B\n"; window.__mock.claimBusy = false; window.__mock.next = "/docs/claim-a.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "claim-a.md" }).waitFor({ timeout: 15000 });
+  await page.waitForTimeout(600);
+  expect(!/another ArkMD window/.test(await page.locator("#toast").textContent()), "a free file warned");
+  await page.evaluate(() => { window.__mock.claimBusy = true; window.__mock.next = "/docs/claim-b.md"; });
+  await page.keyboard.press("Control+o");
+  await page.locator("#toast", { hasText: "also open in another ArkMD window" }).waitFor({ timeout: 5000 });
+  await page.evaluate(() => { window.__mock.claimBusy = false; });
+  await page.keyboard.press("Control+w"); await page.keyboard.press("Control+w");
+});
+
+await step("a document over 4 MB is read in parts: the first part, then the next ones on request, every heading once", async () => {
+  const sections = 420;
+  await page.evaluate((n) => {
+    const para = ("Lorem ipsum dolor sit amet, consectetur adipiscing elit. ").repeat(190);
+    let text = "```sh\n# a comment that looks like a heading\n```\n\n";
+    for (let k = 0; k < n; k++) text += `## Section ${k}\n\n${para}\n\n`;
+    window.__mock.files["/docs/parts.md"] = text; window.__mock.next = "/docs/parts.md";
+  }, sections);
+  await page.keyboard.press("Control+o");
+  await page.locator(".tab.active", { hasText: "parts.md" }).waitFor({ timeout: 30000 });
+  const frame = page.frameLocator("#reader");
+  await frame.locator("#doc h2").first().waitFor({ timeout: 60000 });
+  const bar = frame.locator(".img-bar", { hasText: "shows it in parts" });
+  await bar.waitFor({ timeout: 10000 });
+  const first = await frame.locator("#doc h2").count();
+  expect(first > 100 && first < sections, `the first part has ${first} of ${sections} sections`);
+  let guard = 0;
+  while ((await bar.count()) && guard++ < 10) { await bar.locator("button").click(); await page.waitForTimeout(500); }
+  const ids = await frame.locator("#doc h2").evaluateAll((els) => els.map((e) => e.textContent.trim()));
+  expect(ids.length === sections, `after all parts ${ids.length} sections are shown, not ${sections}`);
+  expect(new Set(ids).size === sections && ids[sections - 1] === `Section ${sections - 1}`, "a section is missing or repeated");
+  expect(await frame.locator(".img-bar", { hasText: "shows it in parts" }).count() === 0, "the bar stayed after the last part");
+  await page.keyboard.press("Control+w");
 });
 
 await step("Settings > Close tags in code: off adds no closing tag in an html block, on adds it", async () => {

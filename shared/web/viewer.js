@@ -101,8 +101,8 @@
 
   // GitHub-style anchors on headings, so [text](#heading) links and [[Note#Heading]] can jump to them.
   function slugify(text) { return String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-"); }
-  function prepareHeadings(doc) {
-    var seen = {};
+  function prepareHeadings(doc, seen) {
+    seen = seen || {};
     doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach(function (h) {
       var base = slugify(h.textContent || ""), n = seen[base] = (seen[base] === undefined ? 0 : seen[base] + 1);
       h.id = n ? base + "-" + n : base;
@@ -287,6 +287,77 @@
     doc.insertBefore(bar, doc.firstChild);
   }
 
+  // A document over BIG_DOC characters is shown in parts of about PART_SIZE, so that the reading view does not hold a
+  // page of millions of elements in memory. The editor always shows the whole file.
+  var BIG_DOC = 4000000, PART_SIZE = 2000000;
+
+  /** Where the first part of src ends: the first heading line after `size` characters that is not inside a fenced
+   *  block, looking at most 1 MB further. 0 when there is no such place (the whole text is then shown). */
+  function partEnd(src, size) {
+    var fence = null, pos = 0, limit = Math.min(src.length, size + 1000000);
+    while (pos < limit) {
+      var nl = src.indexOf("\n", pos);
+      if (nl < 0) nl = src.length;
+      var line = src.slice(pos, nl);
+      var m = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+      if (m) {
+        if (!fence) fence = m[1];
+        else if (m[1].charAt(0) === fence.charAt(0) && m[1].length >= fence.length) fence = null;
+      } else if (!fence && pos >= size && /^#{1,6}[ \t]/.test(line)) return pos;
+      pos = nl + 1;
+    }
+    return 0;
+  }
+
+  function lineCount(text) { var n = 0, i = -1; while ((i = text.indexOf("\n", i + 1)) >= 0) n++; return n; }
+
+  /** The processing every rendered piece of the document gets (the whole page, or one more part). */
+  function finishPart(root, seen) {
+    callouts(root);
+    root.querySelectorAll("li.task-list-item input:checked").forEach(function (i) { i.parentNode.classList.add("task-done"); });
+    // Accessibility: task checkboxes are named by their item text; wide tables/code blocks are keyboard-scrollable.
+    root.querySelectorAll("li.task-list-item > input").forEach(function (i) {
+      i.setAttribute("aria-label", (i.parentNode.textContent || "").trim().slice(0, 120) || "Task");
+    });
+    root.querySelectorAll("pre, table").forEach(function (el) {
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("role", "region");
+      el.setAttribute("aria-label", el.tagName === "PRE" ? "Code" + (el.dataset.lang ? " (" + el.dataset.lang + ")" : "") : "Table");
+    });
+    prepareHeadings(root, seen);
+    loadLocalImages(root);
+    guardRemoteImages(root);
+    prepareDiagrams(root);
+  }
+
+  /** The bar after the shown part of a large document: what is left, and a button that renders the next part. */
+  function moreBar(doc, rest, offset, seen) {
+    var bar = document.createElement("div");
+    bar.className = "img-bar";
+    var text = document.createElement("span");
+    var button = document.createElement("button");
+    button.textContent = "Show the next part";
+    function describe() {
+      text.textContent = "This document is large, so the reading view shows it in parts. About " + (Math.round(rest.length / 100000) / 10) + " MB more. The editor shows all of it.";
+    }
+    describe();
+    button.onclick = function () {
+      var cut = partEnd(rest, PART_SIZE);
+      var part = cut > 0 && cut < rest.length ? rest.slice(0, cut) : rest;
+      var tmp = document.createElement("div");
+      tmp.innerHTML = md.render(part, { lineOffset: offset });
+      finishPart(tmp, seen);
+      var first = tmp.firstElementChild;
+      while (tmp.firstChild) bar.parentNode.insertBefore(tmp.firstChild, bar);
+      offset += lineCount(part);
+      rest = rest.slice(part.length);
+      if (rest) describe(); else bar.remove();
+      if (first && first.scrollIntoView) first.scrollIntoView({ block: "start" });
+    };
+    bar.append(text, button);
+    doc.appendChild(bar);
+  }
+
   window.render = function (src, scrollFraction) {
     var doc = document.getElementById("doc");
     var front = "";
@@ -294,24 +365,18 @@
     var lineOffset = 0;
     if (fm) { front = '<div class="frontmatter">' + esc(fm[1]) + "</div>"; lineOffset = fm[0].split("\n").length - 1; src = src.slice(fm[0].length); }
     if (!src.trim() && !front) { doc.innerHTML = '<p class="empty">Empty file</p>'; return; }
+    // A very large document is shown in parts (see partEnd): the first now, the rest when asked for
+    var rest = "";
+    if (src.length > BIG_DOC) {
+      var cut = partEnd(src, PART_SIZE);
+      if (cut > 0 && cut < src.length) { rest = src.slice(cut); src = src.slice(0, cut); }
+    }
     // A very large document: the browser skips layout of the blocks that are off screen until they are scrolled to
-    doc.classList.toggle("big", src.length > 1000000);
+    doc.classList.toggle("big", !!rest || src.length > 1000000);
     doc.innerHTML = front + md.render(src, { lineOffset: lineOffset });
-    callouts(doc);
-    doc.querySelectorAll("li.task-list-item input:checked").forEach(function (i) { i.parentNode.classList.add("task-done"); });
-    // Accessibility: task checkboxes are named by their item text; wide tables/code blocks are keyboard-scrollable.
-    doc.querySelectorAll("li.task-list-item > input").forEach(function (i) {
-      i.setAttribute("aria-label", (i.parentNode.textContent || "").trim().slice(0, 120) || "Task");
-    });
-    doc.querySelectorAll("pre, table").forEach(function (el) {
-      el.setAttribute("tabindex", "0");
-      el.setAttribute("role", "region");
-      el.setAttribute("aria-label", el.tagName === "PRE" ? "Code" + (el.dataset.lang ? " (" + el.dataset.lang + ")" : "") : "Table");
-    });
-    prepareHeadings(doc);
-    loadLocalImages(doc);
-    guardRemoteImages(doc);
-    prepareDiagrams(doc);
+    var headingSeen = {};
+    finishPart(doc, headingSeen);
+    if (rest) moreBar(doc, rest, lineOffset + lineCount(src), headingSeen);
     if (scrollFraction) {
       requestAnimationFrame(function () {
         window.scrollTo(0, scrollFraction * (document.body.scrollHeight - window.innerHeight));

@@ -305,6 +305,9 @@ Linked into the desktop and Android builds, across all platforms. Where a crate 
 | itoa | 1.0.19 | MIT OR Apache-2.0 | https://github.com/dtolnay/itoa |
 | javascriptcore-rs | 1.1.2 | MIT | https://github.com/tauri-apps/javascriptcore-rs (*) |
 | javascriptcore-rs-sys | 1.1.1 | MIT | https://github.com/tauri-apps/javascriptcore-rs (*) |
+| jiff | 1.0.1 | Unlicense OR MIT | https://github.com/BurntSushi/jiff |
+| jiff-core | 1.0.1 | Unlicense OR MIT | https://github.com/BurntSushi/jiff |
+| jiff-static | 1.0.1 | Unlicense OR MIT | https://github.com/BurntSushi/jiff |
 | jni | 0.21.1 | MIT/Apache-2.0 | https://github.com/jni-rs/jni-rs (*) |
 | jni | 0.22.4 | MIT OR Apache-2.0 | https://github.com/jni-rs/jni-rs |
 | jni-macros | 0.22.4 | MIT OR Apache-2.0 | https://github.com/jni-rs/jni-rs |
@@ -388,6 +391,8 @@ Linked into the desktop and Android builds, across all platforms. Where a crate 
 | plist | 1.10.4 | MIT | https://github.com/ebarnard/rust-plist/ (*) |
 | png | 0.18.1 | MIT OR Apache-2.0 | https://github.com/image-rs/image-png (*) |
 | polling | 3.11.0 | Apache-2.0 OR MIT | https://github.com/smol-rs/polling |
+| portable-atomic | 1.15.0 | Apache-2.0 OR MIT | https://github.com/taiki-e/portable-atomic |
+| portable-atomic-util | 0.2.8 | Apache-2.0 OR MIT | https://github.com/taiki-e/portable-atomic-util |
 | potential_utf | 0.1.6 | Unicode-3.0 | https://github.com/unicode-org/icu4x |
 | powerfmt | 0.2.1 | MIT OR Apache-2.0 | https://github.com/jhpratt/powerfmt |
 | precomputed-hash | 0.1.1 | MIT | https://github.com/emilio/precomputed-hash |
@@ -518,6 +523,7 @@ Linked into the desktop and Android builds, across all platforms. Where a crate 
 | tracing | 0.1.44 | MIT | https://github.com/tokio-rs/tracing (*) |
 | tracing-attributes | 0.1.31 | MIT | https://github.com/tokio-rs/tracing |
 | tracing-core | 0.1.36 | MIT | https://github.com/tokio-rs/tracing |
+| trash | 5.4.0 | MIT | https://github.com/ArturKovacs/trash |
 | tree_magic_mini | 3.2.2 | MIT | https://github.com/mbrubeck/tree_magic/ |
 | try-lock | 0.2.5 | MIT | https://github.com/seanmonstar/try-lock |
 | typed-path | 0.13.0 | MIT OR Apache-2.0 | https://github.com/chipsenkbeil/typed-path |
@@ -528,6 +534,7 @@ Linked into the desktop and Android builds, across all platforms. Where a crate 
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | https://github.com/unicode-rs/unicode-segmentation |
 | untrusted | 0.9.0 | ISC | https://github.com/briansmith/untrusted |
 | url | 2.5.9 | MIT OR Apache-2.0 | https://github.com/servo/rust-url (*) |
+| urlencoding | 2.1.3 | MIT | https://github.com/kornelski/rust_urlencoding |
 | urlpattern | 0.6.0 | MIT | https://github.com/denoland/rust-urlpattern (*) |
 | utf8_iter | 1.1.0 | Apache-2.0 OR MIT | https://github.com/hsivonen/utf8_iter (*) |
 | utf_types | 1.0.0 | Apache-2.0 OR MIT | https://github.com/hsivonen/utf_types |

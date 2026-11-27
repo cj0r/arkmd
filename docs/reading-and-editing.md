@@ -42,7 +42,7 @@ Right-click replaces the web engine's own menu with ArkMD's:
 
 - **In the editor:** a Document section (Save when there are changes, Find and replace, Outline, Switch to reading, Undo, Redo, Cut, Copy, Paste, Select all), then every command of the formatting panel (styles, headings, lists, quote, callout, code block, table, divider and, where supported, Image). A tall menu scrolls in a short window. Heading and Callout open a second list with a Back entry. The formatting applies to the selection or the cursor, and a callout type changes the callout you are in.
 - **In the reader:** Copy (with text selected), Select all, Edit this document, Find, Outline, Print and Export as HTML.
-- **On a tab:** Close, Close other tabs, Close tabs to the right, Save as, Pin to recent files, Copy file path, Show the file in your file manager, Rename file and Move to Recycle Bin / Trash. A tab with unsaved changes still asks before it closes.
+- **On a tab:** Close, Close other tabs, Close tabs to the right, Save as, Pin to recent files (or Unpin from recent files), Copy file path, Show in File Explorer (Open file location on Linux), Rename file, Move to Recycle Bin (Move to Trash on Linux) and, once a tab has been closed, Reopen closed tab. A tab with unsaved changes still asks before it closes.
 - **On a file in the recent files pane** (the recent list or a folder tree): the same file entries as a tab, in the same order: Pin to recent files (or Unpin from recent files), Copy file path, Show in File Explorer (Open file location on Linux), Rename file and Move to Recycle Bin (Move to Trash on Linux). Open comes first, and the recent list adds Remove from recent files at the end. It works whether or not the file is open; moving an open file to the bin closes its tab after asking.
 - **On the title bar and the home screen:** New file, Open file, Recent files, Reopen closed tab, Settings, Keyboard shortcuts and About.
 
@@ -75,10 +75,9 @@ On all platforms, you can add commonly used folders to the Recent files flyout (
 - **Keyboard navigation:** tab into the folder tree and use **Up** / **Down** to move between visible rows, **Right** to expand a folder or move to its first child, **Left** to collapse a folder or move to its parent, **Home** / **End** to jump to the top or bottom, and **Enter** or **Space** to toggle a folder or open a file.
 - **On Android:** **Add a folder** opens the system folder picker, and ArkMD keeps the access you give it until you remove the folder. Rows are larger for touch, and keyboard navigation doesn't apply.
 - **Keep the pane open (Windows and Linux):** the pin button in the pane's header (or **Settings** > **Recent files** > **Keep the recent files pane open**) docks the pane beside the document instead of floating over it, and it stays open when you open a file, press Escape or click in the document. A pinned pane is open from the start; the **Recent files** button in the top bar or **Ctrl+Shift+R** hides and shows it. In a window narrower than 760 pixels there is no room beside the document, so the pane floats and closes as usual. Press the pin again to unpin it.
-- **Delete a file (Windows and Linux):** the bin button on a file in the recent files list or in a folder tree, the **Delete** key on a focused file in a tree, or Move to Recycle Bin / Trash in a right-click menu ([see above](#right-click-menus-windows-and-linux)), asks first and then moves the file to the Recycle Bin (Windows) or Trash (Linux). Nothing is erased permanently: if the system can't move the file, it stays where it is and ArkMD says so. If the file is open in a tab, the tab closes, and unsaved changes in it are lost; the confirmation says so. Only Markdown files ArkMD opened or found in a folder you added can be moved. Android has no delete, because it has no trash to move files to.
-- **Remove a folder:** choose the **✕** button on a top-level folder's row. Removing a folder only forgets it from ArkMD; nothing on disk is changed.
+- **Delete a file:** on Windows and Linux, the bin button on a file in the recent files list or in a folder tree, the **Delete** key on a focused file in a tree, or Move to Recycle Bin / Trash in a right-click menu ([see above](#right-click-menus-windows-and-linux)), asks first and then moves the file to the Recycle Bin (Windows) or Trash (Linux). Nothing is erased permanently: if the system can't move the file, it stays where it is and ArkMD says so. If the file is open in a tab, the tab closes, and unsaved changes in it are lost; the confirmation says so. Only Markdown files ArkMD opened or found in a folder you added can be moved. On Android, a file in a folder you added can be deleted after a confirmation that says it cannot be undone, because Android has no trash; a file you picked with the file picker has no delete.
+- **Remove a folder:** choose the **✕** button on a top-level folder's row. Removing a folder forgets it from ArkMD (and releases the folder access permission on Android); nothing on disk is changed.
 - **Restricted access, nothing indexed:** ArkMD can list and read only inside the folders you explicitly add. Folders are read one level at a time only when you expand them or reopen the flyout with them expanded; nothing is indexed, watched or scanned in the background.
-- Desktop only; this section does not appear on Android.
 
 ## The formatting panel
 
@@ -93,7 +92,7 @@ While you edit, a floating bar offers the most-used Markdown formatting, so you 
 | Quote | Prefixes every selected line with `>` |
 | Callout | A menu of callout types (note, tip, info, warning, danger, question, example, quote). With the cursor inside an existing callout, choosing a type changes that callout's type (and its title, if it still has the old type's default title) instead of adding a new one |
 | Code block | Wraps the selection in a fenced block |
-| Image (Windows and Linux) | Choose a picture to copy next to the document and link (see Pictures below) |
+| Image (Windows and Linux) | Choose a picture to copy next to the document and link (see [Pictures](#pictures-windows-and-linux)) |
 | Table, Divider | Insert a table or a horizontal rule on its own lines |
 
 In a table, **Tab** moves to the next cell and selects its text, **Shift+Tab** to the previous one, and Tab in the last cell adds a row.
@@ -165,3 +164,12 @@ Each list and style shortcut works on the selected lines or text, and pressing i
 - **Anywhere else**, Tab indents and Shift+Tab un-indents as usual.
 
 Menus and dialogs work with the arrow keys and Esc, and Tab stays inside an open dialog, and the focus ring always shows where you are. In a dialog, Esc (and Back on Android) goes back one page when you got there from another one, and closes the dialog only from its first page. To close everything at once, use Close or Done, or tap outside the dialog.
+
+## Known limits
+
+- On the phone, the keyboard does not add `)` after a first `(` typed right after pressing Enter.
+- Two ArkMD windows can edit the same file. ArkMD warns when a window opens a file that another window has open, and it asks before saving over changes made elsewhere, but it does not stop you from editing in both.
+- Closing of brackets and tags (Settings > Editing and saving) does nothing in a fenced block without a language and in inline code.
+- A document over 4 MB is shown in parts in the reading view: the first 2 MB, then a bar with **Show the next part**. The outline and Find in the reading view cover the parts shown so far; the editor shows and searches the whole file. A document over 8 MB opens in the editor.
+- Local images next to a document are not loaded on Android.
+- macOS builds are experimental and unsupported, and screen reader support is best effort (checked with automated accessibility tests only). See [Support and stability](../SUPPORT.md).

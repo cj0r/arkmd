@@ -38,6 +38,14 @@ class UpdateCheck(private val ctx: Context) {
 
     /** The text of android.json. */
     fun fetchManifest(url: String): String {
+        // A release build reads only ArkMD's own release information, so this cannot be used to fetch (or send data to)
+        // any other address. Debug builds may point a test update anywhere.
+        if (!BuildConfig.DEBUG) {
+            val u = URL(url)
+            require(u.protocol == "https" && u.host == "github.com" && u.path.startsWith("/cj0r/arkmd/releases/") && !u.path.contains("..")) {
+                "update information comes from ArkMD's releases on github.com over https"
+            }
+        }
         val c = open(url)
         try {
             check(c.responseCode == 200) { "the update server answered ${c.responseCode}" }

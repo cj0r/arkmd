@@ -1,0 +1,1 @@
+First stable version: documents over 4 MB open in parts, a warning when a file is open in another window, a repaired Windows installer, and updated documentation and support statement.

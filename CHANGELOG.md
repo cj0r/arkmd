@@ -2,6 +2,22 @@
 
 Versions follow [semantic versioning](https://semver.org).
 
+## 1.0.0 (2026-11-27)
+
+First stable version. It adds no features beyond 0.34.0: this release is fixes, documentation and a support statement. See SUPPORT.md for what is supported and how updates are published.
+
+### Changed
+- Documents over 4 MB open in the reading view in parts: the first 2 MB, cut at a heading, and a "Show the next part" bar adds the next. A 15 MB document needs about half the memory and renders its first part in about a tenth of the time. Documents over 8 MB still open in the editor.
+- Opening a file that another ArkMD window has open shows a warning that saving from both can overwrite each other's changes (Windows and Linux, with Allow multiple windows on).
+- The documentation, README and store description describe the features of 0.32.0 to 0.34.0, add a Known limits section, and mark macOS as experimental and unsupported. SUPPORT.md describes support, versioning and update channels.
+
+### Fixed
+- Windows installer: a `.md`, `.markdown`, `.mdown` or `.mkd` association that pointed at ArkMD's own class is repaired on install, and uninstalling removes the class, the saved previous handler, the empty extension keys and the remembered install folder. An update keeps them.
+- Windows: a file opened by double-click or Open with is the same file as one chosen in the file dialog, so it no longer gets a second recent entry. Entries already stored twice are merged at start, keeping the newer one, its pin and its preview.
+- Windows: a network path (`\\server\share\...`) given on the command line opens instead of being turned into an invalid path.
+- Renaming refuses folders. A window holds at most 256 file locks and removes stale lock files at start.
+- Android: the update check reads its information only from ArkMD's releases on github.com.
+
 ## 0.34.0 (2026-11-27)
 
 ### Added

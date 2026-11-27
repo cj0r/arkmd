@@ -54,7 +54,7 @@ ArkMD stores the file's text in its settings, so the theme keeps working if you 
 
 ## Contrast mode
 
-Several official themes use colors that are hard to read, such as pale text on a light background. By default ArkMD makes every text color reach at least a 4.5:1 contrast ratio (WCAG 2.2 level AA). It changes only the lightness of a color, so its hue stays, and only when a color falls below that ratio. The selection color is adjusted the same way: it is moved away from the background until it can be seen, as far as text on it stays at 4.5:1, and selected text in code blocks and in the reader is shown in the main text color.
+Several official themes use colors that are hard to read, such as pale text on a light background. By default ArkMD makes every text color reach at least a 4.5:1 contrast ratio (WCAG 2.2 level AA). It changes only the lightness of a color, so its hue stays, and only when a color falls below that ratio. Selected text uses inverted colors in both the editor and the reader: the theme's text color is the fill and selected text takes the page color (at least 7.5:1 contrast in every built-in theme).
 
 To see the official colors exactly, switch it off: **More** > **Settings** > **Contrast (WCAG AA)**. The setting applies to every theme.
 

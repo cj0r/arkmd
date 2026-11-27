@@ -2,7 +2,7 @@
 
 ## Install
 
-Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest) and follow the steps for [Android, Windows and Linux](../README.md#install). To update, install the new release over the old one; your settings stay. On Windows and Linux, **Settings** > **Check for updates now** does that for you. On Android it opens the download, and [Obtainium or ArkMD's F-Droid repository](../README.md#install) can fetch new versions in the background.
+Download the file for your platform from the [latest release](https://github.com/cj0r/arkmd/releases/latest) and follow the steps for [Android, Windows and Linux](../README.md#install). To update, install the new release over the old one; your settings stay. On Windows and Linux, **Settings** > **Updates** > **Check for updates now** installs updates for you. On Android it hands updates to the store app that installed ArkMD, or downloads the APK for Android's installer; [Obtainium or ArkMD's F-Droid repository](../README.md#install) can fetch new versions in the background. To try pre-release test builds, turn on **Settings** > **Updates** > **Include beta versions** (off by default).
 
 ## The welcome tour
 
@@ -11,7 +11,7 @@ A fresh install opens a built-in welcome document that shows what ArkMD can draw
 ## Open a file
 
 - **From your file manager:** choose ArkMD in **Open with**. On Android you can also use **Share** on a piece of text to open it in ArkMD as a new document.
-- **From ArkMD:** tap **+** and choose **Open file…** (Ctrl+O on desktop). The same menu lists your newest files, and the clock button at the top left (Ctrl+Shift+R) opens the full Recent files list, with previews, search and pinning.
+- **From ArkMD:** tap **+** and choose **Open file…** (Ctrl+O on desktop). The same menu lists your newest files, and the clock button at the top left (Ctrl+Shift+R) opens the Recent files pane, with previews, search, pinned files, folders you add as trees and (on Windows and Linux) a pin button that keeps the pane open.
 - **A new document:** **+** > **New file** (Ctrl+N) starts an empty `Untitled.md` in editing mode.
 
 Every file opens in its own tab. Opening a file that is already open switches to its tab. The home screen, shown when no file is open, lists your recent files too.
@@ -26,4 +26,4 @@ When you change a file, a dot appears on its tab and a **Save** button appears i
 
 ## Make it yours
 
-The palette button opens the theme list. **More** > **Settings** (Ctrl+,) has the theme, text size, reading and editing fonts, contrast mode and update options. See [Themes and fonts](appearance.md).
+The palette button opens the theme list. **More** > **Settings** (Ctrl+,) has Appearance, Editing and saving (including autosave and delay), Files, Privacy and history, Recent files (desktop), Updates, Keyboard (desktop) and About. See [Themes and fonts](appearance.md).

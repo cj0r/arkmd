@@ -53,12 +53,31 @@ export function summarize(text) {
 /** Entries from storage, with the older { path, name } and { ref, name, t } shapes filled in. */
 export function normalize(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((r) => ({
-      ref: r?.ref ?? r?.path, name: r?.name, t: Number(r?.t) || 0, title: r?.title || "", preview: r?.preview || "",
+  const out = [];
+  const at = new Map();            // ref -> its entry in out
+  for (const r of raw) {
+    const e = {
+      ref: cleanRef(r?.ref ?? r?.path), name: r?.name, t: Number(r?.t) || 0, title: r?.title || "", preview: r?.preview || "",
       words: Number(r?.words) || 0, pinned: !!r?.pinned,
-    }))
-    .filter((r) => typeof r.ref === "string" && r.ref && typeof r.name === "string");
+    };
+    if (typeof e.ref !== "string" || !e.ref || typeof e.name !== "string") continue;
+    const first = at.get(e.ref);
+    if (!first) { at.set(e.ref, e); out.push(e); continue; }
+    // the same file listed twice (older versions stored a double-clicked Windows file as \\?\C:\... and a picked one as C:\...):
+    // the newer entry stays, and keeps a pin and a preview the other one had
+    if (e.pinned) first.pinned = true;
+    if (!first.preview && e.preview) { first.preview = e.preview; first.title = first.title || e.title; first.words = first.words || e.words; }
+  }
+  return out;
+}
+
+/** A Windows file address without the verbatim prefix older versions left on files opened by double-click:
+ *  \\?\C:\a.md is C:\a.md and \\?\UNC\server\share\a.md is \\server\share\a.md. Anything else is unchanged. */
+export function cleanRef(ref) {
+  if (typeof ref !== "string") return ref;
+  if (ref.startsWith("\\\\?\\UNC\\")) return "\\\\" + ref.slice(8);
+  if (ref.startsWith("\\\\?\\")) return ref.slice(4);
+  return ref;
 }
 
 /** The same file can reach the app under different addresses (on Android, a file saved through one location and opened
