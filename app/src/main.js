@@ -199,6 +199,7 @@ function updateStatus() {
 }
 
 function updateChrome() {
+  refreshDockedPane();
   const t = cur();
   const open = !!t;
   platform.setTitle(open ? `${t.dirty ? "• " : ""}${t.name} — ${appTitle}` : appTitle);
@@ -924,10 +925,17 @@ function treeRowElement(row, activeRef, isTabStop) {
     const label = document.createElement("span");
     label.className = "tree-label"; label.textContent = row.name;
     el.append(spacer, label);
+    if (platform.trashFile) {
+      const del = document.createElement("button");
+      del.className = "tree-del"; del.tabIndex = -1;       // the Delete key does this from the keyboard
+      del.innerHTML = svg("trash"); del.setAttribute("aria-label", `Move ${row.name} to the ${binName()}`); del.title = `Move the file to the ${binName()}`;
+      del.onclick = (e) => { e.stopPropagation(); deleteFile(row.path, row.name); };
+      el.append(del);
+    }
     el.onclick = () => {
       treeActiveKey = row.key;
       closeFiles();
-      openRef(row.path, row.name);
+      openRef(row.ref || row.path, row.name);
     };
   } else {
     el.className = `tree-row tree-msg tree-msg-${row.messageKind || "info"}`;
@@ -1002,8 +1010,8 @@ function renderFoldersSection() {
 }
 
 async function addUserFolder() {
-  if (!platform.pickFolder || !platform.listFolder) return;
-  const picked = await platform.pickFolder(true).catch((e) => (toast(String(e.message || e)), null));
+  if (!(platform.pickTree || platform.pickFolder) || !platform.listFolder) return;
+  const picked = await (platform.pickTree ? platform.pickTree() : platform.pickFolder(true)).catch((e) => (toast(String(e.message || e)), null));
   if (!picked) return;
   const res = FL.addFolder(savedFolders(), picked);
   if (res.status === "duplicate") return;
@@ -1013,6 +1021,7 @@ async function addUserFolder() {
 
 function removeAddedFolder(path) {
   const actionsHadFocus = $("folders-actions").contains(document.activeElement);
+  if (platform.forgetFolder) platform.forgetFolder(path).catch(() => {});   // Android: give back the saved access
   const nextFolders = FL.removeFolder(savedFolders(), path);
   store.set("folders", nextFolders);
   saveExpanded(savedExpanded(nextFolders), nextFolders);
@@ -1049,8 +1058,38 @@ function fileRow(r, isOpen) {
   const x = document.createElement("button"); x.className = "file-act file-x";
   x.innerHTML = svg("close"); x.setAttribute("aria-label", `Remove ${r.name} from the list`); x.title = "Remove from the list (the file isn't touched)";
   x.onclick = () => { removeRecent(r.ref); renderFilesList(); };
-  row.append(main, pin, x);
+  if (platform.trashFile) {
+    row.classList.add("has-del");
+    const del = document.createElement("button"); del.className = "file-act file-del";
+    del.innerHTML = svg("trash"); del.setAttribute("aria-label", `Move ${r.name} to the ${binName()}`); del.title = `Move the file to the ${binName()}`;
+    del.onclick = () => deleteFile(r.ref, r.name);
+    row.append(main, del, pin, x);
+  } else row.append(main, pin, x);
   return row;
+}
+
+const binName = () => (/Windows/i.test(navigator.userAgent) ? "Recycle Bin" : "Trash");
+
+/** Move a file to the Recycle Bin or Trash after asking (Windows and Linux). The file is never erased: if the system
+ *  can't move it, nothing happens. An open tab for it is closed, and the lists are refreshed. */
+async function deleteFile(ref, name) {
+  if (!platform.trashFile) return;
+  const bin = binName();
+  const tab = tabs.findByRef(ref);
+  const note = tab ? (tab.dirty ? " The open tab has unsaved changes, which will be lost." : " Its open tab will be closed.") : "";
+  if (!(await platform.confirm(`Move "${name}" to the ${bin}? You can restore it from there.${note}`, `Move to ${bin}`, `Move to ${bin}`))) return;
+  try {
+    await platform.trashFile(ref);
+  } catch (e) {
+    logError("Delete file", e);
+    toast(`Could not move ${name} to the ${bin}, so it was not deleted: ${e.message || e}`);
+    return;
+  }
+  if (tab) { tab.dirty = false; await closeTab(tab.id); }
+  removeRecent(ref);
+  renderFilesList(); renderRecents(); renderTabs();
+  refreshExpandedRoots();
+  toast(`Moved ${name} to the ${bin}`);
 }
 
 function renderFilesList() {
@@ -1095,32 +1134,64 @@ async function backfillRecents() {
   if (todo.length && !$("files").hidden) renderFilesList();
 }
 
-function openFiles() {
+// Windows and Linux: the pane can be pinned, so it stays open beside the document instead of closing after each use.
+// Under 760 px there is no room beside the document, so a pinned pane then overlays it and closes as usual.
+const DOCK_MIN_WIDTH = 760;
+const dockOn = () => !platform.mobile && !!store.get("filesDock", false);
+const dockActive = () => dockOn() && window.innerWidth >= DOCK_MIN_WIDTH;
+function applyDock() {
+  const on = dockActive() && !$("files").hidden;
+  $("content").classList.toggle("docked", on);
+  $("files").classList.toggle("docked", on);
+  const pinned = dockOn();
+  $("files-dock").setAttribute("aria-pressed", String(pinned)); $("files-dock").classList.toggle("on", pinned);
+  const label = pinned ? "Stop keeping this pane open" : "Keep this pane open";
+  $("files-dock").title = label; $("files-dock").setAttribute("aria-label", label);
+}
+let dockRefresh = 0;
+/** A pinned pane stays on screen while documents change: redraw its lists (not the folder listings) after a switch. */
+function refreshDockedPane() {
+  if (!dockActive() || $("files").hidden || dockRefresh) return;
+  dockRefresh = requestAnimationFrame(() => { dockRefresh = 0; renderFoldersSection(); renderFilesList(); });
+}
+
+function openFiles(focus = true) {
   closeMenu(); closeOutline();
   filesQuery = ""; $("files-q").value = "";
   renderFoldersSection();
   renderFilesList();
   $("files").hidden = false;
+  applyDock();
   positionFolderActions();
   refreshExpandedRoots();
   $("btn-files").setAttribute("aria-expanded", "true"); $("btn-files").classList.add("on");
-  if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
+  if (!focus) { /* opened at startup: leave the focus where it is */ }
+  else if (platform.mobile) $("files-list").querySelector(".file-main")?.focus({ preventScroll: true });
   else $("files-q").focus();
   backfillRecents();
 }
 
-function closeFiles(restoreFocus = false) {
+/** Closes the pane, unless it is pinned: only the pane's own button (force) closes a pinned one. */
+function closeFiles(restoreFocus = false, force = false) {
   if ($("files").hidden) return;
+  if (dockActive() && !force) return;
   $("files").hidden = true;
+  applyDock();
   $("btn-files").setAttribute("aria-expanded", "false"); $("btn-files").classList.remove("on");
   if (restoreFocus) $("btn-files").focus({ preventScroll: true });
 }
 
-function toggleFiles() { if ($("files").hidden) openFiles(); else closeFiles(true); }
+function toggleFiles() { if ($("files").hidden) openFiles(); else closeFiles(true, true); }
 
 function wireFiles() {
   $("btn-files").innerHTML = svg("history");
   $("btn-files").onclick = toggleFiles;
+  if (!platform.mobile) {
+    $("files-dock").hidden = false; $("files-dock").innerHTML = svg("pin");
+    $("files-dock").onclick = () => { store.set("filesDock", !dockOn()); applyDock(); };
+    window.addEventListener("resize", () => applyDock());
+    if (dockOn()) openFiles(false);                  // a pinned pane is open from the start
+  }
   const filter = (pinnedOnly) => { filesPinnedOnly = pinnedOnly; store.set("filesPinnedOnly", pinnedOnly); renderFilesList(); };
   $("files-all").onclick = () => filter(false);
   $("files-pinned").onclick = () => filter(true);
@@ -1140,7 +1211,10 @@ function wireFiles() {
     const idx = treeRows.findIndex((r) => r.key === item.dataset.key);
     if (idx < 0) return;
     const row = treeRows[idx];
-    if (e.key === "ArrowDown") {
+    if (e.key === "Delete" && row.kind === "file" && platform.trashFile) {
+      e.preventDefault(); e.stopPropagation();
+      deleteFile(row.path, row.name);
+    } else if (e.key === "ArrowDown") {
       e.preventDefault(); e.stopPropagation();
       if (idx < treeRows.length - 1) focusTreeKey(treeRows[idx + 1].key);
     } else if (e.key === "ArrowUp") {
@@ -1881,6 +1955,12 @@ function openSettings() {
     }
   });
 
+
+  if (!platform.mobile) {
+    section("Recent files");
+    toggle("Keep the recent files pane open", "Pins the pane beside the document, so files and folders are always one click away. You can also use the pin button in the pane. Off by default.", "filesDock", false,
+      (on) => { if (on && $("files").hidden) openFiles(false); applyDock(); });
+  }
 
   if (platform.update) {
     section("Updates");

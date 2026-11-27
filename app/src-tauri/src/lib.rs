@@ -589,6 +589,31 @@ fn list_folder(app: tauri::AppHandle, root: String, rel: String) -> Result<Folde
     list_folder_inner(&root_path, &rel, MAX_FOLDER_ENTRIES)
 }
 
+/// Whether a path names a file type ArkMD deletes on request: the Markdown types it opens, nothing else.
+fn is_trashable_name(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).map(|e| MARKDOWN_EXT.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
+}
+
+/// Move a Markdown file to the Recycle Bin or Trash (desktop only), from the recent files list or a folder tree.
+/// Never erases: if the system has no trash for that location it fails and the file stays. Only a file ArkMD was given
+/// access to (opened in a dialog, with Open with, or inside an added folder) can be moved; a symbolic link is removed,
+/// not the file it points to.
+#[cfg(desktop)]
+#[tauri::command]
+fn trash_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.is_absolute() { return Err("not a full path".into()); }
+    if !is_trashable_name(&p) { return Err("only Markdown files can be deleted here".into()); }
+    if !app.fs_scope().is_allowed(&p) { return Err("this file was not opened or added in ArkMD".into()); }
+    let meta = std::fs::symlink_metadata(&p).map_err(|e| e.to_string())?;
+    if meta.is_dir() { return Err("not a file".into()); }
+    trash::delete(&p).map_err(|e| e.to_string())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn trash_file(_path: String) -> Result<(), String> { Err("not available on this platform".into()) }
+
 /// The beta update address: the configured stable one with "latest" swapped for the rolling "beta" release, which holds
 /// the manifest of the newest build (stable or beta). None for an address that isn't a GitHub "latest" download, so a
 /// test build with a placeholder update address has no beta channel.
@@ -777,7 +802,7 @@ pub fn run() {
             app.manage(LogFile(log));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update])
+        .invoke_handler(tauri::generate_handler![take_launch_file, save_text_file, open_external, copy_text, open_linked, read_linked_image, import_image, save_pasted_image, paste_clipboard_image, log_event, log_tail, open_log_folder, reveal_in_folder, rename_file, set_multiple_instances, list_folder, check_beta_update, install_beta_update, trash_file])
         .run(tauri::generate_context!())
         .expect("error while running ArkMD");
 }
@@ -932,6 +957,12 @@ mod tests {
     }
 
         #[test]
+    fn only_markdown_types_can_be_trashed() {
+        for ok in ["/a/b.md", "/a/b.MD", "/a/b.markdown", "/a/b.txt", "C:\\a\\b.mkd"] { assert!(is_trashable_name(Path::new(ok)), "{ok}"); }
+        for no in ["/a/b.png", "/a/b", "/a/.md", "/a/b.md.exe", "/a/b.sh"] { assert!(!is_trashable_name(Path::new(no)), "{no}"); }
+    }
+
+    #[test]
     fn beta_url_swaps_the_latest_download_for_the_beta_release() {
         assert_eq!(beta_url("https://github.com/o/r/releases/latest/download/latest.json").as_deref(),
             Some("https://github.com/o/r/releases/download/beta/latest.json"));
