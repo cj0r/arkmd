@@ -1,0 +1,3 @@
+The right-click menu of a file in the recent files pane now matches a tab's menu: Pin to recent files, Copy file path, Show in File Explorer (Open file location on Linux), Rename file and Move to Recycle Bin (Trash on Linux); rename and pin work on a file that is not open. Includes the earlier right-click menus, delete fixes, Android delete in added folders, Android recent-file de-duplication and the pinned recent files pane.
+
+This is a beta build, published for testing: it can have bugs. To go back, turn off Settings > Updates > Include beta versions and install the latest release. Android cannot install an older version over a newer one without uninstalling ArkMD first.
