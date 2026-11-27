@@ -380,7 +380,23 @@ function openTab(props) {
   const text = props.text ?? "";
   const saved = props.saved ?? text;     // a recovered draft opens with its unsaved text and the text it was based on
   tabs.add({ ...props, saved, dirty: text !== saved, draftKey: props.draftKey || newDraftKey(), state: editor.newState(text) });
+  claimFile(props.ref, props.name);
   show();
+}
+
+// Windows and Linux: with several ArkMD windows allowed, tell the user when another window has the same file open.
+const claimedRefs = new Set();
+function claimFile(ref, name) {
+  if (!ref || !platform.claimFile || claimedRefs.has(ref)) return;
+  claimedRefs.add(ref);
+  platform.claimFile(ref).then((free) => {
+    if (free === false) toast(`${name} is also open in another ArkMD window. Saving from both can overwrite each other's changes: ArkMD asks before it saves over changes made elsewhere.`);
+  }).catch(() => {});
+}
+function releaseFile(ref) {
+  if (!ref || !claimedRefs.has(ref) || tabs.all.some((t) => t.ref === ref)) return;
+  claimedRefs.delete(ref);
+  platform.releaseFile?.(ref).catch(() => {});
 }
 
 function activateTab(id) {
@@ -407,6 +423,7 @@ async function closeTab(id = cur()?.id) {
   if (t.ref || t.saved || t.dirty) closed = pushClosed(closed, { ref: t.ref, name: t.name, saved: t.saved, dirty: t.dirty, mode: t.mode, scroll: t.scroll, state: t.state, draftKey: t.draftKey, chars: (t.saved?.length ?? 0) + (t.state?.doc?.length ?? 0) });
   hdb.deleteDraft(t.draftKey);
   tabs.close(id);
+  releaseFile(t.ref);
   if (historyTabId === id && !$("dialog-backdrop").hidden) closeDialog();       // its history dialog has nothing left to act on
   if (wasActive) show(); else updateChrome();
 }
@@ -637,7 +654,9 @@ async function save(as = false, quiet = false) {
     if (!t.ref || as) {
       const r = await platform.saveAs(t.name.includes(".") ? t.name : t.name + ".md", text, undefined, !t.ref && platform.pickFolder ? store.get("newFolder", "") : "");
       if (!r) return;
+      const oldRef = t.ref;
       t.ref = r.ref; t.name = r.name;
+      releaseFile(oldRef); claimFile(t.ref, t.name);
     } else {
       // Keep the text being replaced as a version first; a history problem never blocks the save.
       // An autosave keeps a version at most every few minutes, so history isn't filled by every pause in typing.
@@ -2102,6 +2121,7 @@ async function renameFile(ref = cur()?.ref, oldName = cur()?.name) {
     }
     await withTimeout(hdb.moveVersions(fileKey(old), fileKey(r.ref), r.name)).catch(() => {});
     if (t) { t.ref = r.ref; t.name = r.name; }
+    releaseFile(old); if (t) claimFile(t.ref, t.name);
     store.set("recent", R.rename(recents(), old, r.ref, r.name));
     if (!$("files").hidden) renderFilesList();
     refreshExpandedRoots();                            // a folder tree shows the new name

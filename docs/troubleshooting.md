@@ -4,9 +4,9 @@
 
 **Google Play Protect says "Harmful app blocked" (versions 0.6.0 to 0.14.0).** Those versions asked for the permission to install apps, which Play Protect treats as risky for software that isn't from Google Play. Version 0.14.1 and later don't ask for it. Uninstall the old version (its settings are removed), install the current release, and update by downloading each new version or with Obtainium.
 
-**A new version isn't in F-Droid yet.** F-Droid and similar apps refresh a repository only now and then. To check right away, open the app's **Settings**, then **Repositories**, tap the ArkMD repository and use its refresh button (or swipe down on the Latest screen). The new version appears under ArkMD's Versions once the refresh finishes.
+**A new version isn't in F-Droid yet.** F-Droid and similar apps refresh a repository only now and then. To check right away, open the app's **Settings**, then **Repositories**, tap the ArkMD repository and use its refresh button (or swipe down on the Latest screen). The new version appears under ArkMD's Versions once the refresh finishes. Beta test versions are never published to the F-Droid repository: only releases appear there.
 
-**"App not installed" when updating.** A build signed with a different key can't be installed over a release. This happens with an APK you built yourself without the release key. Uninstall the old version first (its settings are removed), then install the new one.
+**"App not installed" when updating.** A build signed with a different key can't be installed over a release. This happens with an APK you built yourself without the release key. It also happens when you try to install an older version over a newer beta: Android does not allow going back to an older version. Uninstall the old version first (its settings are removed), then install the new one.
 
 **"Could not save".** The place the file lives may be read-only, or its document provider may allow reading only. Use **More** > **Save as…** to write a copy somewhere else.
 
@@ -43,3 +43,5 @@
 **Support and contributing.** **More** > **Support** has the troubleshooting tools, the user guide, a link to report a bug, the Ko-fi and Buy Me a Coffee links to support the project, and a page on contributing on GitHub.
 
 **Something else.** [Open an issue](https://github.com/cj0r/arkmd/issues) with your ArkMD version (**More** > **About**), your platform and what you did. Security problems go through [SECURITY.md](../SECURITY.md).
+
+**Deleting a file says it cannot be moved to the Recycle Bin or Trash.** On Windows and Linux, ArkMD refuses to delete a file when the system has no Recycle Bin or Trash for its location (such as a network share), so that nothing is erased for good. Delete it in your file manager if you are sure.

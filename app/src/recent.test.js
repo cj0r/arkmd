@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarize, normalize, touch, mergeAliases, setPinned, rename, remove, folderOf, search, group, ago } from "./recent.js";
+import { summarize, normalize, cleanRef, touch, mergeAliases, setPinned, rename, remove, folderOf, search, group, ago } from "./recent.js";
 
 test("summarize takes the first heading as the title and the opening text as the preview", () => {
   const s = summarize("---\ntags: x\n---\n# Trip plan\n\nBook the **ferry** and [hotel](https://x.y).\n\n## Day one\n\n- [ ] Pack\n- Passports\n");
@@ -155,4 +155,25 @@ test("mergeAliases cleans a stored list of same-file entries and leaves other li
   assert.equal(merged[0].pinned, true);
   const plain = [{ ...base, ref: "a" }, { ...base, name: "U.md", ref: "c" }];
   assert.equal(mergeAliases(plain), plain);
+});
+
+test("cleanRef removes the Windows verbatim prefix and leaves other addresses alone", () => {
+  assert.equal(cleanRef("\\\\?\\C:\\Users\\me\\a.md"), "C:\\Users\\me\\a.md");
+  assert.equal(cleanRef("\\\\?\\UNC\\server\\share\\a.md"), "\\\\server\\share\\a.md");
+  for (const same of ["C:\\Users\\me\\a.md", "/data/me/a.md", "content://x/document/1", "", undefined]) assert.equal(cleanRef(same), same);
+});
+
+test("normalize merges a file stored with and without the verbatim prefix, keeping the newer entry, its pin and a preview", () => {
+  const raw = [
+    { ref: "C:\\r6\\c.md", name: "c.md", t: 5 },                                                  // newer, no preview
+    { ref: "\\\\?\\C:\\r6\\c.md", name: "c.md", t: 4, title: "File c", preview: "some text c", words: 5, pinned: true },
+    { ref: "C:\\r6\\d.md", name: "d.md", t: 3 },
+  ];
+  const list = normalize(raw);
+  assert.equal(list.length, 2);
+  assert.deepEqual(list.map((r) => r.ref), ["C:\\r6\\c.md", "C:\\r6\\d.md"]);
+  assert.equal(list[0].t, 5);
+  assert.equal(list[0].pinned, true);
+  assert.equal(list[0].preview, "some text c");
+  assert.equal(list[0].title, "File c");
 });
