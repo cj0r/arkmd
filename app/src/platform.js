@@ -51,7 +51,11 @@ const androidImpl = {
   async writeFile(ref, text) { await call("write", ref, text); },
   async saveAs(name, text) { return call("createDocument", name, text); },  // -> {ref, name} | null
   async launchFile() { return call("takeLaunch"); },                        // -> {ref, name, text} | null
-  async confirm(message, title) { return call("confirm", title, message); },
+  async confirm(message, title, okLabel) { return okLabel ? call("confirmWith", title, message, okLabel) : call("confirm", title, message); },
+  /** Delete a file in an added folder (there is no trash on Android, so it is erased); only such files can be deleted. */
+  canDelete: (ref) => /^content:\/\/[^/]+\/tree\/[^/]+\/document\//.test(String(ref)),
+  deletesForever: true,
+  async trashFile(ref) { await call("deleteDocument", ref); },
   async openUrl(url) { android.openUrl(url); },
   async copyText(text) { await navigator.clipboard.writeText(text); },
   logEvent(level, message) { (level === "error" ? console.error : console.log)("ArkMD", message); },   // Android keeps no file: the system log has it
@@ -65,7 +69,11 @@ const androidImpl = {
   onFileDrop() {},
   openLinked: null,                                                          // files next to a document aren't reachable through the system picker
   readLinkedImage: null,
-  listFolder: null,                                                          // added folders in the recent files flyout are desktop only
+  /** Added folders: the system folder picker keeps its access across restarts. Paths are content:// tree addresses and
+   *  the listing gives each Markdown file its own document address ({ entries: [{ name, is_dir, ref }], truncated }). */
+  async pickTree() { return call("pickFolder"); },                           // -> tree address | null (not pickFolder: that one means "Folder for new files", desktop only)
+  async listFolder(root, rel = "") { return call("listFolder", root, rel); },
+  async forgetFolder(root) { await call("forgetFolder", root); },
   setTitle() {},
   onCloseRequested() {},
   onBack(handler) { window.arkBack = () => handler(); },                    // returns true if handled
@@ -154,10 +162,12 @@ const desktopImpl = {
       throw e;
     }
   },
-  async confirm(message, title) {
+  async confirm(message, title, okLabel = "Discard") {
     const { ask } = await import("@tauri-apps/plugin-dialog");
-    return ask(message, { title, kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" });
+    return ask(message, { title, kind: "warning", okLabel, cancelLabel: "Cancel" });
   },
+  /** Move a Markdown file to the Recycle Bin or Trash (it is never erased; see trash_file in lib.rs). */
+  async trashFile(path) { await invoke("trash_file", { path }); },
   async openUrl(url) { await invoke("open_external", { url }); },     // the host's own opener; see host.rs
   async copyText(text) {
     // The web view on Linux gives the page no clipboard access, so the system clipboard is set natively first.
